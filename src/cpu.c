@@ -19,9 +19,9 @@ uint32_t fetch(riscv_cpu *cpu)
 {
     uint64_t index = cpu->pc;
     return (uint32_t) cpu->memory.mem[index] |
-           (uint32_t)(cpu->memory.mem[index + 1] << 8) |
-           (uint32_t)(cpu->memory.mem[index + 2] << 16) |
-           (uint32_t)(cpu->memory.mem[index + 3] << 24);
+           (uint32_t)(cpu->memory.mem[index + 1]) << 8 |
+           (uint32_t)(cpu->memory.mem[index + 2]) << 16 |
+           (uint32_t)(cpu->memory.mem[index + 3]) << 24;
 }
 
 void exec(riscv_cpu *cpu, uint32_t inst)
