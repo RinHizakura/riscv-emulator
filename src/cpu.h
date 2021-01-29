@@ -11,7 +11,7 @@ typedef struct Cpu {
 
 bool init_cpu(riscv_cpu *cpu, const char *filename);
 uint32_t fetch(riscv_cpu *cpu);
-void exec(riscv_cpu *cpu, uint32_t inst);
+bool exec(riscv_cpu *cpu, uint32_t inst);
 void dump_reg(riscv_cpu *cpu);
 void free_cpu(riscv_cpu *cpu);
 #endif

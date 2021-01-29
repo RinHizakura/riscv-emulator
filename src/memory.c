@@ -41,7 +41,7 @@ bool init_mem(riscv_mem *mem, const char *filename)
 }
 
 #if __BYTE_ORDER == __LITTLE_ENDIAN
-#define read_len(bit, ptr, value) value = *(uint##bit##_t *) (ptr)
+#define read_len(bit, ptr, value) value = (*(uint##bit##_t *) (ptr))
 #else
 #define read_len(bit, ptr, value) \
     value = __builtin_bswap##bit(*(uint##bit##_t *) (ptr))
@@ -86,7 +86,7 @@ uint64_t read_mem(riscv_mem *mem, uint64_t addr, uint64_t size)
     *(uint##bit##_t *) (ptr) = (uint##bit##_t)(value)
 #else
 #define write_len(bit, ptr, value) \
-    *(uint##bit##_t *) (ptr) = (uint##bit##_t) __builtin_bswap##bit((value))
+    *(uint##bit##_t *) (ptr) = __builtin_bswap##bit((uint##bit##_t)(value))
 #endif
 
 void write_mem(riscv_mem *mem, uint64_t addr, uint64_t value, uint8_t size)
