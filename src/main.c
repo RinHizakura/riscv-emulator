@@ -15,7 +15,8 @@ int main(int argc, char *argv[])
         exit(1);
     }
 
-    while (emu->cpu.pc < emu->cpu.memory.code_size) {
+    uint64_t start_pc = emu->cpu.pc;
+    while (emu->cpu.pc < start_pc + emu->cpu.bus.memory.code_size) {
         uint32_t inst = fetch(&emu->cpu);
         emu->cpu.pc += 4;
         exec(&emu->cpu, inst);

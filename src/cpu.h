@@ -1,10 +1,10 @@
 #ifndef RISCV_CPU
 #define RISCV_CPU
 
-#include "memory.h"
+#include "bus.h"
 
 typedef struct Cpu {
-    riscv_mem memory;
+    riscv_bus bus;
     uint64_t xreg[32];
     uint64_t pc;
 } riscv_cpu;

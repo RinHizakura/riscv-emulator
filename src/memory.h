@@ -1,8 +1,6 @@
 #ifndef RISCV_MEM
 #define RISCV_MEM
 
-/// The address which DRAM starts
-#define DRAM_BASE 0x80000000
 /// Default memory size (1GiB)
 #define DRAM_SIZE (1024 * 1024 * 1024)
 

@@ -1,27 +1,22 @@
 #include <stdbool.h>
 #include <stdint.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include "cpu.h"
 bool init_cpu(riscv_cpu *cpu, const char *filename)
 {
-    if (!init_mem(&cpu->memory, filename))
+    if (!init_bus(&cpu->bus, filename))
         return false;
     memset(&cpu->xreg[0], 0, sizeof(uint64_t) * 32);
-    cpu->pc = 0;
+    cpu->pc = DRAM_BASE;
     cpu->xreg[2] = DRAM_BASE + DRAM_SIZE;
     return true;
 }
 
 uint32_t fetch(riscv_cpu *cpu)
 {
-    uint64_t index = cpu->pc;
-    return (uint32_t) cpu->memory.mem[index] |
-           (uint32_t)(cpu->memory.mem[index + 1]) << 8 |
-           (uint32_t)(cpu->memory.mem[index + 2]) << 16 |
-           (uint32_t)(cpu->memory.mem[index + 3]) << 24;
+    return read_bus(&cpu->bus, cpu->pc, 32);
 }
 
 void exec(riscv_cpu *cpu, uint32_t inst)
@@ -69,5 +64,5 @@ void dump_reg(riscv_cpu *cpu)
 
 void free_cpu(riscv_cpu *cpu)
 {
-    free_memory(&cpu->memory);
+    free_bus(&cpu->bus);
 }

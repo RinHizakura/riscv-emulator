@@ -1,8 +1,8 @@
 #include <endian.h>
 #include <stddef.h>
-#include <stdio.h>
 #include <stdlib.h>
 
+#include "bus.h"
 #include "memory.h"
 
 bool init_mem(riscv_mem *mem, const char *filename)
