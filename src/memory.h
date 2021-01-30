@@ -7,7 +7,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-typedef struct memory {
+typedef struct {
     uint8_t *mem;
     uint64_t code_size;
 } riscv_mem;

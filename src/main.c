@@ -17,9 +17,12 @@ int main(int argc, char *argv[])
 
     uint64_t start_pc = emu->cpu.pc;
     while (emu->cpu.pc < start_pc + emu->cpu.bus.memory.code_size) {
-        uint32_t inst = fetch(&emu->cpu);
+        fetch(&emu->cpu);
         emu->cpu.pc += 4;
-        exec(&emu->cpu, inst);
+        bool ret = decode(&emu->cpu);
+        if (ret == false)
+            break;
+        exec(&emu->cpu);
     }
 
     dump_reg(&emu->cpu);
