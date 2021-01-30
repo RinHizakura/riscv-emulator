@@ -46,13 +46,22 @@ static void U_decode(riscv_cpu *cpu)
 {
     uint32_t instr = cpu->instr.instr;
     cpu->instr.rd = (instr >> 7) & 0x1f;
-    cpu->instr.imm = asr((int32_t)(instr & 0xfffff000), 12);
+    cpu->instr.imm = (int32_t)(instr & 0xfffff000);
+}
+
+static void S_decode(riscv_cpu *cpu)
+{
+    uint32_t instr = cpu->instr.instr;
+    cpu->instr.rs1 = ((instr >> 15) & 0x1f);
+    cpu->instr.rs2 = ((instr >> 20) & 0x1f);
+    cpu->instr.imm =
+        asr((int32_t)(instr & 0xfe000000), 20) | (int32_t)((instr >> 7) & 0x1f);
 }
 
 static void instr_lb(riscv_cpu *cpu)
 {
     uint64_t addr = cpu->xreg[cpu->instr.rs1] + cpu->instr.imm;
-    uint64_t value = read_bus(&cpu->bus, addr, (1 << 3));
+    uint64_t value = read_bus(&cpu->bus, addr, 8);
     cpu->xreg[cpu->instr.rd] = ((int8_t)(value));
 }
 
@@ -80,21 +89,21 @@ static void instr_ld(riscv_cpu *cpu)
 static void instr_lbu(riscv_cpu *cpu)
 {
     uint64_t addr = cpu->xreg[cpu->instr.rs1] + cpu->instr.imm;
-    uint64_t value = read_bus(&cpu->bus, addr, 16);
+    uint64_t value = read_bus(&cpu->bus, addr, 8);
     cpu->xreg[cpu->instr.rd] = value;
 }
 
 static void instr_lhu(riscv_cpu *cpu)
 {
     uint64_t addr = cpu->xreg[cpu->instr.rs1] + cpu->instr.imm;
-    uint64_t value = read_bus(&cpu->bus, addr, 32);
+    uint64_t value = read_bus(&cpu->bus, addr, 16);
     cpu->xreg[cpu->instr.rd] = value;
 }
 
 static void instr_lwu(riscv_cpu *cpu)
 {
     uint64_t addr = cpu->xreg[cpu->instr.rs1] + cpu->instr.imm;
-    uint64_t value = read_bus(&cpu->bus, addr, 64);
+    uint64_t value = read_bus(&cpu->bus, addr, 32);
     cpu->xreg[cpu->instr.rd] = value;
 }
 
@@ -215,7 +224,64 @@ static void instr_and(riscv_cpu *cpu)
         cpu->xreg[cpu->instr.rs1] & cpu->xreg[cpu->instr.rs2];
 }
 
-static void instr_auipc() {}
+static void instr_auipc(riscv_cpu *cpu)
+{
+    cpu->xreg[cpu->instr.rd] = cpu->pc + cpu->instr.imm - 4;
+}
+
+/* we use many explicit conversion to guarantee the behavior of the instruction
+ */
+static void instr_addiw(riscv_cpu *cpu)
+{
+    cpu->xreg[cpu->instr.rd] = (int32_t)(
+        ((uint32_t) cpu->xreg[cpu->instr.rs1] + (uint32_t) cpu->instr.imm));
+}
+
+static void instr_slliw(riscv_cpu *cpu)
+{
+    uint32_t shamt = (cpu->instr.imm & 0x1f);
+    cpu->xreg[cpu->instr.rd] =
+        (int32_t)(((uint32_t) cpu->xreg[cpu->instr.rs1] << shamt));
+}
+
+static void instr_srliw(riscv_cpu *cpu)
+{
+    uint32_t shamt = (cpu->instr.imm & 0x1f);
+    cpu->xreg[cpu->instr.rd] =
+        (int32_t)((uint32_t) cpu->xreg[cpu->instr.rs1] >> shamt);
+}
+
+static void instr_sraiw(riscv_cpu *cpu)
+{
+    uint32_t shamt = (cpu->instr.imm & 0x1f);
+    cpu->xreg[cpu->instr.rd] =
+        asr((int32_t)((uint32_t) cpu->xreg[cpu->instr.rs1]), shamt);
+}
+
+static void instr_sb(riscv_cpu *cpu)
+{
+    uint64_t addr = cpu->xreg[cpu->instr.rs1] + cpu->instr.imm;
+    write_bus(&cpu->bus, addr, 8, cpu->xreg[cpu->instr.rs2]);
+}
+
+static void instr_sh(riscv_cpu *cpu)
+{
+    uint64_t addr = cpu->xreg[cpu->instr.rs1] + cpu->instr.imm;
+    write_bus(&cpu->bus, addr, 16, cpu->xreg[cpu->instr.rs2]);
+}
+
+static void instr_sw(riscv_cpu *cpu)
+{
+    uint64_t addr = cpu->xreg[cpu->instr.rs1] + cpu->instr.imm;
+    write_bus(&cpu->bus, addr, 32, cpu->xreg[cpu->instr.rs2]);
+}
+
+static void instr_sd(riscv_cpu *cpu)
+{
+    uint64_t addr = cpu->xreg[cpu->instr.rs1] + cpu->instr.imm;
+    write_bus(&cpu->bus, addr, 64, cpu->xreg[cpu->instr.rs2]);
+}
+
 /* clang-format off */
 static riscv_instr_entry instr_load_type[] = {
     [0x0] = {NULL, instr_lb, NULL},  
@@ -300,10 +366,33 @@ static riscv_instr_entry instr_reg_type[] = {
 };
 INIT_RISCV_INSTR_LIST(FUNC3, instr_reg_type);
 
+static riscv_instr_entry instr_srliw_sraiw_type[] = {
+    [0x00] = {NULL, instr_srliw, NULL},
+    [0x20] = {NULL, instr_sraiw, NULL}
+};
+INIT_RISCV_INSTR_LIST(FUNC7, instr_srliw_sraiw_type);
+
+static riscv_instr_entry instr_immw_type = {
+    [0x0] = {NULL, instr_addiw, NULL},
+    [0x1] = {NULL, instr_slliw, NULL},
+    [0x5] = {NULL, NULL, &instr_srliw_sraiw_type_list}
+};
+INIT_RISCV_INSTR_LIST(FUNC3, instr_immw_type);
+
+static riscv_instr_entry instr_store_type = {
+   [0x0] = {NULL, instr_sb, NULL},
+   [0x1] = {NULL, instr_sh, NULL},
+   [0x2] = {NULL, instr_sw, NULL},
+   [0x3] = {NULL, instr_sd, NULL},
+}
+INIT_RISCV_INSTR_LIST(FUNC3, instr_store_type);
+
 static riscv_instr_entry opcode_type[] = {
     [0x03] = {I_decode, NULL, &instr_load_type_list},
     [0x13] = {I_decode, NULL, &instr_imm_type_list},
     [0x17] = {U_decode, instr_auipc, NULL},
+    [0x1b] = {I_decode, NULL, &instr_immw_type_list},
+    [0x23] = {S_decode, NULL, &instr_store_type_list},
     [0x33] = {R_decode, NULL, &instr_reg_type_list},
 };
 INIT_RISCV_INSTR_LIST(OPCODE, opcode_type);
