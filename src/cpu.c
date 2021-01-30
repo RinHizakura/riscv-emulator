@@ -26,6 +26,29 @@
  * https://gcc.gnu.org/onlinedocs/gcc/Integers-implementation.html
  */
 
+static void R_decode(riscv_cpu *cpu)
+{
+    uint32_t instr = cpu->instr.instr;
+    cpu->instr.rd = (instr >> 7) & 0x1f;
+    cpu->instr.rs1 = ((instr >> 15) & 0x1f);
+    cpu->instr.rs2 = ((instr >> 20) & 0x1f);
+}
+
+static void I_decode(riscv_cpu *cpu)
+{
+    uint32_t instr = cpu->instr.instr;
+    cpu->instr.rd = (instr >> 7) & 0x1f;
+    cpu->instr.rs1 = ((instr >> 15) & 0x1f);
+    cpu->instr.imm = asr((int32_t)(instr & 0xfff00000), 20);
+}
+
+static void U_decode(riscv_cpu *cpu)
+{
+    uint32_t instr = cpu->instr.instr;
+    cpu->instr.rd = (instr >> 7) & 0x1f;
+    cpu->instr.imm = asr((int32_t)(instr & 0xfffff000), 12);
+}
+
 static void instr_lb(riscv_cpu *cpu)
 {
     uint64_t addr = cpu->xreg[cpu->instr.rs1] + cpu->instr.imm;
@@ -192,94 +215,96 @@ static void instr_and(riscv_cpu *cpu)
         cpu->xreg[cpu->instr.rs1] & cpu->xreg[cpu->instr.rs2];
 }
 
+static void instr_auipc() {}
 /* clang-format off */
 static riscv_instr_entry instr_load_type[] = {
-    [0x0] = {instr_lb, NULL},  
-    [0x1] = {instr_lh, NULL},
-    [0x2] = {instr_lw, NULL},  
-    [0x3] = {instr_ld, NULL},
-    [0x4] = {instr_lbu, NULL}, 
-    [0x5] = {instr_lhu, NULL},
-    [0x6] = {instr_lwu, NULL}
+    [0x0] = {NULL, instr_lb, NULL},  
+    [0x1] = {NULL, instr_lh, NULL},
+    [0x2] = {NULL, instr_lw, NULL},  
+    [0x3] = {NULL, instr_ld, NULL},
+    [0x4] = {NULL, instr_lbu, NULL}, 
+    [0x5] = {NULL, instr_lhu, NULL},
+    [0x6] = {NULL, instr_lwu, NULL}
 };
 INIT_RISCV_INSTR_LIST(FUNC3, instr_load_type);
 
 static riscv_instr_entry instr_srli_srai_type[] = {
-    [0x0] = {instr_srli, NULL},
-    [0x20] = {instr_srai, NULL}
+    [0x0] =  {NULL, instr_srli, NULL},
+    [0x20] = {NULL, instr_srai, NULL}
 };
 INIT_RISCV_INSTR_LIST(FUNC7, instr_srli_srai_type);
 
 static riscv_instr_entry instr_imm_type[] = {
-    [0x0] = {instr_addi, NULL},
-    [0x1] = {instr_slli, NULL},
-    [0x2] = {instr_slti, NULL},
-    [0x3] = {instr_sltiu, NULL},
-    [0x4] = {instr_xori, NULL},
-    [0x5] = {NULL, &instr_srli_srai_type_list},
-    [0x6] = {instr_ori, NULL},
-    [0x7] = {instr_andi, NULL}
+    [0x0] = {NULL, instr_addi, NULL},
+    [0x1] = {NULL, instr_slli, NULL},
+    [0x2] = {NULL, instr_slti, NULL},
+    [0x3] = {NULL, instr_sltiu, NULL},
+    [0x4] = {NULL, instr_xori, NULL},
+    [0x5] = {NULL, NULL, &instr_srli_srai_type_list},
+    [0x6] = {NULL, instr_ori, NULL},
+    [0x7] = {NULL, instr_andi, NULL}
 };
 INIT_RISCV_INSTR_LIST(FUNC3, instr_imm_type);
 
 static riscv_instr_entry instr_add_mul_sub_type[] = {
-    [0x00] = {instr_add, NULL},
-    [0x01] = {instr_mul, NULL},
-    [0x20] = {instr_sub, NULL}
+    [0x00] = {NULL, instr_add, NULL},
+    [0x01] = {NULL, instr_mul, NULL},
+    [0x20] = {NULL, instr_sub, NULL}
 };
 INIT_RISCV_INSTR_LIST(FUNC7, instr_add_mul_sub_type);
 
 static riscv_instr_entry instr_sll_type[] = {
-    [0x00] = {instr_sll, NULL}
+    [0x00] = {NULL, instr_sll, NULL}
 };
 INIT_RISCV_INSTR_LIST(FUNC7, instr_sll_type);
 
 static riscv_instr_entry instr_slt_type[] = {
-    [0x00] = {instr_slt, NULL}
+    [0x00] = {NULL, instr_slt, NULL}
 };
 INIT_RISCV_INSTR_LIST(FUNC7, instr_slt_type);
 
 static riscv_instr_entry instr_sltu_type[] = {
-    [0x00] = {instr_sltu, NULL}
+    [0x00] = {NULL, instr_sltu, NULL}
 };
 INIT_RISCV_INSTR_LIST(FUNC7, instr_sltu_type);
 
 static riscv_instr_entry instr_xor_type[] = {
-    [0x00] = {instr_xor, NULL}
+    [0x00] = {NULL, instr_xor, NULL}
 };
 INIT_RISCV_INSTR_LIST(FUNC7, instr_xor_type);
 
 static riscv_instr_entry instr_sra_type[] = {
-    [0x20] = {instr_sra, NULL}
+    [0x20] = {NULL, instr_sra, NULL}
 };
 INIT_RISCV_INSTR_LIST(FUNC7, instr_sra_type);
 
 static riscv_instr_entry instr_or_type[] = {
-    [0x00] = {instr_or, NULL}
+    [0x00] = {NULL, instr_or, NULL}
 };
 INIT_RISCV_INSTR_LIST(FUNC7, instr_or_type);
 
 static riscv_instr_entry instr_and_type[] = {
-    [0x00] = {instr_and, NULL}
+    [0x00] = {NULL, instr_and, NULL}
 };
 INIT_RISCV_INSTR_LIST(FUNC7, instr_and_type);
 
 static riscv_instr_entry instr_reg_type[] = {
-    [0x0] = {NULL, &instr_add_mul_sub_type_list},
-    [0x1] = {NULL, &instr_sll_type_list},
-    [0x2] = {NULL, &instr_slt_type_list},
-    [0x3] = {NULL, &instr_sltu_type_list},
-    [0x4] = {NULL, &instr_xor_type_list},
-    [0x5] = {NULL, &instr_sra_type_list},
-    [0x6] = {NULL, &instr_or_type_list},
-    [0x7] = {NULL, &instr_and_type_list}
+    [0x0] = {NULL, NULL, &instr_add_mul_sub_type_list},
+    [0x1] = {NULL, NULL, &instr_sll_type_list},
+    [0x2] = {NULL, NULL, &instr_slt_type_list},
+    [0x3] = {NULL, NULL, &instr_sltu_type_list},
+    [0x4] = {NULL, NULL, &instr_xor_type_list},
+    [0x5] = {NULL, NULL, &instr_sra_type_list},
+    [0x6] = {NULL, NULL, &instr_or_type_list},
+    [0x7] = {NULL, NULL, &instr_and_type_list}
 };
 INIT_RISCV_INSTR_LIST(FUNC3, instr_reg_type);
 
 static riscv_instr_entry opcode_type[] = {
-    [0x03] = {NULL, &instr_load_type_list},
-    [0x13] = {NULL, &instr_imm_type_list},
-    [0x33] = {NULL, &instr_reg_type_list}
+    [0x03] = {I_decode, NULL, &instr_load_type_list},
+    [0x13] = {I_decode, NULL, &instr_imm_type_list},
+    [0x17] = {U_decode, instr_auipc, NULL},
+    [0x33] = {R_decode, NULL, &instr_reg_type_list},
 };
 INIT_RISCV_INSTR_LIST(OPCODE, opcode_type);
 
@@ -311,7 +336,12 @@ static bool __decode(riscv_cpu *cpu, riscv_instr_desc *instr_desc)
     }
 
     riscv_instr_entry entry = instr_desc->instr_list[index];
-    if (entry.exec_func == NULL && entry.next == NULL) {
+
+    if (entry.decode_func)
+        entry.decode_func(cpu);
+
+    if (entry.decode_func == NULL && entry.exec_func == NULL &&
+        entry.next == NULL) {
         LOG_ERROR("Not implemented or invalid instruction 0x%x\n",
                   cpu->instr.instr);
         return false;
@@ -340,12 +370,9 @@ bool init_cpu(riscv_cpu *cpu, const char *filename)
 void fetch(riscv_cpu *cpu)
 {
     uint32_t instr = read_bus(&cpu->bus, cpu->pc, 32);
+    // opcode for indexing the table will be decoded first
     cpu->instr.instr = instr;
     cpu->instr.opcode = instr & 0x7f;
-    cpu->instr.rd = (instr >> 7) & 0x1f;
-    cpu->instr.rs1 = ((instr >> 15) & 0x1f);
-    cpu->instr.rs2 = ((instr >> 20) & 0x1f);
-    cpu->instr.imm = asr((int32_t)(instr & 0xfff00000), 20);
     cpu->instr.funct3 = (instr >> 12) & 0x7;
     cpu->instr.funct7 = (instr >> 25) & 0x7f;
 }

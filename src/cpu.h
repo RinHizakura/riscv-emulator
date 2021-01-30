@@ -40,6 +40,7 @@ typedef struct {
 } riscv_instr_desc;
 
 typedef struct INSTR_ENTRY {
+    void (*decode_func)(riscv_cpu *cpu);
     void (*exec_func)(riscv_cpu *cpu);
     riscv_instr_desc *next;
 } riscv_instr_entry;
