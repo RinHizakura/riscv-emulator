@@ -5,9 +5,11 @@
 
 #include "cpu.h"
 
-#define asr(value, amount) (value < 0 ? ~(~value >> amount) : value >> amount)
-
-/* Note of some C standard:
+/* Many type conversion are appied for expected result. To know the detail, you
+ * should check out the International Standard of C:
+ * http://www.open-std.org/jtc1/sc22/wg14/www/docs/n1548.pdf
+ *
+ * For example, belows are some C standard you may want to know:
  * 1. The result of E1 >> E2 is E1 right-shifted E2 bit positions.
  * If E1 has an unsigned type the value of the result is the integral
  * part of the quotient of E1 / 2E2.  If E1 has a signed type and a negative
@@ -24,6 +26,25 @@
  *
  * Implementation-defined of gcc:
  * https://gcc.gnu.org/onlinedocs/gcc/Integers-implementation.html
+ *
+ * The important rule of gcc implementation we will use here:
+ * 1. The result of, or the signal raised by, converting an integer to a signed
+ * integer type when the value cannot be represented in an object of that type
+ * (C90 6.2.1.2, C99 and C11 6.3.1.3): For conversion to a type of width N, the
+ * value is reduced modulo 2^N to be within range of the type; no signal is
+ * raised.
+ *
+ * 2. The results of some bitwise operations on signed integers (C90 6.3, C99
+ * and C11 6.5): Bitwise operators act on the representation of the value
+ * including both the sign and value bits, where the sign bit is considered
+ * immediately above the highest-value value bit. Signed ‘>>’ acts on negative
+ * numbers by sign extension. As an extension to the C language, GCC does not
+ * use the latitude given in C99 and C11 only to treat certain aspects of signed
+ * ‘<<’ as undefined. However, -fsanitize=shift (and -fsanitize=undefined) will
+ * diagnose such cases. They are also diagnosed where constant expressions are
+ * required.
+ *
+ * On the other words, use compiler other than gcc may result error!
  */
 
 static void R_decode(riscv_cpu *cpu)
@@ -39,7 +60,7 @@ static void I_decode(riscv_cpu *cpu)
     uint32_t instr = cpu->instr.instr;
     cpu->instr.rd = (instr >> 7) & 0x1f;
     cpu->instr.rs1 = ((instr >> 15) & 0x1f);
-    cpu->instr.imm = asr((int32_t)(instr & 0xfff00000), 20);
+    cpu->instr.imm = (int32_t)(instr & 0xfff00000) >> 20;
 }
 
 static void U_decode(riscv_cpu *cpu)
@@ -55,7 +76,19 @@ static void S_decode(riscv_cpu *cpu)
     cpu->instr.rs1 = ((instr >> 15) & 0x1f);
     cpu->instr.rs2 = ((instr >> 20) & 0x1f);
     cpu->instr.imm =
-        asr((int32_t)(instr & 0xfe000000), 20) | (int32_t)((instr >> 7) & 0x1f);
+        ((int32_t)(instr & 0xfe000000) >> 20) | ((instr >> 7) & 0x1f);
+}
+
+static void B_decode(riscv_cpu *cpu)
+{
+    uint32_t instr = cpu->instr.instr;
+    cpu->instr.rs1 = ((instr >> 15) & 0x1f);
+    cpu->instr.rs2 = ((instr >> 20) & 0x1f);
+    // imm[12|10:5|4:1|11] = inst[31|30:25|11:8|7]
+    cpu->instr.imm = ((int32_t)(instr & 0x80000000) >> 19)  // 12
+                     | ((instr & 0x80) << 4)                // 11
+                     | ((instr >> 20) & 0x7e0)              // 10:5
+                     | ((instr >> 7) & 0x1e);               // 4:1
 }
 
 static void instr_lb(riscv_cpu *cpu)
@@ -148,7 +181,7 @@ static void instr_srai(riscv_cpu *cpu)
 {
     // shift amount is the lower 6 bits of immediate
     uint32_t shamt = (cpu->instr.imm & 0x3f);
-    cpu->xreg[cpu->instr.rd] = asr((int64_t)(cpu->xreg[cpu->instr.rs1]), shamt);
+    cpu->xreg[cpu->instr.rd] = (int64_t)(cpu->xreg[cpu->instr.rs1]) >> shamt;
 }
 
 static void instr_ori(riscv_cpu *cpu)
@@ -209,7 +242,7 @@ static void instr_sra(riscv_cpu *cpu)
 {
     // shift amount is the low 6 bits of rs2
     uint32_t shamt = (cpu->xreg[cpu->instr.rs2] & 0x3f);
-    cpu->xreg[cpu->instr.rd] = asr((int64_t) cpu->xreg[cpu->instr.rs1], shamt);
+    cpu->xreg[cpu->instr.rd] = (int64_t) cpu->xreg[cpu->instr.rs1] >> shamt;
 }
 
 static void instr_or(riscv_cpu *cpu)
@@ -229,8 +262,6 @@ static void instr_auipc(riscv_cpu *cpu)
     cpu->xreg[cpu->instr.rd] = cpu->pc + cpu->instr.imm - 4;
 }
 
-/* we use many explicit conversion to guarantee the behavior of the instruction
- */
 static void instr_addiw(riscv_cpu *cpu)
 {
     cpu->xreg[cpu->instr.rd] = (int32_t)(
@@ -255,7 +286,7 @@ static void instr_sraiw(riscv_cpu *cpu)
 {
     uint32_t shamt = (cpu->instr.imm & 0x1f);
     cpu->xreg[cpu->instr.rd] =
-        asr((int32_t)((uint32_t) cpu->xreg[cpu->instr.rs1]), shamt);
+        (int32_t)((uint32_t) cpu->xreg[cpu->instr.rs1]) >> shamt;
 }
 
 static void instr_sb(riscv_cpu *cpu)
@@ -280,6 +311,82 @@ static void instr_sd(riscv_cpu *cpu)
 {
     uint64_t addr = cpu->xreg[cpu->instr.rs1] + cpu->instr.imm;
     write_bus(&cpu->bus, addr, 64, cpu->xreg[cpu->instr.rs2]);
+}
+
+static void instr_lui(riscv_cpu *cpu)
+{
+    cpu->xreg[cpu->instr.rd] = cpu->instr.imm;
+}
+
+static void instr_addw(riscv_cpu *cpu)
+{
+    cpu->xreg[cpu->instr.rd] = (int32_t)((uint32_t) cpu->xreg[cpu->instr.rs1] +
+                                         (uint32_t) cpu->xreg[cpu->instr.rs2]);
+}
+
+static void instr_subw(riscv_cpu *cpu)
+{
+    cpu->xreg[cpu->instr.rd] = (int32_t)((uint32_t) cpu->xreg[cpu->instr.rs1] -
+                                         (uint32_t) cpu->xreg[cpu->instr.rs2]);
+}
+
+static void instr_sllw(riscv_cpu *cpu)
+{
+    uint32_t shamt = (cpu->xreg[cpu->instr.rs2] & 0x1f);
+    cpu->xreg[cpu->instr.rd] =
+        (int32_t)((uint32_t) cpu->xreg[cpu->instr.rs1] << shamt);
+}
+
+static void instr_srlw(riscv_cpu *cpu)
+{
+    uint32_t shamt = (cpu->xreg[cpu->instr.rs2] & 0x1f);
+    cpu->xreg[cpu->instr.rd] =
+        (int32_t)((uint32_t) cpu->xreg[cpu->instr.rs1] >> shamt);
+}
+
+static void instr_sraw(riscv_cpu *cpu)
+{
+    uint32_t shamt = (cpu->xreg[cpu->instr.rs2] & 0x1f);
+    cpu->xreg[cpu->instr.rd] =
+        (int32_t)((uint32_t) cpu->xreg[cpu->instr.rs1]) >> shamt;
+}
+
+static void instr_beq(riscv_cpu *cpu)
+{
+    if (cpu->xreg[cpu->instr.rs1] == cpu->xreg[cpu->instr.rs2])
+        cpu->pc = cpu->pc + cpu->instr.imm - 4;
+}
+
+static void instr_bne(riscv_cpu *cpu)
+{
+    if (cpu->xreg[cpu->instr.rs1] != cpu->xreg[cpu->instr.rs2])
+        cpu->pc = cpu->pc + cpu->instr.imm - 4;
+}
+
+static void instr_blt(riscv_cpu *cpu)
+{
+    if ((int64_t) cpu->xreg[cpu->instr.rs1] <
+        (int64_t) cpu->xreg[cpu->instr.rs2])
+        cpu->pc = cpu->pc + cpu->instr.imm - 4;
+}
+
+static void instr_bge(riscv_cpu *cpu)
+{
+    if ((int64_t) cpu->xreg[cpu->instr.rs1] >=
+        (int64_t) cpu->xreg[cpu->instr.rs2])
+        cpu->pc = cpu->pc + cpu->instr.imm - 4;
+}
+
+static void instr_bltu(riscv_cpu *cpu)
+{
+    if (cpu->xreg[cpu->instr.rs1] < cpu->xreg[cpu->instr.rs2])
+        cpu->pc = cpu->pc + cpu->instr.imm - 4;
+}
+
+static void instr_bgeu(riscv_cpu *cpu)
+{
+    if (cpu->xreg[cpu->instr.rs1] >= cpu->xreg[cpu->instr.rs2])
+        cpu->pc = cpu->pc + cpu->instr.imm - 4;
 }
 
 /* clang-format off */
@@ -372,20 +479,54 @@ static riscv_instr_entry instr_srliw_sraiw_type[] = {
 };
 INIT_RISCV_INSTR_LIST(FUNC7, instr_srliw_sraiw_type);
 
-static riscv_instr_entry instr_immw_type = {
+static riscv_instr_entry instr_immw_type[] = {
     [0x0] = {NULL, instr_addiw, NULL},
     [0x1] = {NULL, instr_slliw, NULL},
     [0x5] = {NULL, NULL, &instr_srliw_sraiw_type_list}
 };
 INIT_RISCV_INSTR_LIST(FUNC3, instr_immw_type);
 
-static riscv_instr_entry instr_store_type = {
+static riscv_instr_entry instr_store_type[] = {
    [0x0] = {NULL, instr_sb, NULL},
    [0x1] = {NULL, instr_sh, NULL},
    [0x2] = {NULL, instr_sw, NULL},
    [0x3] = {NULL, instr_sd, NULL},
-}
+};
 INIT_RISCV_INSTR_LIST(FUNC3, instr_store_type);
+
+static riscv_instr_entry instr_addw_subw_type[] = {
+    [0x00] = {NULL, instr_addw, NULL},
+    [0x20] = {NULL, instr_subw, NULL}
+};
+INIT_RISCV_INSTR_LIST(FUNC7, instr_addw_subw_type);
+
+static riscv_instr_entry instr_sllw_type[] = {
+    [0x00] = {NULL, instr_sllw, NULL},
+};
+INIT_RISCV_INSTR_LIST(FUNC7, instr_sllw_type);
+
+static riscv_instr_entry instr_srlw_sraw_type[] = {
+    [0x00] = {NULL, instr_srlw, NULL},
+    [0x20] = {NULL, instr_sraw, NULL}
+};
+INIT_RISCV_INSTR_LIST(FUNC7, instr_srlw_sraw_type);
+
+static riscv_instr_entry instr_regw_type[] = {
+    [0x0] = {NULL, NULL, &instr_addw_subw_type_list},
+    [0x1] = {NULL, NULL, &instr_sllw_type_list},
+    [0x5] = {NULL, NULL, &instr_srlw_sraw_type_list},
+};
+INIT_RISCV_INSTR_LIST(FUNC3, instr_regw_type);
+
+static riscv_instr_entry instr_branch_type[] = {
+    [0x0] = {NULL, instr_beq, NULL},
+    [0x1] = {NULL, instr_bne, NULL},
+    [0x4] = {NULL, instr_blt, NULL},
+    [0x5] = {NULL, instr_bge, NULL},
+    [0x6] = {NULL, instr_bltu, NULL},
+    [0x7] = {NULL, instr_bgeu, NULL},
+};
+INIT_RISCV_INSTR_LIST(FUNC3, instr_branch_type);
 
 static riscv_instr_entry opcode_type[] = {
     [0x03] = {I_decode, NULL, &instr_load_type_list},
@@ -394,6 +535,9 @@ static riscv_instr_entry opcode_type[] = {
     [0x1b] = {I_decode, NULL, &instr_immw_type_list},
     [0x23] = {S_decode, NULL, &instr_store_type_list},
     [0x33] = {R_decode, NULL, &instr_reg_type_list},
+    [0x37] = {U_decode, instr_lui, NULL},
+    [0x3b] = {U_decode, NULL, &instr_regw_type_list},
+    [0x63] = {B_decode, NULL, &instr_branch_type_list},
 };
 INIT_RISCV_INSTR_LIST(OPCODE, opcode_type);
 
@@ -411,7 +555,7 @@ static bool __decode(riscv_cpu *cpu, riscv_instr_desc *instr_desc)
         index = cpu->instr.funct3;
         break;
     case FUNC7:
-        index = cpu->instr.funct3;
+        index = cpu->instr.funct7;
         break;
     default:
         LOG_ERROR("Invalid index type\n");
@@ -419,8 +563,10 @@ static bool __decode(riscv_cpu *cpu, riscv_instr_desc *instr_desc)
     }
 
     if (index > instr_desc->size) {
-        LOG_ERROR("Not implemented or invalid instruction 0x%x\n",
-                  cpu->instr.instr);
+        LOG_ERROR(
+            "Not implemented or invalid instruction:\n"
+            "opcode = 0x%x funct3 = 0x%x funct7 = 0x%x \n",
+            cpu->instr.opcode, cpu->instr.funct3, cpu->instr.funct7);
         return false;
     }
 
@@ -431,13 +577,15 @@ static bool __decode(riscv_cpu *cpu, riscv_instr_desc *instr_desc)
 
     if (entry.decode_func == NULL && entry.exec_func == NULL &&
         entry.next == NULL) {
-        LOG_ERROR("Not implemented or invalid instruction 0x%x\n",
-                  cpu->instr.instr);
+        LOG_ERROR(
+            "@ Not implemented or invalid instruction:\n"
+            "opcode = 0x%x funct3 = 0x%x funct7 = 0x%x \n",
+            cpu->instr.opcode, cpu->instr.funct3, cpu->instr.funct7);
         return false;
     }
 
     if (entry.next != NULL)
-        __decode(cpu, entry.next);
+        return __decode(cpu, entry.next);
     else
         cpu->exec_func = entry.exec_func;
 
