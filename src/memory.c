@@ -1,12 +1,22 @@
 #include <endian.h>
 #include <stddef.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "bus.h"
 #include "memory.h"
 
 bool init_mem(riscv_mem *mem, const char *filename)
 {
+    // create memory with default size
+    mem->mem = malloc(DRAM_SIZE);
+    if (!mem->mem) {
+        LOG_ERROR("Error when allocating space through malloc.\n");
+        return false;
+    }
+    memset(mem->mem, 0, DRAM_SIZE);
+
+    // load binary file to memory
     if (!filename) {
         LOG_ERROR("Binary is required for memory!\n");
         return false;
@@ -22,12 +32,6 @@ bool init_mem(riscv_mem *mem, const char *filename)
     size_t sz = ftell(fp) * sizeof(uint8_t);
     rewind(fp);
 
-    mem->mem = malloc(sz);
-    if (!mem->mem) {
-        LOG_ERROR("Error when allocating space through malloc.\n");
-        fclose(fp);
-        return false;
-    }
     size_t read_size = fread(mem->mem, sizeof(uint8_t), sz, fp);
 
     if (read_size != sz) {
@@ -89,7 +93,7 @@ uint64_t read_mem(riscv_mem *mem, uint64_t addr, uint64_t size)
     *(uint##bit##_t *) (ptr) = __builtin_bswap##bit((uint##bit##_t)(value))
 #endif
 
-void write_mem(riscv_mem *mem, uint64_t addr, uint64_t value, uint8_t size)
+void write_mem(riscv_mem *mem, uint64_t addr, uint8_t size, uint64_t value)
 {
     uint64_t index = (addr - DRAM_BASE);
 

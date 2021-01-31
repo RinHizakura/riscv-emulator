@@ -68,8 +68,11 @@ static void S_decode(riscv_cpu *cpu)
     uint32_t instr = cpu->instr.instr;
     cpu->instr.rs1 = ((instr >> 15) & 0x1f);
     cpu->instr.rs2 = ((instr >> 20) & 0x1f);
-    cpu->instr.imm =
-        ((int32_t)(instr & 0xfe000000) >> 20) | ((instr >> 7) & 0x1f);
+    /* note that we have to convert the right statement of "bitwise or" to
+     * int32_t to avoid non-expected promotion. Same case in B type and J type
+     * decoding */
+    cpu->instr.imm = (((int32_t)(instr & 0xfe000000) >> 20) |
+                      (int32_t)((instr >> 7) & 0x1f));
 }
 
 static void B_decode(riscv_cpu *cpu)
@@ -79,9 +82,9 @@ static void B_decode(riscv_cpu *cpu)
     cpu->instr.rs2 = ((instr >> 20) & 0x1f);
     // imm[12|10:5|4:1|11] = inst[31|30:25|11:8|7]
     cpu->instr.imm = ((int32_t)(instr & 0x80000000) >> 19)  // 12
-                     | ((instr & 0x80) << 4)                // 11
-                     | ((instr >> 20) & 0x7e0)              // 10:5
-                     | ((instr >> 7) & 0x1e);               // 4:1
+                     | (int32_t)((instr & 0x80) << 4)       // 11
+                     | (int32_t)((instr >> 20) & 0x7e0)     // 10:5
+                     | (int32_t)((instr >> 7) & 0x1e);      // 4:1
 }
 
 static void U_decode(riscv_cpu *cpu)
@@ -98,9 +101,9 @@ static void J_decode(riscv_cpu *cpu)
 
     // imm[20|10:1|11|19:12] = inst[31|30:21|20|19:12]
     cpu->instr.imm = ((int32_t)(instr & 0x80000000) >> 11)  // 20
-                     | ((instr & 0xff0000))                 // 19:12
-                     | ((instr >> 9) & 0x800)               // 11
-                     | ((instr >> 20) & 0x7fe);             // 10:1
+                     | (int32_t)((instr & 0xff000))         // 19:12
+                     | (int32_t)((instr >> 9) & 0x800)      // 11
+                     | (int32_t)((instr >> 20) & 0x7fe);    // 10:1
 }
 
 static void instr_lb(riscv_cpu *cpu)
@@ -405,6 +408,7 @@ static void instr_jalr(riscv_cpu *cpu)
 {
     // we don't need to add 4 because the pc already moved on.
     uint64_t prev_pc = cpu->pc;
+
     // note that we have to set the least-significant bit of the result to zero
     cpu->pc = (cpu->xreg[cpu->instr.rs1] + cpu->instr.imm) & ~1;
     cpu->xreg[cpu->instr.rd] = prev_pc;
@@ -562,7 +566,7 @@ static riscv_instr_entry opcode_type[] = {
     [0x23] = {S_decode, NULL, &instr_store_type_list},
     [0x33] = {R_decode, NULL, &instr_reg_type_list},
     [0x37] = {U_decode, instr_lui, NULL},
-    [0x3b] = {U_decode, NULL, &instr_regw_type_list},
+    [0x3b] = {R_decode, NULL, &instr_regw_type_list},
     [0x63] = {B_decode, NULL, &instr_branch_type_list},
     [0x67] = {I_decode, instr_jalr, NULL},
     [0x6f] = {J_decode, instr_jal, NULL},
@@ -640,6 +644,12 @@ void fetch(riscv_cpu *cpu)
     cpu->instr.opcode = instr & 0x7f;
     cpu->instr.funct3 = (instr >> 12) & 0x7;
     cpu->instr.funct7 = (instr >> 25) & 0x7f;
+
+    LOG_DEBUG(
+        "[DEBUG] instr: 0x%x\n"
+        "opcode = 0x%x funct3 = 0x%x funct7 = 0x%x \n",
+        cpu->instr.instr, cpu->instr.opcode, cpu->instr.funct3,
+        cpu->instr.funct7);
 }
 
 bool decode(riscv_cpu *cpu)
@@ -662,8 +672,14 @@ void exec(riscv_cpu *cpu)
 
 void dump_reg(riscv_cpu *cpu)
 {
+    static char *abi_name[] = {
+        "z",  "ra", "sp", "gp", "tp",  "t0",  "t1", "t2", "s0", "s1", "a0",
+        "a1", "a2", "a3", "a4", "a5",  "a6",  "a7", "s2", "s3", "s4", "s5",
+        "s6", "s7", "s8", "s9", "s10", "s11", "t3", "t4", "t5", "t6"};
+
+    printf("pc = 0x%lx\n", cpu->pc);
     for (size_t i = 0; i < 32; i++) {
-        printf("x%ld = 0x%lx, ", i, cpu->xreg[i]);
+        printf("x%-2ld(%-3s) = 0x%-8lx, ", i, abi_name[i], cpu->xreg[i]);
         if (!((i + 1) & 3))
             printf("\n");
     }

@@ -4,7 +4,7 @@
 #include "memory.h"
 
 /// The address which DRAM starts
-#define DRAM_BASE 0x80000000
+#define DRAM_BASE 0x80000000UL
 
 typedef struct {
     riscv_mem memory;
