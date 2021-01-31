@@ -63,13 +63,6 @@ static void I_decode(riscv_cpu *cpu)
     cpu->instr.imm = (int32_t)(instr & 0xfff00000) >> 20;
 }
 
-static void U_decode(riscv_cpu *cpu)
-{
-    uint32_t instr = cpu->instr.instr;
-    cpu->instr.rd = (instr >> 7) & 0x1f;
-    cpu->instr.imm = (int32_t)(instr & 0xfffff000);
-}
-
 static void S_decode(riscv_cpu *cpu)
 {
     uint32_t instr = cpu->instr.instr;
@@ -89,6 +82,25 @@ static void B_decode(riscv_cpu *cpu)
                      | ((instr & 0x80) << 4)                // 11
                      | ((instr >> 20) & 0x7e0)              // 10:5
                      | ((instr >> 7) & 0x1e);               // 4:1
+}
+
+static void U_decode(riscv_cpu *cpu)
+{
+    uint32_t instr = cpu->instr.instr;
+    cpu->instr.rd = (instr >> 7) & 0x1f;
+    cpu->instr.imm = (int32_t)(instr & 0xfffff000);
+}
+
+static void J_decode(riscv_cpu *cpu)
+{
+    uint32_t instr = cpu->instr.instr;
+    cpu->instr.rd = (instr >> 7) & 0x1f;
+
+    // imm[20|10:1|11|19:12] = inst[31|30:21|20|19:12]
+    cpu->instr.imm = ((int32_t)(instr & 0x80000000) >> 11)  // 20
+                     | ((instr & 0xff0000))                 // 19:12
+                     | ((instr >> 9) & 0x800)               // 11
+                     | ((instr >> 20) & 0x7fe);             // 10:1
 }
 
 static void instr_lb(riscv_cpu *cpu)
@@ -389,6 +401,20 @@ static void instr_bgeu(riscv_cpu *cpu)
         cpu->pc = cpu->pc + cpu->instr.imm - 4;
 }
 
+static void instr_jalr(riscv_cpu *cpu)
+{
+    // we don't need to add 4 because the pc already moved on.
+    uint64_t prev_pc = cpu->pc;
+    // note that we have to set the least-significant bit of the result to zero
+    cpu->pc = (cpu->xreg[cpu->instr.rs1] + cpu->instr.imm) & ~1;
+    cpu->xreg[cpu->instr.rd] = prev_pc;
+}
+
+static void instr_jal(riscv_cpu *cpu)
+{
+    cpu->xreg[cpu->instr.rd] = cpu->pc;
+    cpu->pc = cpu->pc + cpu->instr.imm - 4;
+}
 /* clang-format off */
 static riscv_instr_entry instr_load_type[] = {
     [0x0] = {NULL, instr_lb, NULL},  
@@ -538,6 +564,8 @@ static riscv_instr_entry opcode_type[] = {
     [0x37] = {U_decode, instr_lui, NULL},
     [0x3b] = {U_decode, NULL, &instr_regw_type_list},
     [0x63] = {B_decode, NULL, &instr_branch_type_list},
+    [0x67] = {I_decode, instr_jalr, NULL},
+    [0x6f] = {J_decode, instr_jal, NULL},
 };
 INIT_RISCV_INSTR_LIST(OPCODE, opcode_type);
 
