@@ -572,7 +572,6 @@ static riscv_instr_entry opcode_type[] = {
     [0x6f] = {J_decode, instr_jal, NULL},
 };
 INIT_RISCV_INSTR_LIST(OPCODE, opcode_type);
-
 /* clang-format on */
 
 static bool __decode(riscv_cpu *cpu, riscv_instr_desc *instr_desc)

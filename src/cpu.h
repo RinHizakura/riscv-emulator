@@ -2,6 +2,7 @@
 #define RISCV_CPU
 
 #include "bus.h"
+#include "csr.h"
 
 /* FIXME: we are able to consider space complexity here */
 typedef struct {
@@ -17,8 +18,11 @@ typedef struct {
 
 typedef struct CPU riscv_cpu;
 typedef struct CPU {
-    riscv_bus bus;
     riscv_instr instr;
+
+    riscv_bus bus;
+    riscv_csr csr;
+
     uint64_t xreg[32];
     uint64_t pc;
 
