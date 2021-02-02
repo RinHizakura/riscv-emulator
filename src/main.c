@@ -12,6 +12,7 @@ int main(int argc, char *argv[])
     riscv_emu *emu = malloc(sizeof(riscv_emu));
 
     if (!init_emu(emu, argv[1])) {
+        /* FIXME: should properly cleanup first */
         exit(1);
     }
 

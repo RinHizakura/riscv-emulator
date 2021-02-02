@@ -11,7 +11,7 @@ bool init_mem(riscv_mem *mem, const char *filename)
     // create memory with default size
     mem->mem = malloc(DRAM_SIZE);
     if (!mem->mem) {
-        LOG_ERROR("Error when allocating space through malloc.\n");
+        LOG_ERROR("Error when allocating space through malloc for DRAM\n");
         return false;
     }
     memset(mem->mem, 0, DRAM_SIZE);

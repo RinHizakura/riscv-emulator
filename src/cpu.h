@@ -19,7 +19,6 @@ typedef struct {
 typedef struct CPU riscv_cpu;
 typedef struct CPU {
     riscv_instr instr;
-
     riscv_bus bus;
     riscv_csr csr;
 

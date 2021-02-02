@@ -593,7 +593,7 @@ static bool __decode(riscv_cpu *cpu, riscv_instr_desc *instr_desc)
         return false;
     }
 
-    if (index > instr_desc->size) {
+    if (index >= instr_desc->size) {
         LOG_ERROR(
             "Not implemented or invalid instruction:\n"
             "opcode = 0x%x funct3 = 0x%x funct7 = 0x%x \n",
@@ -627,8 +627,13 @@ bool init_cpu(riscv_cpu *cpu, const char *filename)
 {
     if (!init_bus(&cpu->bus, filename))
         return false;
+
+    if (!init_csr(&cpu->csr))
+        return false;
+
     memset(&cpu->instr, 0, sizeof(riscv_instr));
     memset(&cpu->xreg[0], 0, sizeof(uint64_t) * 32);
+
     cpu->pc = DRAM_BASE;
     cpu->xreg[2] = DRAM_BASE + DRAM_SIZE;
     cpu->exec_func = NULL;
@@ -688,4 +693,5 @@ void dump_reg(riscv_cpu *cpu)
 void free_cpu(riscv_cpu *cpu)
 {
     free_bus(&cpu->bus);
+    free_csr(&cpu->csr);
 }
