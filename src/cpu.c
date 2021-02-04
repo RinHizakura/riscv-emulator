@@ -464,6 +464,39 @@ static void instr_csrrci(riscv_cpu *cpu)
     cpu->xreg[cpu->instr.rd] = tmp;
 }
 
+/* TODO: the lock acquire and realease are not implemented now */
+static void instr_amoaddw(riscv_cpu *cpu)
+{
+    uint64_t tmp = read_bus(&cpu->bus, cpu->xreg[cpu->instr.rs1], 32);
+    write_bus(&cpu->bus, cpu->xreg[cpu->instr.rs1], 32,
+              tmp + cpu->xreg[cpu->instr.rs2]);
+    cpu->xreg[cpu->instr.rd] = tmp;
+}
+
+static void instr_amoswapw(riscv_cpu *cpu)
+{
+    uint64_t tmp = read_bus(&cpu->bus, cpu->xreg[cpu->instr.rs1], 32);
+    write_bus(&cpu->bus, cpu->xreg[cpu->instr.rs1], 32,
+              cpu->xreg[cpu->instr.rs2]);
+    cpu->xreg[cpu->instr.rd] = tmp;
+}
+
+static void instr_amoaddd(riscv_cpu *cpu)
+{
+    uint64_t tmp = read_bus(&cpu->bus, cpu->xreg[cpu->instr.rs1], 64);
+    write_bus(&cpu->bus, cpu->xreg[cpu->instr.rs1], 64,
+              tmp + cpu->xreg[cpu->instr.rs2]);
+    cpu->xreg[cpu->instr.rd] = tmp;
+}
+
+static void instr_amoswapd(riscv_cpu *cpu)
+{
+    uint64_t tmp = read_bus(&cpu->bus, cpu->xreg[cpu->instr.rs1], 64);
+    write_bus(&cpu->bus, cpu->xreg[cpu->instr.rs1], 64,
+              cpu->xreg[cpu->instr.rs2]);
+    cpu->xreg[cpu->instr.rd] = tmp;
+}
+
 /* clang-format off */
 static riscv_instr_entry instr_load_type[] = {
     [0x0] = {NULL, instr_lb, NULL},  
@@ -613,12 +646,32 @@ static riscv_instr_entry instr_csr_type[] = {
 };
 INIT_RISCV_INSTR_LIST(FUNC3, instr_csr_type);
 
+static riscv_instr_entry instr_amoaddw_amoswapw_type[] = {
+    [0x00] = {NULL, instr_amoaddw, NULL}, 
+    [0x01] = {NULL, instr_amoswapw, NULL}
+};
+INIT_RISCV_INSTR_LIST(FUNC5, instr_amoaddw_amoswapw_type);
+
+static riscv_instr_entry instr_amoaddd_amoswapd_type[] = {
+    [0x00] = {NULL, instr_amoaddd, NULL}, 
+    [0x01] = {NULL, instr_amoswapd, NULL}
+};
+INIT_RISCV_INSTR_LIST(FUNC5, instr_amoaddd_amoswapd_type);
+
+
+static riscv_instr_entry instr_atomic_type[] = {
+    [0x2] = {NULL, NULL, &instr_amoaddw_amoswapw_type_list},
+    [0x3] = {NULL, NULL, &instr_amoaddd_amoswapd_type_list},
+};
+INIT_RISCV_INSTR_LIST(FUNC3, instr_atomic_type);
+
 static riscv_instr_entry opcode_type[] = {
     [0x03] = {I_decode, NULL, &instr_load_type_list},
     [0x13] = {I_decode, NULL, &instr_imm_type_list},
     [0x17] = {U_decode, instr_auipc, NULL},
     [0x1b] = {I_decode, NULL, &instr_immw_type_list},
     [0x23] = {S_decode, NULL, &instr_store_type_list},
+    [0x2f] = {R_decode, NULL, &instr_atomic_type_list},
     [0x33] = {R_decode, NULL, &instr_reg_type_list},
     [0x37] = {U_decode, instr_lui, NULL},
     [0x3b] = {R_decode, NULL, &instr_regw_type_list},
@@ -640,6 +693,9 @@ static bool __decode(riscv_cpu *cpu, riscv_instr_desc *instr_desc)
         break;
     case FUNC3:
         index = cpu->instr.funct3;
+        break;
+    case FUNC5:
+        index = (cpu->instr.funct7 & 0b1111100) >> 2;
         break;
     case FUNC7:
         index = cpu->instr.funct7;

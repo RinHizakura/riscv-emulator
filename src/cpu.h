@@ -37,6 +37,7 @@ typedef struct {
     enum {
         OPCODE,
         FUNC3,
+        FUNC5,
         FUNC7,
     } type;
 } riscv_instr_desc_type;
