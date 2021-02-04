@@ -687,6 +687,7 @@ bool init_cpu(riscv_cpu *cpu, const char *filename)
     if (!init_csr(&cpu->csr))
         return false;
 
+    cpu->mode.mode = MACHINE;
     memset(&cpu->instr, 0, sizeof(riscv_instr));
     memset(&cpu->xreg[0], 0, sizeof(uint64_t) * 32);
 

@@ -4,6 +4,10 @@
 #include "bus.h"
 #include "csr.h"
 
+typedef struct {
+    enum { USER = 0x1, SUPERVISOR = 0x1, MACHINE = 0x3 } mode;
+} riscv_mode;
+
 /* FIXME: we are able to consider space complexity here */
 typedef struct {
     uint32_t instr;
@@ -18,6 +22,7 @@ typedef struct {
 
 typedef struct CPU riscv_cpu;
 typedef struct CPU {
+    riscv_mode mode;
     riscv_instr instr;
     riscv_bus bus;
     riscv_csr csr;
