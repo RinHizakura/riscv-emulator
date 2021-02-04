@@ -419,6 +419,51 @@ static void instr_jal(riscv_cpu *cpu)
     cpu->xreg[cpu->instr.rd] = cpu->pc;
     cpu->pc = cpu->pc + cpu->instr.imm - 4;
 }
+
+static void instr_csrrw(riscv_cpu *cpu)
+{
+    uint64_t tmp = read_csr(&cpu->csr, cpu->instr.imm);
+    write_csr(&cpu->csr, cpu->instr.imm, cpu->xreg[cpu->instr.rs1]);
+    cpu->xreg[cpu->instr.rd] = tmp;
+}
+
+static void instr_csrrs(riscv_cpu *cpu)
+{
+    uint64_t tmp = read_csr(&cpu->csr, cpu->instr.imm);
+    write_csr(&cpu->csr, cpu->instr.imm, tmp | cpu->xreg[cpu->instr.rs1]);
+    cpu->xreg[cpu->instr.rd] = tmp;
+}
+
+static void instr_csrrc(riscv_cpu *cpu)
+{
+    uint64_t tmp = read_csr(&cpu->csr, cpu->instr.imm);
+    write_csr(&cpu->csr, cpu->instr.imm, tmp & (~cpu->xreg[cpu->instr.rs1]));
+    cpu->xreg[cpu->instr.rd] = tmp;
+}
+
+static void instr_csrrwi(riscv_cpu *cpu)
+{
+    uint64_t zimm = cpu->instr.rs1;
+    cpu->xreg[cpu->instr.rd] = read_csr(&cpu->csr, cpu->instr.imm);
+    write_csr(&cpu->csr, cpu->instr.imm, zimm);
+}
+
+static void instr_csrrsi(riscv_cpu *cpu)
+{
+    uint64_t zimm = cpu->instr.rs1;
+    uint64_t tmp = read_csr(&cpu->csr, cpu->instr.imm);
+    write_csr(&cpu->csr, cpu->instr.imm, tmp | zimm);
+    cpu->xreg[cpu->instr.rd] = tmp;
+}
+
+static void instr_csrrci(riscv_cpu *cpu)
+{
+    uint64_t zimm = cpu->instr.rs1;
+    uint64_t tmp = read_csr(&cpu->csr, cpu->instr.imm);
+    write_csr(&cpu->csr, cpu->instr.imm, tmp & (~zimm));
+    cpu->xreg[cpu->instr.rd] = tmp;
+}
+
 /* clang-format off */
 static riscv_instr_entry instr_load_type[] = {
     [0x0] = {NULL, instr_lb, NULL},  
@@ -558,6 +603,16 @@ static riscv_instr_entry instr_branch_type[] = {
 };
 INIT_RISCV_INSTR_LIST(FUNC3, instr_branch_type);
 
+static riscv_instr_entry instr_csr_type[] = {
+     [0x1] = {NULL, instr_csrrw, NULL},
+     [0x2] = {NULL, instr_csrrs, NULL},
+     [0x3] = {NULL, instr_csrrc, NULL},
+     [0x5] = {NULL, instr_csrrwi, NULL},
+     [0x6] = {NULL, instr_csrrsi, NULL},
+     [0x7] = {NULL, instr_csrrci, NULL},
+};
+INIT_RISCV_INSTR_LIST(FUNC3, instr_csr_type);
+
 static riscv_instr_entry opcode_type[] = {
     [0x03] = {I_decode, NULL, &instr_load_type_list},
     [0x13] = {I_decode, NULL, &instr_imm_type_list},
@@ -570,6 +625,7 @@ static riscv_instr_entry opcode_type[] = {
     [0x63] = {B_decode, NULL, &instr_branch_type_list},
     [0x67] = {I_decode, instr_jalr, NULL},
     [0x6f] = {J_decode, instr_jal, NULL},
+    [0x73] = {I_decode, NULL, &instr_csr_type_list},
 };
 INIT_RISCV_INSTR_LIST(OPCODE, opcode_type);
 /* clang-format on */
@@ -663,9 +719,10 @@ bool decode(riscv_cpu *cpu)
 
 void exec(riscv_cpu *cpu)
 {
+    cpu->exec_func(cpu);
+
     // Emulate register x0 to 0
     cpu->xreg[0] = 0;
-    cpu->exec_func(cpu);
 
     /* FIXME: If all of our implementation are right, we don't actually need to
      * clean up the structure below. But for easily debugging purpose, we'll
@@ -688,6 +745,19 @@ void dump_reg(riscv_cpu *cpu)
             printf("\n");
     }
     printf("\n");
+}
+
+void dump_csr(riscv_cpu *cpu)
+{
+    printf("%-10s = 0x%-8lx, ", "MSTATUS", read_csr(&cpu->csr, MSTATUS));
+    printf("%-10s = 0x%-8lx, ", "MTVEC", read_csr(&cpu->csr, MTVEC));
+    printf("%-10s = 0x%-8lx, ", "MEPC", read_csr(&cpu->csr, MEPC));
+    printf("%-10s = 0x%-8lx\n", "MCAUSE", read_csr(&cpu->csr, MCAUSE));
+
+    printf("%-10s = 0x%-8lx, ", "SSTATUS", read_csr(&cpu->csr, SSTATUS));
+    printf("%-10s = 0x%-8lx, ", "STVEC", read_csr(&cpu->csr, STVEC));
+    printf("%-10s = 0x%-8lx, ", "SEPC", read_csr(&cpu->csr, SEPC));
+    printf("%-10s = 0x%-8lx\n", "SCAUSE", read_csr(&cpu->csr, SCAUSE));
 }
 
 void free_cpu(riscv_cpu *cpu)

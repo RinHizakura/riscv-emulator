@@ -57,5 +57,6 @@ void fetch(riscv_cpu *cpu);
 bool decode(riscv_cpu *cpu);
 void exec(riscv_cpu *cpu);
 void dump_reg(riscv_cpu *cpu);
+void dump_csr(riscv_cpu *cpu);
 void free_cpu(riscv_cpu *cpu);
 #endif

@@ -27,10 +27,12 @@ int main(int argc, char *argv[])
         exec(&emu->cpu);
 #ifdef DEBUG
         dump_reg(&emu->cpu);
+        dump_csr(&emu->cpu);
 #endif
     }
 
     dump_reg(&emu->cpu);
+    dump_csr(&emu->cpu);
 
     close_emu(emu);
     return 0;

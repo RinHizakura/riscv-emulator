@@ -59,7 +59,7 @@ uint64_t read_csr(riscv_csr *csr, uint16_t addr)
     case SIE:
     case SIP: {
         riscv_csr_entry *mideleg = &csr->list[MIDELEG];
-        return csr_reg->value & mideleg->value;
+        return csr_reg->value & csr_reg->read_mask & mideleg->value;
     }
     default:
         return csr_reg->value & csr_reg->read_mask;
@@ -81,25 +81,39 @@ void write_csr(riscv_csr *csr, uint16_t addr, uint64_t value)
     }
 
     switch (addr) {
+    case MSTATUS:
     case SSTATUS: {
         riscv_csr_entry *mstatus = &csr->list[MSTATUS];
+        riscv_csr_entry *sstatus = &csr->list[SSTATUS];
         uint64_t mask = csr_reg->write_mask;
-        mstatus->value = (mstatus->value & !mask) | (value & mask);
-        csr_reg->value = value & mask;
+        sstatus->value = (value & sstatus->write_mask);
+        mstatus->value = (mstatus->value & ~mask) | (value & mask);
+    } break;
+    case MIE: {
+        riscv_csr_entry *sie = &csr->list[SIE];
+        riscv_csr_entry *mideleg = &csr->list[MIDELEG];
+        csr_reg->value = value & csr_reg->write_mask;
+        sie->value = value & (sie->write_mask | mideleg->value);
     } break;
     case SIE: {
         riscv_csr_entry *mie = &csr->list[MIE];
         riscv_csr_entry *mideleg = &csr->list[MIDELEG];
         uint64_t mask = csr_reg->write_mask | mideleg->value;
-        mie->value = (mie->value & !mask) | (value & mask);
         csr_reg->value = value & mask;
+        mie->value = (mie->value & ~mask) | (value & mask);
+    } break;
+    case MIP: {
+        riscv_csr_entry *sip = &csr->list[SIP];
+        riscv_csr_entry *mideleg = &csr->list[MIDELEG];
+        csr_reg->value = value & csr_reg->write_mask;
+        sip->value = value & (sip->write_mask | mideleg->value);
     } break;
     case SIP: {
         riscv_csr_entry *mip = &csr->list[MIP];
         riscv_csr_entry *mideleg = &csr->list[MIDELEG];
         uint64_t mask = csr_reg->write_mask | mideleg->value;
-        mip->value = (mip->value & !mask) | (value & mask);
         csr_reg->value = value & mask;
+        mip->value = (mip->value & ~mask) | (value & mask);
     } break;
     default:
         csr_reg->value = value & csr_reg->write_mask;
