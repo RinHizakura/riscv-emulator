@@ -253,6 +253,27 @@ static void instr_xor(riscv_cpu *cpu)
         cpu->xreg[cpu->instr.rs1] ^ cpu->xreg[cpu->instr.rs2];
 }
 
+static void instr_srl(riscv_cpu *cpu)
+{
+    uint32_t shamt = (cpu->xreg[cpu->instr.rs2] & 0x3f);
+    cpu->xreg[cpu->instr.rd] = cpu->xreg[cpu->instr.rs1] >> shamt;
+}
+
+static void instr_divu(riscv_cpu *cpu)
+{
+    uint64_t dividend = cpu->xreg[cpu->instr.rs1];
+    uint64_t divisor = cpu->xreg[cpu->instr.rs2];
+
+    if (divisor == 0) {
+        /* TODO: set DZ (Divide by Zero) in the FCSR */
+
+        // the quotient of division by zero has all bits set
+        cpu->xreg[cpu->instr.rd] = -1;
+    } else {
+        cpu->xreg[cpu->instr.rd] = dividend / divisor;
+    }
+}
+
 static void instr_sra(riscv_cpu *cpu)
 {
     // shift amount is the low 6 bits of rs2
@@ -270,6 +291,21 @@ static void instr_and(riscv_cpu *cpu)
 {
     cpu->xreg[cpu->instr.rd] =
         cpu->xreg[cpu->instr.rs1] & cpu->xreg[cpu->instr.rs2];
+}
+
+static void instr_remu(riscv_cpu *cpu)
+{
+    uint64_t dividend = cpu->xreg[cpu->instr.rs1];
+    uint64_t divisor = cpu->xreg[cpu->instr.rs2];
+
+    if (divisor == 0) {
+        /* TODO: set DZ (Divide by Zero) in the FCSR */
+
+        // the quotient of division by zero has all bits set
+        cpu->xreg[cpu->instr.rd] = dividend;
+    } else {
+        cpu->xreg[cpu->instr.rd] = dividend % divisor;
+    }
 }
 
 static void instr_auipc(riscv_cpu *cpu)
@@ -582,20 +618,23 @@ static riscv_instr_entry instr_xor_type[] = {
 };
 INIT_RISCV_INSTR_LIST(FUNC7, instr_xor_type);
 
-static riscv_instr_entry instr_sra_type[] = {
+static riscv_instr_entry instr_srl_divu_sra_type[] = {
+    [0x00] = {NULL, instr_srl, NULL},
+    [0x01] = {NULL, instr_divu, NULL},
     [0x20] = {NULL, instr_sra, NULL}
 };
-INIT_RISCV_INSTR_LIST(FUNC7, instr_sra_type);
+INIT_RISCV_INSTR_LIST(FUNC7, instr_srl_divu_sra_type);
 
 static riscv_instr_entry instr_or_type[] = {
     [0x00] = {NULL, instr_or, NULL}
 };
 INIT_RISCV_INSTR_LIST(FUNC7, instr_or_type);
 
-static riscv_instr_entry instr_and_type[] = {
-    [0x00] = {NULL, instr_and, NULL}
+static riscv_instr_entry instr_and_remu_type[] = {
+    [0x00] = {NULL, instr_and, NULL},
+    [0x01] = {NULL, instr_remu, NULL}
 };
-INIT_RISCV_INSTR_LIST(FUNC7, instr_and_type);
+INIT_RISCV_INSTR_LIST(FUNC7, instr_and_remu_type);
 
 static riscv_instr_entry instr_reg_type[] = {
     [0x0] = {NULL, NULL, &instr_add_mul_sub_type_list},
@@ -603,9 +642,9 @@ static riscv_instr_entry instr_reg_type[] = {
     [0x2] = {NULL, NULL, &instr_slt_type_list},
     [0x3] = {NULL, NULL, &instr_sltu_type_list},
     [0x4] = {NULL, NULL, &instr_xor_type_list},
-    [0x5] = {NULL, NULL, &instr_sra_type_list},
+    [0x5] = {NULL, NULL, &instr_srl_divu_sra_type_list},
     [0x6] = {NULL, NULL, &instr_or_type_list},
-    [0x7] = {NULL, NULL, &instr_and_type_list}
+    [0x7] = {NULL, NULL, &instr_and_remu_type_list}
 };
 INIT_RISCV_INSTR_LIST(FUNC3, instr_reg_type);
 
