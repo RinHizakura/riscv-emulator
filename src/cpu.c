@@ -359,10 +359,10 @@ static void instr_srlw(riscv_cpu *cpu)
         (int32_t)((uint32_t) cpu->xreg[cpu->instr.rs1] >> shamt);
 }
 
-static void instr_divu(riscv_cpu *cpu)
+static void instr_divuw(riscv_cpu *cpu)
 {
-    uint64_t dividend = cpu->xreg[cpu->instr.rs1];
-    uint64_t divisor = cpu->xreg[cpu->instr.rs2];
+    uint32_t dividend = cpu->xreg[cpu->instr.rs1];
+    uint32_t divisor = cpu->xreg[cpu->instr.rs2];
 
     if (divisor == 0) {
         /* TODO: set DZ (Divide by Zero) in the FCSR */
@@ -370,7 +370,7 @@ static void instr_divu(riscv_cpu *cpu)
         // the quotient of division by zero has all bits set
         cpu->xreg[cpu->instr.rd] = -1;
     } else {
-        cpu->xreg[cpu->instr.rd] = dividend / divisor;
+        cpu->xreg[cpu->instr.rd] = (int32_t)(dividend / divisor);
     }
 }
 
@@ -641,12 +641,12 @@ static riscv_instr_entry instr_sllw_type[] = {
 };
 INIT_RISCV_INSTR_LIST(FUNC7, instr_sllw_type);
 
-static riscv_instr_entry instr_srlw_divu_sraw_type[] = {
+static riscv_instr_entry instr_srlw_divuw_sraw_type[] = {
     [0x00] = {NULL, instr_srlw, NULL},
-    [0x01] = {NULL, instr_divu, NULL},
+    [0x01] = {NULL, instr_divuw, NULL},
     [0x20] = {NULL, instr_sraw, NULL}
 };
-INIT_RISCV_INSTR_LIST(FUNC7, instr_srlw_divu_sraw_type);
+INIT_RISCV_INSTR_LIST(FUNC7, instr_srlw_divuw_sraw_type);
 
 static riscv_instr_entry instr_remuw_type[] = {
     [0x01] =  {NULL, instr_remuw, NULL}
@@ -656,7 +656,7 @@ INIT_RISCV_INSTR_LIST(FUNC7, instr_remuw_type);
 static riscv_instr_entry instr_regw_type[] = {
     [0x0] = {NULL, NULL, &instr_addw_subw_type_list},
     [0x1] = {NULL, NULL, &instr_sllw_type_list},
-    [0x5] = {NULL, NULL, &instr_srlw_divu_sraw_type_list},
+    [0x5] = {NULL, NULL, &instr_srlw_divuw_sraw_type_list},
     [0x7] = {NULL, NULL, &instr_remuw_type_list},
 };
 INIT_RISCV_INSTR_LIST(FUNC3, instr_regw_type);
