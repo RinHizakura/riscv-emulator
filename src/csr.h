@@ -53,27 +53,32 @@
 #define MHARTID 0xf14
 
 // SSTATUS fields
-#define SSTATUS_UIE 0x1
-#define SSTATUS_SIE 0x2
-#define SSTATUS_UPIE 0x10
-#define SSTATUS_SPIE 0x20
-#define SSTATUS_SPP 0x100
-#define SSTATUS_FS 0x6000
-#define SSTATUS_XS 0x18000
-#define SSTATUS_SUM 0x40000
-#define SSTATUS_MXR 0x80000
+#define SSTATUS_UIE 0x1UL
+#define SSTATUS_SIE 0x2UL
+#define SSTATUS_UPIE 0x10UL
+#define SSTATUS_SPIE 0x20UL
+#define SSTATUS_SPP 0x100UL
+#define SSTATUS_FS 0x6000UL
+#define SSTATUS_XS 0x18000UL
+#define SSTATUS_SUM 0x40000UL
+#define SSTATUS_MXR 0x80000UL
 #define SSTATUS_UXL 0x300000000UL
 #define SSTATUS_VISIBLE                                                  \
     SSTATUS_SIE | SSTATUS_SPIE | SSTATUS_SPP | SSTATUS_FS | SSTATUS_XS | \
         SSTATUS_SUM | SSTATUS_MXR | SSTATUS_UXL
 
+// MSTATUS fields
+#define MSTATUS_MIE 0x8UL
+#define MSTATUS_MPIE 0x80UL
+#define MSTATUS_MPP 0x1800UL
+
 // SIP fields
-#define SIP_USIP 0x1
-#define SIP_SSIP 0x2
-#define SIP_UTIP 0x10
-#define SIP_STIP 0x20
-#define SIP_UEIP 0x100
-#define SIP_SEIP 0x200
+#define SIP_USIP 0x1UL
+#define SIP_SSIP 0x2UL
+#define SIP_UTIP 0x10UL
+#define SIP_STIP 0x20UL
+#define SIP_UEIP 0x100UL
+#define SIP_SEIP 0x200UL
 // All bits besides SSIP, USIP, and UEIP in the sip register are read-only
 #define SIP_WRITABLE SIP_SSIP | SIP_USIP | SIP_UEIP
 

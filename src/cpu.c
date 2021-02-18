@@ -484,6 +484,38 @@ static void instr_jal(riscv_cpu *cpu)
     cpu->pc = cpu->pc + cpu->instr.imm - 4;
 }
 
+static void instr_sret(riscv_cpu *cpu)
+{
+    cpu->pc = read_csr(&cpu->csr, SEPC);
+    /* When an SRET instruction is executed to return from the trap handler, the
+     * privilege level is set to user mode if the SPP bit is 0, or supervisor
+     * mode if the SPP bit is 1; SPP is then set to 0 */
+    uint64_t sstatus = read_csr(&cpu->csr, SSTATUS);
+    cpu->mode.mode = ((sstatus & SSTATUS_SPP) == 0) ? USER : SUPERVISOR;
+
+    /* When an SRET instruction is executed, SIE is set to SPIE */
+    /* Since SPIE is at bit 5 and SIE is at bit 1, so we right shift 4 bit for
+     * correct value */
+    write_csr(&cpu->csr, SSTATUS, sstatus | ((sstatus & SSTATUS_SPIE) >> 4));
+    /* SPIE is set to 1 */
+    write_csr(&cpu->csr, SSTATUS, sstatus | SSTATUS_SPIE);
+    /* SPP is set to 0 */
+    write_csr(&cpu->csr, SSTATUS, sstatus & ~SSTATUS_SPP);
+}
+
+static void instr_mret(riscv_cpu *cpu)
+{
+    cpu->pc = read_csr(&cpu->csr, MEPC);
+
+    uint64_t mstatus = read_csr(&cpu->csr, MSTATUS);
+    uint8_t mpp = ((mstatus & MSTATUS_MPP) >> 11);
+    cpu->mode.mode = mpp == 0 ? USER : (mpp == 1 ? SUPERVISOR : MACHINE);
+
+    write_csr(&cpu->csr, MSTATUS, mstatus | ((mstatus & MSTATUS_MPIE) >> 4));
+    write_csr(&cpu->csr, MSTATUS, mstatus | MSTATUS_MPIE);
+    write_csr(&cpu->csr, MSTATUS, mstatus & ~MSTATUS_MPP);
+}
+
 static void instr_csrrw(riscv_cpu *cpu)
 {
     uint64_t tmp = read_csr(&cpu->csr, cpu->instr.imm);
@@ -710,7 +742,19 @@ static riscv_instr_entry instr_branch_type[] = {
 };
 INIT_RISCV_INSTR_LIST(FUNC3, instr_branch_type);
 
+static riscv_instr_entry instr_sret_mret_type[] = {
+    [0x08] = {NULL, instr_sret, NULL},
+    [0x18] = {NULL, instr_mret, NULL},
+};
+INIT_RISCV_INSTR_LIST(FUNC7, instr_sret_mret_type);
+
+static riscv_instr_entry instr_ret_type[] = {
+     [0x2] = {NULL, NULL, &instr_sret_mret_type_list},
+};
+INIT_RISCV_INSTR_LIST(RS2, instr_ret_type);
+
 static riscv_instr_entry instr_csr_type[] = {
+     [0x0] = {NULL, NULL, &instr_ret_type_list},
      [0x1] = {NULL, instr_csrrw, NULL},
      [0x2] = {NULL, instr_csrrs, NULL},
      [0x3] = {NULL, instr_csrrc, NULL},
@@ -773,6 +817,9 @@ static bool __decode(riscv_cpu *cpu, riscv_instr_desc *instr_desc)
         break;
     case FUNC7:
         index = cpu->instr.funct7;
+        break;
+    case RS2:
+        index = cpu->instr.rs2;
         break;
     default:
         LOG_ERROR("Invalid index type\n");
