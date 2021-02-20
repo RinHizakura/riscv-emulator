@@ -9,6 +9,7 @@ typedef struct Emu {
 } riscv_emu;
 
 bool init_emu(riscv_emu *emu, const char *filename);
+void start_emu(riscv_emu *emu);
 void close_emu(riscv_emu *emu);
 
 #endif

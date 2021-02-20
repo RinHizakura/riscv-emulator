@@ -5,8 +5,50 @@
 #include "csr.h"
 
 typedef struct {
-    enum { USER = 0x1, SUPERVISOR = 0x1, MACHINE = 0x3 } mode;
+    enum { USER = 0x0, SUPERVISOR = 0x1, MACHINE = 0x3 } mode;
 } riscv_mode;
+
+/* the term 'trap' refer to the transfer of control to a trap handler caused by
+ * either an exception or an interrupt */
+typedef enum trap Trap;
+enum trap {
+    /* The trap is visible to, and handled by, software running inside the
+     * execution environment */
+    Trap_Contained,
+    /* The trap is a synchronous exception that is an explicit call to the
+     * execution environment requesting an action on behalf of software
+     * inside the execution environment */
+    Trap_Requested,
+    /* The trap is handled transparently by the execution environment and
+     * execution resumes normally after the trap is handled */
+    Trap_Invisible,
+    /* The trap represents a fatal failure and causes the execution
+     * environment to terminate execution */
+    Trap_Fatal,
+};
+
+/* the term 'exception' refer to an unusual condition occurring at run time
+associated with an instruction in the current RISC-V hart */
+typedef struct {
+    enum {
+        InstructionAddressMisaligned = 0,
+        InstructionAccessFault = 1,
+        IllegalInstruction = 2,
+        Breakpoint = 3,
+        LoadAddressMisaligned = 4,
+        LoadAccessFault = 5,
+        StoreAMOAddressMisaligned = 6,
+        StoreAMOAccessFault = 7,
+        EnvironmentCallFromUMode = 8,
+        EnvironmentCallFromSMode = 9,
+        EnvironmentCallFromMMode = 11,
+        InstructionPageFault = 12,
+        LoadPageFault = 13,
+        StoreAMOPageFault = 15,
+        // extra number to present no exception for error checking
+        NoException = 99,
+    } exception;
+} riscv_exception;
 
 /* FIXME: we are able to consider space complexity here */
 typedef struct {
@@ -23,6 +65,7 @@ typedef struct {
 typedef struct CPU riscv_cpu;
 typedef struct CPU {
     riscv_mode mode;
+    riscv_exception exc;
     riscv_instr instr;
     riscv_bus bus;
     riscv_csr csr;
@@ -60,9 +103,10 @@ typedef struct INSTR_ENTRY {
         {_type}, sizeof(_instr) / sizeof(_instr[0]), _instr}
 
 bool init_cpu(riscv_cpu *cpu, const char *filename);
-void fetch(riscv_cpu *cpu);
+bool fetch(riscv_cpu *cpu);
 bool decode(riscv_cpu *cpu);
-void exec(riscv_cpu *cpu);
+bool exec(riscv_cpu *cpu);
+Trap take_trap(riscv_cpu *cpu);
 void dump_reg(riscv_cpu *cpu);
 void dump_csr(riscv_cpu *cpu);
 void free_cpu(riscv_cpu *cpu);

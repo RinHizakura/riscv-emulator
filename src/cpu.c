@@ -865,6 +865,7 @@ bool init_cpu(riscv_cpu *cpu, const char *filename)
         return false;
 
     cpu->mode.mode = MACHINE;
+    cpu->exc.exception = NoException;
     memset(&cpu->instr, 0, sizeof(riscv_instr));
     memset(&cpu->xreg[0], 0, sizeof(uint64_t) * 32);
 
@@ -874,7 +875,7 @@ bool init_cpu(riscv_cpu *cpu, const char *filename)
     return true;
 }
 
-void fetch(riscv_cpu *cpu)
+bool fetch(riscv_cpu *cpu)
 {
     uint32_t instr = read_bus(&cpu->bus, cpu->pc, 32);
     // opcode for indexing the table will be decoded first
@@ -888,6 +889,8 @@ void fetch(riscv_cpu *cpu)
         "opcode = 0x%x funct3 = 0x%x funct7 = 0x%x \n",
         cpu->instr.instr, cpu->instr.opcode, cpu->instr.funct3,
         cpu->instr.funct7);
+
+    return true;
 }
 
 bool decode(riscv_cpu *cpu)
@@ -895,7 +898,7 @@ bool decode(riscv_cpu *cpu)
     return __decode(cpu, &opcode_type_list);
 }
 
-void exec(riscv_cpu *cpu)
+bool exec(riscv_cpu *cpu)
 {
     cpu->exec_func(cpu);
 
@@ -907,6 +910,14 @@ void exec(riscv_cpu *cpu)
      * reset all of the instruction-relatd structure now. */
     memset(&cpu->instr, 0, sizeof(riscv_instr));
     cpu->exec_func = NULL;
+
+    return true;
+}
+
+Trap take_trap(riscv_cpu *cpu)
+{
+    // TODO: deal with exception
+    return Trap_Fatal;
 }
 
 void dump_reg(riscv_cpu *cpu)

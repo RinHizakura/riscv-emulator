@@ -16,6 +16,7 @@ uint64_t read_bus(riscv_bus *bus, uint64_t addr, uint8_t size)
     return -1;
 }
 
+
 void write_bus(riscv_bus *bus, uint64_t addr, uint8_t size, uint64_t value)
 {
     if (addr >= DRAM_BASE) {

@@ -16,23 +16,7 @@ int main(int argc, char *argv[])
         exit(1);
     }
 
-    uint64_t start_pc = emu->cpu.pc;
-    while (emu->cpu.pc < start_pc + emu->cpu.bus.memory.code_size &&
-           emu->cpu.pc >= DRAM_BASE) {
-        fetch(&emu->cpu);
-        emu->cpu.pc += 4;
-        bool ret = decode(&emu->cpu);
-        if (ret == false)
-            break;
-        exec(&emu->cpu);
-#ifdef DEBUG
-        dump_reg(&emu->cpu);
-        dump_csr(&emu->cpu);
-#endif
-    }
-
-    dump_reg(&emu->cpu);
-    dump_csr(&emu->cpu);
+    start_emu(emu);
 
     close_emu(emu);
     return 0;
