@@ -41,10 +41,17 @@ $(OUT)/src/%.o: src/%.c
 check: CFLAGS += -O3
 check: LDFLAGS += -O3
 check: $(BIN)
-	 riscv64-unknown-linux-gnu-gcc -S ./test/test.c
-	 riscv64-unknown-linux-gnu-gcc -Wl,-Ttext=0x0 -nostdlib -o test.obj ./test.s
-	 riscv64-unknown-linux-gnu-objcopy -O binary test.obj test.bin
-	 $(BIN) ./test.bin
+	 riscv64-unknown-linux-gnu-gcc -S ./test/c_test.c
+	 riscv64-unknown-linux-gnu-gcc -Wl,-Ttext=0x0 -nostdlib -o c_test.obj ./c_test.s
+	 riscv64-unknown-linux-gnu-objcopy -O binary c_test.obj c_test.bin
+	 $(BIN) ./c_test.bin
+
+test_assembly: CFLAGS += -O3
+test_assembly: LDFLAGS += -O3
+test_assembly: $(BIN)
+	 riscv64-unknown-linux-gnu-gcc -Wl,-Ttext=0x0 -nostdlib -o asm_test.obj ./test/asm_test.s
+	 riscv64-unknown-linux-gnu-objcopy -O binary asm_test.obj asm_test.bin
+	 $(BIN) ./asm_test.bin
 
 clean:
 	$(RM) -rf build

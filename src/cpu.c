@@ -823,6 +823,8 @@ static bool __decode(riscv_cpu *cpu, riscv_instr_desc *instr_desc)
         break;
     default:
         LOG_ERROR("Invalid index type\n");
+        /* we don't change the variable of exception number here, since
+         * this should only happens when our emulator's implementation error*/
         return false;
     }
 
@@ -831,6 +833,7 @@ static bool __decode(riscv_cpu *cpu, riscv_instr_desc *instr_desc)
             "Not implemented or invalid instruction:\n"
             "opcode = 0x%x funct3 = 0x%x funct7 = 0x%x \n",
             cpu->instr.opcode, cpu->instr.funct3, cpu->instr.funct7);
+        cpu->exc.exception = IllegalInstruction;
         return false;
     }
 
@@ -845,6 +848,7 @@ static bool __decode(riscv_cpu *cpu, riscv_instr_desc *instr_desc)
             "@ Not implemented or invalid instruction:\n"
             "opcode = 0x%x funct3 = 0x%x funct7 = 0x%x \n",
             cpu->instr.opcode, cpu->instr.funct3, cpu->instr.funct7);
+        cpu->exc.exception = IllegalInstruction;
         return false;
     }
 
