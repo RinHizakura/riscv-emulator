@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -110,8 +111,10 @@ static void instr_lb(riscv_cpu *cpu)
 {
     uint64_t addr = cpu->xreg[cpu->instr.rs1] + cpu->instr.imm;
     uint64_t value = read_bus(&cpu->bus, addr, 8, &cpu->exc);
-    if (value == (uint64_t) -1 && cpu->exc.exception != NoException)
+    if (cpu->exc.exception != NoException) {
+        assert(value == (uint64_t) -1);
         return;
+    }
     cpu->xreg[cpu->instr.rd] = ((int8_t)(value));
 }
 
@@ -119,8 +122,10 @@ static void instr_lh(riscv_cpu *cpu)
 {
     uint64_t addr = cpu->xreg[cpu->instr.rs1] + cpu->instr.imm;
     uint64_t value = read_bus(&cpu->bus, addr, 16, &cpu->exc);
-    if (value == (uint64_t) -1 && cpu->exc.exception != NoException)
+    if (cpu->exc.exception != NoException) {
+        assert(value == (uint64_t) -1);
         return;
+    }
     cpu->xreg[cpu->instr.rd] = ((int16_t)(value));
 }
 
@@ -128,8 +133,10 @@ static void instr_lw(riscv_cpu *cpu)
 {
     uint64_t addr = cpu->xreg[cpu->instr.rs1] + cpu->instr.imm;
     uint64_t value = read_bus(&cpu->bus, addr, 32, &cpu->exc);
-    if (value == (uint64_t) -1 && cpu->exc.exception != NoException)
+    if (cpu->exc.exception != NoException) {
+        assert(value == (uint64_t) -1);
         return;
+    }
     cpu->xreg[cpu->instr.rd] = ((int32_t)(value));
 }
 
@@ -137,8 +144,10 @@ static void instr_ld(riscv_cpu *cpu)
 {
     uint64_t addr = cpu->xreg[cpu->instr.rs1] + cpu->instr.imm;
     uint64_t value = read_bus(&cpu->bus, addr, 64, &cpu->exc);
-    if (value == (uint64_t) -1 && cpu->exc.exception != NoException)
+    if (cpu->exc.exception != NoException) {
+        assert(value == (uint64_t) -1);
         return;
+    }
     cpu->xreg[cpu->instr.rd] = value;
 }
 
@@ -146,8 +155,10 @@ static void instr_lbu(riscv_cpu *cpu)
 {
     uint64_t addr = cpu->xreg[cpu->instr.rs1] + cpu->instr.imm;
     uint64_t value = read_bus(&cpu->bus, addr, 8, &cpu->exc);
-    if (value == (uint64_t) -1 && cpu->exc.exception != NoException)
+    if (cpu->exc.exception != NoException) {
+        assert(value == (uint64_t) -1);
         return;
+    }
     cpu->xreg[cpu->instr.rd] = value;
 }
 
@@ -155,8 +166,10 @@ static void instr_lhu(riscv_cpu *cpu)
 {
     uint64_t addr = cpu->xreg[cpu->instr.rs1] + cpu->instr.imm;
     uint64_t value = read_bus(&cpu->bus, addr, 16, &cpu->exc);
-    if (value == (uint64_t) -1 && cpu->exc.exception != NoException)
+    if (cpu->exc.exception != NoException) {
+        assert(value == (uint64_t) -1);
         return;
+    }
     cpu->xreg[cpu->instr.rd] = value;
 }
 
@@ -164,8 +177,10 @@ static void instr_lwu(riscv_cpu *cpu)
 {
     uint64_t addr = cpu->xreg[cpu->instr.rs1] + cpu->instr.imm;
     uint64_t value = read_bus(&cpu->bus, addr, 32, &cpu->exc);
-    if (value == (uint64_t) -1 && cpu->exc.exception != NoException)
+    if (cpu->exc.exception != NoException) {
+        assert(value == (uint64_t) -1);
         return;
+    }
     cpu->xreg[cpu->instr.rd] = value;
 }
 
@@ -579,8 +594,10 @@ static void instr_amoaddw(riscv_cpu *cpu)
 {
     uint64_t tmp =
         read_bus(&cpu->bus, cpu->xreg[cpu->instr.rs1], 32, &cpu->exc);
-    if (tmp == (uint64_t) -1 && cpu->exc.exception != NoException)
+    if (cpu->exc.exception != NoException) {
+        assert(tmp == (uint64_t) -1);
         return;
+    }
     if (!write_bus(&cpu->bus, cpu->xreg[cpu->instr.rs1], 32,
                    tmp + cpu->xreg[cpu->instr.rs2], &cpu->exc))
         return;
@@ -591,8 +608,10 @@ static void instr_amoswapw(riscv_cpu *cpu)
 {
     uint64_t tmp =
         read_bus(&cpu->bus, cpu->xreg[cpu->instr.rs1], 32, &cpu->exc);
-    if (tmp == (uint64_t) -1 && cpu->exc.exception != NoException)
+    if (cpu->exc.exception != NoException) {
+        assert(tmp == (uint64_t) -1);
         return;
+    }
     if (!write_bus(&cpu->bus, cpu->xreg[cpu->instr.rs1], 32,
                    cpu->xreg[cpu->instr.rs2], &cpu->exc))
         return;
@@ -603,8 +622,10 @@ static void instr_amoaddd(riscv_cpu *cpu)
 {
     uint64_t tmp =
         read_bus(&cpu->bus, cpu->xreg[cpu->instr.rs1], 64, &cpu->exc);
-    if (tmp == (uint64_t) -1 && cpu->exc.exception != NoException)
+    if (cpu->exc.exception != NoException) {
+        assert(tmp == (uint64_t) -1);
         return;
+    }
     if (!write_bus(&cpu->bus, cpu->xreg[cpu->instr.rs1], 64,
                    tmp + cpu->xreg[cpu->instr.rs2], &cpu->exc))
         return;
@@ -615,8 +636,10 @@ static void instr_amoswapd(riscv_cpu *cpu)
 {
     uint64_t tmp =
         read_bus(&cpu->bus, cpu->xreg[cpu->instr.rs1], 64, &cpu->exc);
-    if (tmp == (uint64_t) -1 && cpu->exc.exception != NoException)
+    if (cpu->exc.exception != NoException) {
+        assert(tmp == (uint64_t) -1);
         return;
+    }
     if (!write_bus(&cpu->bus, cpu->xreg[cpu->instr.rs1], 64,
                    cpu->xreg[cpu->instr.rs2], &cpu->exc))
         return;
@@ -916,8 +939,10 @@ bool init_cpu(riscv_cpu *cpu, const char *filename)
 bool fetch(riscv_cpu *cpu)
 {
     uint32_t instr = read_bus(&cpu->bus, cpu->pc, 32, &cpu->exc);
-    if (instr == (uint32_t) -1 && cpu->exc.exception != NoException)
+    if (cpu->exc.exception != NoException) {
+        assert(instr == (uint32_t) -1);
         return false;
+    }
     // opcode for indexing the table will be decoded first
     cpu->instr.instr = instr;
     cpu->instr.opcode = instr & 0x7f;
