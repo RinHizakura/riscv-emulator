@@ -525,11 +525,12 @@ static void instr_sret(riscv_cpu *cpu)
     /* When an SRET instruction is executed, SIE is set to SPIE */
     /* Since SPIE is at bit 5 and SIE is at bit 1, so we right shift 4 bit for
      * correct value */
-    write_csr(&cpu->csr, SSTATUS, sstatus | ((sstatus & SSTATUS_SPIE) >> 4));
+    write_csr(&cpu->csr, SSTATUS,
+              (sstatus & ~SSTATUS_SIE) | ((sstatus & SSTATUS_SPIE) >> 4));
     /* SPIE is set to 1 */
-    write_csr(&cpu->csr, SSTATUS, sstatus | SSTATUS_SPIE);
+    write_csr(&cpu->csr, SSTATUS, read_csr(&cpu->csr, SSTATUS) | SSTATUS_SPIE);
     /* SPP is set to 0 */
-    write_csr(&cpu->csr, SSTATUS, sstatus & ~SSTATUS_SPP);
+    write_csr(&cpu->csr, SSTATUS, read_csr(&cpu->csr, SSTATUS) & ~SSTATUS_SPP);
 }
 
 static void instr_mret(riscv_cpu *cpu)
@@ -984,7 +985,57 @@ bool exec(riscv_cpu *cpu)
 
 Trap take_trap(riscv_cpu *cpu)
 {
-    // TODO: deal with exception
+    uint64_t exc_pc = cpu->pc - 4;
+    riscv_mode prev_mode = cpu->mode;
+
+    uint8_t cause = cpu->exc.exception;
+
+    /* certain exceptions and interrupts can be processed directly by a lower
+     * privilege level within medeleg or mideleg register */
+
+    /* For medeleg, the index of the bit position equal to the value returned in
+     * the mcause register */
+    uint64_t medeleg = read_csr(&cpu->csr, MEDELEG);
+    if ((cpu->mode.mode <= SUPERVISOR) && (((medeleg >> cause) & 1) != 0)) {
+        cpu->mode.mode = SUPERVISOR;
+
+        /* The last two bits of stvec indicate the vector mode, which make
+         * different for pc setting when interrupt. For (synchronous) exception,
+         * no matter what the mode is, always set pc to BASE by stvec when
+         * exception. */
+        cpu->pc = read_csr(&cpu->csr, STVEC) & ~0x3;
+        /* The low bit of sepc(sepc[0]) is always zero. When a trap is taken
+         * into S-mode, sepc is written with the virtual address of the
+         * instruction that was interrupted or that encountered the exception.
+         */
+        write_csr(&cpu->csr, SEPC, exc_pc & ~0x1);
+        /* When a trap is taken into S-mode, scause is written with a code
+         * indicating the event that caused the trap. */
+        write_csr(&cpu->csr, SCAUSE, cause);
+
+        /* FIXME: write stval with exception-specific information to assist
+         * software in handling the trap.*/
+        write_csr(&cpu->csr, STVAL, 0);
+
+        /* When a trap is taken into supervisor mode, SPIE is set to SIE */
+        uint64_t sstatus = read_csr(&cpu->csr, SSTATUS);
+        write_csr(&cpu->csr, SSTATUS,
+                  (sstatus & ~SSTATUS_SPIE) | ((sstatus & SSTATUS_SIE) << 4));
+        /* SIE is set to 0 */
+        write_csr(&cpu->csr, SSTATUS,
+                  read_csr(&cpu->csr, SSTATUS) | ~SSTATUS_SIE);
+        /* When a trap is taken, SPP is set to 0 if the trap originated from
+         * user mode, or 1 otherwise. */
+        if (prev_mode.mode == USER)
+            write_csr(&cpu->csr, SSTATUS,
+                      read_csr(&cpu->csr, SSTATUS) & ~SSTATUS_SPP);
+        else
+            write_csr(&cpu->csr, SSTATUS,
+                      read_csr(&cpu->csr, SSTATUS) | SSTATUS_SPP);
+    }
+    // TODO: else if handling in M-mode
+    // TODO: return correct trap by exception type
+
     return Trap_Fatal;
 }
 

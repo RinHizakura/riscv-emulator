@@ -21,7 +21,7 @@
 /// Supervisor trap cause.
 #define SCAUSE 0x142
 /// Supervisor bad address or instruction.
-#define STVALCsr 0x143
+#define STVAL 0x143
 // Supervisor interrupt pending.
 #define SIP 0x144
 // Supervisor address translation and protection.
@@ -97,7 +97,7 @@
          [SSCRATCH]    {ALL_VALID,       ALL_VALID,       0},           \
          [SEPC] =      {ALL_VALID,       ALL_VALID,       0},           \
          [SCAUSE] =    {ALL_VALID,       ALL_VALID,       0},           \
-         [STVALCsr] =  {ALL_VALID,       ALL_VALID,       0},           \
+         [STVAL] =     {ALL_VALID,       ALL_VALID,       0},           \
          [SIP] =       {ALL_VALID,       SIP_WRITABLE,    0},           \
          [SATP] =      {ALL_VALID,       ALL_VALID,       0},           \
          [MSTATUS]=    {ALL_VALID,       ALL_VALID,       0},           \

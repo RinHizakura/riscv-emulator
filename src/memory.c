@@ -71,6 +71,8 @@ uint64_t read_mem(riscv_mem *mem, uint64_t addr, uint64_t size)
         break;
     default:
         LOG_ERROR("Invalid memory size!\n");
+        /* we don't change the variable of exception number here, since
+         * this should only happens when our emulator's implementation error*/
         return -1;
     }
     return value;
@@ -111,6 +113,8 @@ void write_mem(riscv_mem *mem, uint64_t addr, uint8_t size, uint64_t value)
         write_len(64, &mem->mem[index], value);
         break;
     default:
+        /* we don't change the variable of exception number here, since
+         * this should only happens when our emulator's implementation error*/
         LOG_ERROR("Invalid memory size!\n");
     }
 }
