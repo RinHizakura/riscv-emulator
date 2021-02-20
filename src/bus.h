@@ -1,6 +1,7 @@
 #ifndef RISCV_BUS
 #define RISCV_BUS
 
+#include "exception.h"
 #include "memory.h"
 
 /// The address which DRAM starts
@@ -11,7 +12,14 @@ typedef struct {
 } riscv_bus;
 
 bool init_bus(riscv_bus *bus, const char *filename);
-uint64_t read_bus(riscv_bus *bus, uint64_t addr, uint8_t size);
-void write_bus(riscv_bus *bus, uint64_t addr, uint8_t size, uint64_t value);
+uint64_t read_bus(riscv_bus *bus,
+                  uint64_t addr,
+                  uint8_t size,
+                  riscv_exception *exc);
+bool write_bus(riscv_bus *bus,
+               uint64_t addr,
+               uint8_t size,
+               uint64_t value,
+               riscv_exception *exc);
 void free_bus(riscv_bus *bus);
 #endif

@@ -3,52 +3,11 @@
 
 #include "bus.h"
 #include "csr.h"
+#include "exception.h"
 
 typedef struct {
     enum { USER = 0x0, SUPERVISOR = 0x1, MACHINE = 0x3 } mode;
 } riscv_mode;
-
-/* the term 'trap' refer to the transfer of control to a trap handler caused by
- * either an exception or an interrupt */
-typedef enum trap Trap;
-enum trap {
-    /* The trap is visible to, and handled by, software running inside the
-     * execution environment */
-    Trap_Contained,
-    /* The trap is a synchronous exception that is an explicit call to the
-     * execution environment requesting an action on behalf of software
-     * inside the execution environment */
-    Trap_Requested,
-    /* The trap is handled transparently by the execution environment and
-     * execution resumes normally after the trap is handled */
-    Trap_Invisible,
-    /* The trap represents a fatal failure and causes the execution
-     * environment to terminate execution */
-    Trap_Fatal,
-};
-
-/* the term 'exception' refer to an unusual condition occurring at run time
-associated with an instruction in the current RISC-V hart */
-typedef struct {
-    enum {
-        InstructionAddressMisaligned = 0,
-        InstructionAccessFault = 1,
-        IllegalInstruction = 2,
-        Breakpoint = 3,
-        LoadAddressMisaligned = 4,
-        LoadAccessFault = 5,
-        StoreAMOAddressMisaligned = 6,
-        StoreAMOAccessFault = 7,
-        EnvironmentCallFromUMode = 8,
-        EnvironmentCallFromSMode = 9,
-        EnvironmentCallFromMMode = 11,
-        InstructionPageFault = 12,
-        LoadPageFault = 13,
-        StoreAMOPageFault = 15,
-        // extra number to present no exception for error checking
-        NoException = 99,
-    } exception;
-} riscv_exception;
 
 /* FIXME: we are able to consider space complexity here */
 typedef struct {
@@ -97,10 +56,6 @@ typedef struct INSTR_ENTRY {
     void (*exec_func)(riscv_cpu *cpu);
     riscv_instr_desc *next;
 } riscv_instr_entry;
-
-#define INIT_RISCV_INSTR_LIST(_type, _instr)  \
-    static riscv_instr_desc _instr##_list = { \
-        {_type}, sizeof(_instr) / sizeof(_instr[0]), _instr}
 
 bool init_cpu(riscv_cpu *cpu, const char *filename);
 bool fetch(riscv_cpu *cpu);

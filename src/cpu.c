@@ -109,49 +109,63 @@ static void J_decode(riscv_cpu *cpu)
 static void instr_lb(riscv_cpu *cpu)
 {
     uint64_t addr = cpu->xreg[cpu->instr.rs1] + cpu->instr.imm;
-    uint64_t value = read_bus(&cpu->bus, addr, 8);
+    uint64_t value = read_bus(&cpu->bus, addr, 8, &cpu->exc);
+    if (value == (uint64_t) -1 && cpu->exc.exception != NoException)
+        return;
     cpu->xreg[cpu->instr.rd] = ((int8_t)(value));
 }
 
 static void instr_lh(riscv_cpu *cpu)
 {
     uint64_t addr = cpu->xreg[cpu->instr.rs1] + cpu->instr.imm;
-    uint64_t value = read_bus(&cpu->bus, addr, 16);
+    uint64_t value = read_bus(&cpu->bus, addr, 16, &cpu->exc);
+    if (value == (uint64_t) -1 && cpu->exc.exception != NoException)
+        return;
     cpu->xreg[cpu->instr.rd] = ((int16_t)(value));
 }
 
 static void instr_lw(riscv_cpu *cpu)
 {
     uint64_t addr = cpu->xreg[cpu->instr.rs1] + cpu->instr.imm;
-    uint64_t value = read_bus(&cpu->bus, addr, 32);
+    uint64_t value = read_bus(&cpu->bus, addr, 32, &cpu->exc);
+    if (value == (uint64_t) -1 && cpu->exc.exception != NoException)
+        return;
     cpu->xreg[cpu->instr.rd] = ((int32_t)(value));
 }
 
 static void instr_ld(riscv_cpu *cpu)
 {
     uint64_t addr = cpu->xreg[cpu->instr.rs1] + cpu->instr.imm;
-    uint64_t value = read_bus(&cpu->bus, addr, 64);
+    uint64_t value = read_bus(&cpu->bus, addr, 64, &cpu->exc);
+    if (value == (uint64_t) -1 && cpu->exc.exception != NoException)
+        return;
     cpu->xreg[cpu->instr.rd] = value;
 }
 
 static void instr_lbu(riscv_cpu *cpu)
 {
     uint64_t addr = cpu->xreg[cpu->instr.rs1] + cpu->instr.imm;
-    uint64_t value = read_bus(&cpu->bus, addr, 8);
+    uint64_t value = read_bus(&cpu->bus, addr, 8, &cpu->exc);
+    if (value == (uint64_t) -1 && cpu->exc.exception != NoException)
+        return;
     cpu->xreg[cpu->instr.rd] = value;
 }
 
 static void instr_lhu(riscv_cpu *cpu)
 {
     uint64_t addr = cpu->xreg[cpu->instr.rs1] + cpu->instr.imm;
-    uint64_t value = read_bus(&cpu->bus, addr, 16);
+    uint64_t value = read_bus(&cpu->bus, addr, 16, &cpu->exc);
+    if (value == (uint64_t) -1 && cpu->exc.exception != NoException)
+        return;
     cpu->xreg[cpu->instr.rd] = value;
 }
 
 static void instr_lwu(riscv_cpu *cpu)
 {
     uint64_t addr = cpu->xreg[cpu->instr.rs1] + cpu->instr.imm;
-    uint64_t value = read_bus(&cpu->bus, addr, 32);
+    uint64_t value = read_bus(&cpu->bus, addr, 32, &cpu->exc);
+    if (value == (uint64_t) -1 && cpu->exc.exception != NoException)
+        return;
     cpu->xreg[cpu->instr.rd] = value;
 }
 
@@ -343,25 +357,25 @@ static void instr_sraiw(riscv_cpu *cpu)
 static void instr_sb(riscv_cpu *cpu)
 {
     uint64_t addr = cpu->xreg[cpu->instr.rs1] + cpu->instr.imm;
-    write_bus(&cpu->bus, addr, 8, cpu->xreg[cpu->instr.rs2]);
+    write_bus(&cpu->bus, addr, 8, cpu->xreg[cpu->instr.rs2], &cpu->exc);
 }
 
 static void instr_sh(riscv_cpu *cpu)
 {
     uint64_t addr = cpu->xreg[cpu->instr.rs1] + cpu->instr.imm;
-    write_bus(&cpu->bus, addr, 16, cpu->xreg[cpu->instr.rs2]);
+    write_bus(&cpu->bus, addr, 16, cpu->xreg[cpu->instr.rs2], &cpu->exc);
 }
 
 static void instr_sw(riscv_cpu *cpu)
 {
     uint64_t addr = cpu->xreg[cpu->instr.rs1] + cpu->instr.imm;
-    write_bus(&cpu->bus, addr, 32, cpu->xreg[cpu->instr.rs2]);
+    write_bus(&cpu->bus, addr, 32, cpu->xreg[cpu->instr.rs2], &cpu->exc);
 }
 
 static void instr_sd(riscv_cpu *cpu)
 {
     uint64_t addr = cpu->xreg[cpu->instr.rs1] + cpu->instr.imm;
-    write_bus(&cpu->bus, addr, 64, cpu->xreg[cpu->instr.rs2]);
+    write_bus(&cpu->bus, addr, 64, cpu->xreg[cpu->instr.rs2], &cpu->exc);
 }
 
 static void instr_lui(riscv_cpu *cpu)
@@ -563,37 +577,57 @@ static void instr_csrrci(riscv_cpu *cpu)
 /* TODO: the lock acquire and realease are not implemented now */
 static void instr_amoaddw(riscv_cpu *cpu)
 {
-    uint64_t tmp = read_bus(&cpu->bus, cpu->xreg[cpu->instr.rs1], 32);
-    write_bus(&cpu->bus, cpu->xreg[cpu->instr.rs1], 32,
-              tmp + cpu->xreg[cpu->instr.rs2]);
+    uint64_t tmp =
+        read_bus(&cpu->bus, cpu->xreg[cpu->instr.rs1], 32, &cpu->exc);
+    if (tmp == (uint64_t) -1 && cpu->exc.exception != NoException)
+        return;
+    if (!write_bus(&cpu->bus, cpu->xreg[cpu->instr.rs1], 32,
+                   tmp + cpu->xreg[cpu->instr.rs2], &cpu->exc))
+        return;
     cpu->xreg[cpu->instr.rd] = tmp;
 }
 
 static void instr_amoswapw(riscv_cpu *cpu)
 {
-    uint64_t tmp = read_bus(&cpu->bus, cpu->xreg[cpu->instr.rs1], 32);
-    write_bus(&cpu->bus, cpu->xreg[cpu->instr.rs1], 32,
-              cpu->xreg[cpu->instr.rs2]);
+    uint64_t tmp =
+        read_bus(&cpu->bus, cpu->xreg[cpu->instr.rs1], 32, &cpu->exc);
+    if (tmp == (uint64_t) -1 && cpu->exc.exception != NoException)
+        return;
+    if (!write_bus(&cpu->bus, cpu->xreg[cpu->instr.rs1], 32,
+                   cpu->xreg[cpu->instr.rs2], &cpu->exc))
+        return;
     cpu->xreg[cpu->instr.rd] = tmp;
 }
 
 static void instr_amoaddd(riscv_cpu *cpu)
 {
-    uint64_t tmp = read_bus(&cpu->bus, cpu->xreg[cpu->instr.rs1], 64);
-    write_bus(&cpu->bus, cpu->xreg[cpu->instr.rs1], 64,
-              tmp + cpu->xreg[cpu->instr.rs2]);
+    uint64_t tmp =
+        read_bus(&cpu->bus, cpu->xreg[cpu->instr.rs1], 64, &cpu->exc);
+    if (tmp == (uint64_t) -1 && cpu->exc.exception != NoException)
+        return;
+    if (!write_bus(&cpu->bus, cpu->xreg[cpu->instr.rs1], 64,
+                   tmp + cpu->xreg[cpu->instr.rs2], &cpu->exc))
+        return;
     cpu->xreg[cpu->instr.rd] = tmp;
 }
 
 static void instr_amoswapd(riscv_cpu *cpu)
 {
-    uint64_t tmp = read_bus(&cpu->bus, cpu->xreg[cpu->instr.rs1], 64);
-    write_bus(&cpu->bus, cpu->xreg[cpu->instr.rs1], 64,
-              cpu->xreg[cpu->instr.rs2]);
+    uint64_t tmp =
+        read_bus(&cpu->bus, cpu->xreg[cpu->instr.rs1], 64, &cpu->exc);
+    if (tmp == (uint64_t) -1 && cpu->exc.exception != NoException)
+        return;
+    if (!write_bus(&cpu->bus, cpu->xreg[cpu->instr.rs1], 64,
+                   cpu->xreg[cpu->instr.rs2], &cpu->exc))
+        return;
     cpu->xreg[cpu->instr.rd] = tmp;
 }
 
 /* clang-format off */
+#define INIT_RISCV_INSTR_LIST(_type, _instr)  \
+    static riscv_instr_desc _instr##_list = { \
+        {_type}, sizeof(_instr) / sizeof(_instr[0]), _instr}
+
 static riscv_instr_entry instr_load_type[] = {
     [0x0] = {NULL, instr_lb, NULL},  
     [0x1] = {NULL, instr_lh, NULL},
@@ -881,7 +915,9 @@ bool init_cpu(riscv_cpu *cpu, const char *filename)
 
 bool fetch(riscv_cpu *cpu)
 {
-    uint32_t instr = read_bus(&cpu->bus, cpu->pc, 32);
+    uint32_t instr = read_bus(&cpu->bus, cpu->pc, 32, &cpu->exc);
+    if (instr == (uint32_t) -1 && cpu->exc.exception != NoException)
+        return false;
     // opcode for indexing the table will be decoded first
     cpu->instr.instr = instr;
     cpu->instr.opcode = instr & 0x7f;
@@ -908,6 +944,9 @@ bool exec(riscv_cpu *cpu)
 
     // Emulate register x0 to 0
     cpu->xreg[0] = 0;
+
+    if (cpu->exc.exception != NoException)
+        return false;
 
     /* FIXME: If all of our implementation are right, we don't actually need to
      * clean up the structure below. But for easily debugging purpose, we'll
