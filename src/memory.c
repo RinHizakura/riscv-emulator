@@ -51,7 +51,10 @@ bool init_mem(riscv_mem *mem, const char *filename)
     value = __builtin_bswap##bit(*(uint##bit##_t *) (ptr))
 #endif
 
-uint64_t read_mem(riscv_mem *mem, uint64_t addr, uint64_t size)
+uint64_t read_mem(riscv_mem *mem,
+                  uint64_t addr,
+                  uint64_t size,
+                  riscv_exception *exc)
 {
     uint64_t index = (addr - DRAM_BASE);
     uint64_t value;
@@ -70,9 +73,8 @@ uint64_t read_mem(riscv_mem *mem, uint64_t addr, uint64_t size)
         read_len(64, &mem->mem[index], value);
         break;
     default:
+        exc->exception = LoadAccessFault;
         LOG_ERROR("Invalid memory size!\n");
-        /* we don't change the variable of exception number here, since
-         * this should only happens when our emulator's implementation error*/
         return -1;
     }
     return value;
@@ -95,7 +97,11 @@ uint64_t read_mem(riscv_mem *mem, uint64_t addr, uint64_t size)
     *(uint##bit##_t *) (ptr) = __builtin_bswap##bit((uint##bit##_t)(value))
 #endif
 
-void write_mem(riscv_mem *mem, uint64_t addr, uint8_t size, uint64_t value)
+bool write_mem(riscv_mem *mem,
+               uint64_t addr,
+               uint8_t size,
+               uint64_t value,
+               riscv_exception *exc)
 {
     uint64_t index = (addr - DRAM_BASE);
 
@@ -113,10 +119,12 @@ void write_mem(riscv_mem *mem, uint64_t addr, uint8_t size, uint64_t value)
         write_len(64, &mem->mem[index], value);
         break;
     default:
-        /* we don't change the variable of exception number here, since
-         * this should only happens when our emulator's implementation error*/
+        exc->exception = StoreAMOAccessFault;
         LOG_ERROR("Invalid memory size!\n");
+        return false;
     }
+
+    return true;
 }
 
 void free_memory(riscv_mem *mem)
