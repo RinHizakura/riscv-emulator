@@ -115,6 +115,14 @@
     }
 /* clang-format on */
 
+
+/* macro for setting and clearing csr bits */
+#define set_csr_bit(csr, reg, mask) \
+    write_csr(csr, reg, read_csr(csr, reg) | mask)
+
+#define clear_csr_bit(csr, reg, mask) \
+    write_csr(csr, reg, read_csr(csr, reg) & ~mask)
+
 typedef struct {
     uint64_t read_mask;
     uint64_t write_mask;

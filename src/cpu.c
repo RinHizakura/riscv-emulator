@@ -520,7 +520,7 @@ static void instr_sret(riscv_cpu *cpu)
      * privilege level is set to user mode if the SPP bit is 0, or supervisor
      * mode if the SPP bit is 1; SPP is then set to 0 */
     uint64_t sstatus = read_csr(&cpu->csr, SSTATUS);
-    cpu->mode.mode = ((sstatus & SSTATUS_SPP) == 0) ? USER : SUPERVISOR;
+    cpu->mode.mode = (sstatus & SSTATUS_SPP) >> 8;
 
     /* When an SRET instruction is executed, SIE is set to SPIE */
     /* Since SPIE is at bit 5 and SIE is at bit 1, so we right shift 4 bit for
@@ -528,9 +528,9 @@ static void instr_sret(riscv_cpu *cpu)
     write_csr(&cpu->csr, SSTATUS,
               (sstatus & ~SSTATUS_SIE) | ((sstatus & SSTATUS_SPIE) >> 4));
     /* SPIE is set to 1 */
-    write_csr(&cpu->csr, SSTATUS, read_csr(&cpu->csr, SSTATUS) | SSTATUS_SPIE);
+    set_csr_bit(&cpu->csr, SSTATUS, SSTATUS_SPIE);
     /* SPP is set to 0 */
-    write_csr(&cpu->csr, SSTATUS, read_csr(&cpu->csr, SSTATUS) & ~SSTATUS_SPP);
+    clear_csr_bit(&cpu->csr, SSTATUS, SSTATUS_SPP);
 }
 
 static void instr_mret(riscv_cpu *cpu)
@@ -538,12 +538,12 @@ static void instr_mret(riscv_cpu *cpu)
     cpu->pc = read_csr(&cpu->csr, MEPC);
 
     uint64_t mstatus = read_csr(&cpu->csr, MSTATUS);
-    uint8_t mpp = ((mstatus & MSTATUS_MPP) >> 11);
-    cpu->mode.mode = mpp == 0 ? USER : (mpp == 1 ? SUPERVISOR : MACHINE);
+    cpu->mode.mode = (mstatus & MSTATUS_MPP) >> 11;
 
-    write_csr(&cpu->csr, MSTATUS, mstatus | ((mstatus & MSTATUS_MPIE) >> 4));
-    write_csr(&cpu->csr, MSTATUS, mstatus | MSTATUS_MPIE);
-    write_csr(&cpu->csr, MSTATUS, mstatus & ~MSTATUS_MPP);
+    write_csr(&cpu->csr, MSTATUS,
+              (mstatus & ~MSTATUS_MIE) | ((mstatus & MSTATUS_MPIE) >> 4));
+    set_csr_bit(&cpu->csr, MSTATUS, MSTATUS_MPIE);
+    clear_csr_bit(&cpu->csr, MSTATUS, MSTATUS_MPP);
 }
 
 static void instr_csrrw(riscv_cpu *cpu)
@@ -1022,18 +1022,30 @@ Trap take_trap(riscv_cpu *cpu)
         write_csr(&cpu->csr, SSTATUS,
                   (sstatus & ~SSTATUS_SPIE) | ((sstatus & SSTATUS_SIE) << 4));
         /* SIE is set to 0 */
-        write_csr(&cpu->csr, SSTATUS,
-                  read_csr(&cpu->csr, SSTATUS) | ~SSTATUS_SIE);
+        clear_csr_bit(&cpu->csr, SSTATUS, SSTATUS_SIE);
         /* When a trap is taken, SPP is set to 0 if the trap originated from
          * user mode, or 1 otherwise. */
-        if (prev_mode.mode == USER)
-            write_csr(&cpu->csr, SSTATUS,
-                      read_csr(&cpu->csr, SSTATUS) & ~SSTATUS_SPP);
-        else
-            write_csr(&cpu->csr, SSTATUS,
-                      read_csr(&cpu->csr, SSTATUS) | SSTATUS_SPP);
+        sstatus = read_csr(&cpu->csr, SSTATUS);
+        write_csr(&cpu->csr, SSTATUS,
+                  (sstatus & ~SSTATUS_SPP) | prev_mode.mode << 8);
+    } else {
+        /* Handle in machine mode. You can see that the process is similar to
+         * handle in supervisor mode. */
+        cpu->mode.mode = MACHINE;
+        cpu->pc = read_csr(&cpu->csr, MTVEC) & ~0x3;
+        write_csr(&cpu->csr, MEPC, exc_pc & ~0x1);
+        write_csr(&cpu->csr, MCAUSE, cause);
+        /* FIXME: write mtval with exception-specific information to assist
+         * software in handling the trap.*/
+        write_csr(&cpu->csr, MTVAL, 0);
+        uint64_t mstatus = read_csr(&cpu->csr, MSTATUS);
+        write_csr(&cpu->csr, MSTATUS,
+                  (mstatus & ~MSTATUS_MPIE) | ((mstatus & MSTATUS_MIE) << 4));
+        clear_csr_bit(&cpu->csr, MSTATUS, MSTATUS_MIE);
+        mstatus = read_csr(&cpu->csr, MSTATUS);
+        write_csr(&cpu->csr, MSTATUS,
+                  (mstatus & ~MSTATUS_MPP) | prev_mode.mode << 11);
     }
-    // TODO: else if handling in M-mode
     // TODO: return correct trap by exception type
 
     return Trap_Fatal;
