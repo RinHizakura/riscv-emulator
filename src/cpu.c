@@ -1046,9 +1046,33 @@ Trap take_trap(riscv_cpu *cpu)
         write_csr(&cpu->csr, MSTATUS,
                   (mstatus & ~MSTATUS_MPP) | prev_mode.mode << 11);
     }
-    // TODO: return correct trap by exception type
 
-    return Trap_Fatal;
+    // https://github.com/d0iasm/rvemu/blob/master/src/exception.rs
+    switch (cpu->exc.exception) {
+    case InstructionAddressMisaligned:
+    case InstructionAccessFault:
+        return Trap_Fatal;
+    case IllegalInstruction:
+        return Trap_Invisible;
+    case Breakpoint:
+        return Trap_Requested;
+    case LoadAddressMisaligned:
+    case LoadAccessFault:
+    case StoreAMOAddressMisaligned:
+    case StoreAMOAccessFault:
+        return Trap_Fatal;
+    case EnvironmentCallFromUMode:
+    case EnvironmentCallFromSMode:
+    case EnvironmentCallFromMMode:
+        return Trap_Requested;
+    case InstructionPageFault:
+    case LoadPageFault:
+    case StoreAMOPageFault:
+        return Trap_Invisible;
+    default:
+        LOG_ERROR("Not defined exception!");
+        return Trap_Fatal;
+    }
 }
 
 void dump_reg(riscv_cpu *cpu)
