@@ -27,5 +27,4 @@
 #define PLIC_BASE 0xc000000UL
 #define PLIC_END PLIC_BASE + 0x216000
 
-
 #endif

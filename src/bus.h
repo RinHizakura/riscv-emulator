@@ -5,10 +5,12 @@
 #include "exception.h"
 #include "memmap.h"
 #include "memory.h"
+#include "plic.h"
 
 typedef struct {
     riscv_mem memory;
     riscv_clint clint;
+    riscv_plic plic;
 } riscv_bus;
 
 bool init_bus(riscv_bus *bus, const char *filename);
