@@ -35,7 +35,10 @@ void start_emu(riscv_emu *emu)
                 LOG_ERROR("Trap %x happen when pc %lx", trap, emu->cpu.pc);
                 break;
             }
+            // reset exception flag if recovery from trap
+            emu->cpu.exc.exception = NoException;
         }
+
 
 #ifdef DEBUG
         dump_reg(&emu->cpu);
