@@ -25,7 +25,7 @@ uint64_t read_bus(riscv_bus *bus,
     if (addr >= PLIC_BASE && addr < PLIC_END)
         return read_plic(&bus->plic, addr, size, exc);
 
-    if (addr >= DRAM_BASE)
+    if (addr >= DRAM_BASE && addr < DRAM_END)
         return read_mem(&bus->memory, addr, size, exc);
 
     LOG_ERROR("Invalid read memory address 0x%lx < 0x%lx\n", addr, DRAM_BASE);
@@ -46,7 +46,7 @@ bool write_bus(riscv_bus *bus,
     if (addr >= PLIC_BASE && addr < PLIC_END)
         return write_plic(&bus->plic, addr, size, value, exc);
 
-    if (addr >= DRAM_BASE)
+    if (addr >= DRAM_BASE && addr < DRAM_END)
         return write_mem(&bus->memory, addr, size, value, exc);
 
     LOG_ERROR("Invalid write memory address 0x%ld < 0x%ld\n", addr, DRAM_BASE);
