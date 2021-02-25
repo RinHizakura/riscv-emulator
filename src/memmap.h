@@ -4,10 +4,13 @@
 /* We define the memory mapping and mapping size according this:
  * - https://github.com/qemu/qemu/blob/master/hw/riscv/virt.c*/
 
+/// Default memory size (128 MiB)
+#define DRAM_SIZE 0x8000000UL
 #define DRAM_BASE 0x80000000UL
+#define DRAM_END (DRAM_BASE + DRAM_SIZE)
 
 #define CLINT_BASE 0x2000000UL
-#define CLINT_END CLINT_BASE + 0x10000
+#define CLINT_END (CLINT_BASE + 0x10000)
 
 /*
  *
@@ -25,6 +28,6 @@
  */
 
 #define PLIC_BASE 0xc000000UL
-#define PLIC_END PLIC_BASE + 0x216000
+#define PLIC_END (PLIC_BASE + 0x216000)
 
 #endif

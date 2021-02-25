@@ -1,13 +1,10 @@
 #ifndef RISCV_MEM
 #define RISCV_MEM
 
-/// Default memory size (128 MiB)
-#define DRAM_SIZE 0x8000000UL
-#define CLINT_BASE 0x2000000UL
-#define CLINT_END CLINT_BASE + 0x10000
-
 #include <stdbool.h>
 #include <stdint.h>
+
+#include "memmap.h"
 
 typedef struct {
     uint8_t *mem;

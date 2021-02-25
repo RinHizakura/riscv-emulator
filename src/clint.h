@@ -16,9 +16,9 @@
 #include "exception.h"
 #include "memmap.h"
 
-#define CLINT_MSIP CLINT_BASE + 0x0
-#define CLINT_MTIMECMP CLINT_BASE + 0x4000
-#define CLINT_MTIME CLINT_BASE + 0XBFF8
+#define CLINT_MSIP (CLINT_BASE + 0x0)
+#define CLINT_MTIMECMP (CLINT_BASE + 0x4000)
+#define CLINT_MTIME (CLINT_BASE + 0XBFF8)
 
 typedef struct {
     /* note that msip has only 32 bits, but we define it as uint64_t for the

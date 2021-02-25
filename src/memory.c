@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "bus.h"
+#include "exception.h"
 #include "memory.h"
 
 bool init_mem(riscv_mem *mem, const char *filename)
