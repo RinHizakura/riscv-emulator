@@ -30,4 +30,7 @@
 #define PLIC_BASE 0xc000000UL
 #define PLIC_END (PLIC_BASE + 0x216000)
 
+#define UART_SIZE 0x100
+#define UART_BASE 0x10000000
+
 #endif
