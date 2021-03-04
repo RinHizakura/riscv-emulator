@@ -24,12 +24,12 @@ int main(int argc, char *argv[])
         switch (c) {
         case 'F':
             opt_file = true;
-            strncpy(binary_file, optarg, MAX_FILE_LEN);
+            strncpy(binary_file, optarg, MAX_FILE_LEN - 1);
             binary_file[MAX_FILE_LEN - 1] = '\0';
             break;
         case 'C':
             opt_compliance = true;
-            strncpy(signature_out_file, optarg, MAX_FILE_LEN);
+            strncpy(signature_out_file, optarg, MAX_FILE_LEN - 1);
             signature_out_file[MAX_FILE_LEN - 1] = '\0';
             break;
         default:

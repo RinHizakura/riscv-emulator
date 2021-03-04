@@ -11,7 +11,9 @@ bool init_bus(riscv_bus *bus, const char *filename)
      * another function */
     memset(&bus->clint, 0, sizeof(riscv_clint));
     memset(&bus->plic, 0, sizeof(riscv_clint));
-    init_uart(&bus->uart);
+
+    if (!init_uart(&bus->uart))
+        return false;
 
     return true;
 }
@@ -65,4 +67,5 @@ bool write_bus(riscv_bus *bus,
 void free_bus(riscv_bus *bus)
 {
     free_memory(&bus->memory);
+    free_uart(&bus->uart);
 }

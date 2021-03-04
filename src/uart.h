@@ -1,6 +1,7 @@
 #ifndef RISCV_UART
 #define RISCV_UART
 
+#include <pthread.h>
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -37,9 +38,10 @@
 typedef struct {
     uint8_t reg[UART_SIZE];
     bool is_interrupt;
+    pthread_t input_thread_pid;
 } riscv_uart;
 
-void init_uart(riscv_uart *uart);
+bool init_uart(riscv_uart *uart);
 uint64_t read_uart(riscv_uart *uart,
                    uint64_t addr,
                    uint8_t size,
@@ -49,4 +51,6 @@ bool write_uart(riscv_uart *uart,
                 uint8_t size,
                 uint64_t value,
                 riscv_exception *exc);
+void free_uart(riscv_uart *uart);
+
 #endif

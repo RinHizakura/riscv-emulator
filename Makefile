@@ -1,6 +1,7 @@
 CC = gcc
 CFLAGS = -Wall -Wextra -O3
 CFLAGS += -include src/common.h
+LDFLAGS = -lpthread
 
 OUT ?= build
 BIN = $(OUT)/emu
@@ -19,6 +20,10 @@ ifeq ("$(ASAN)","1")
     LDFLAGS += -fsanitize=address
 endif
 
+ifeq ("$(TSAN)", "1")
+    CFLAGS +=  -fsanitize=thread
+    LDFLAGS += -fsanitize=thread
+endif
 all: CFLAGS += -O3
 all: LDFLAGS += -O3
 all: $(BIN) $(GIT_HOOKS)
@@ -32,11 +37,11 @@ $(GIT_HOOKS):
 	@echo
 
 $(BIN): $(OBJ_FILES)
-	$(CC) $(LDFLAGS) -o $@ $(OBJ_FILES)
+	$(CC) $(LDFLAGS) -o $@ $(OBJ_FILES) $(LDFLAGS)
 
 $(OUT)/src/%.o: src/%.c
 	mkdir -p $(@D)
-	$(CC) -o $@ -c $(CFLAGS) $<
+	$(CC) -c $(CFLAGS) $< -o $@ 
 
 check: CFLAGS += -O3
 check: LDFLAGS += -O3

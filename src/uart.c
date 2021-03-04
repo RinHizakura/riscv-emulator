@@ -1,15 +1,39 @@
 #include "uart.h"
 #include <string.h>
+#include <unistd.h>
 
-//
 #define uart_reg(uart, addr) uart->reg[addr - UART_BASE]
 
-void init_uart(riscv_uart *uart)
+/* global variable to stop the infinite loop of thread */
+int thread_stop = 0;
+
+static void thread(riscv_uart *uart)
+{
+    while (!thread_stop) {
+        printf("This is a pthread\n");
+        sleep(3);
+    }
+}
+
+
+bool init_uart(riscv_uart *uart)
 {
     memset(uart->reg, 0, sizeof(UART_SIZE));
     uart->is_interrupt = false;
     // transmitter hold register is empty at first
     uart_reg(uart, UART_LSR) |= UART_LSR_TX;
+
+    thread_stop = 0;
+
+    // create a thread for waiting input
+    int ret = pthread_create(&uart->input_thread_pid, NULL, (void *) thread,
+                             (void *) uart);
+    if (ret) {
+        LOG_ERROR("Error %d when create thread!\n", ret);
+        return false;
+    }
+
+    return true;
 }
 
 uint64_t read_uart(riscv_uart *uart,
@@ -56,4 +80,10 @@ bool write_uart(riscv_uart *uart,
     }
 
     return true;
+}
+
+void free_uart(riscv_uart *uart)
+{
+    thread_stop = 1;
+    pthread_join(uart->input_thread_pid, NULL);
 }
