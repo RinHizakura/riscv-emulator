@@ -11,6 +11,8 @@ bool init_bus(riscv_bus *bus, const char *filename)
      * another function */
     memset(&bus->clint, 0, sizeof(riscv_clint));
     memset(&bus->plic, 0, sizeof(riscv_clint));
+    init_uart(&bus->uart);
+
     return true;
 }
 
@@ -25,10 +27,13 @@ uint64_t read_bus(riscv_bus *bus,
     if (addr >= PLIC_BASE && addr < PLIC_END)
         return read_plic(&bus->plic, addr, size, exc);
 
+    if (addr >= UART_BASE && addr < UART_END)
+        return read_uart(&bus->uart, addr, size, exc);
+
     if (addr >= DRAM_BASE && addr < DRAM_END)
         return read_mem(&bus->memory, addr, size, exc);
 
-    LOG_ERROR("Invalid read memory address 0x%lx < 0x%lx\n", addr, DRAM_BASE);
+    LOG_ERROR("Invalid read memory address 0x%lx\n", addr);
     exc->exception = LoadAccessFault;
     return -1;
 }
@@ -46,10 +51,13 @@ bool write_bus(riscv_bus *bus,
     if (addr >= PLIC_BASE && addr < PLIC_END)
         return write_plic(&bus->plic, addr, size, value, exc);
 
+    if (addr >= UART_BASE && addr < UART_END)
+        return write_uart(&bus->uart, addr, size, value, exc);
+
     if (addr >= DRAM_BASE && addr < DRAM_END)
         return write_mem(&bus->memory, addr, size, value, exc);
 
-    LOG_ERROR("Invalid write memory address 0x%ld < 0x%ld\n", addr, DRAM_BASE);
+    LOG_ERROR("Invalid write memory address 0x%ld\n", addr);
     exc->exception = StoreAMOAccessFault;
     return false;
 }

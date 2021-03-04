@@ -1,6 +1,9 @@
 int fib(int n);
+void uart();
+
 int main()
 {
+    uart();
     return fib(10);
 }
 
@@ -11,4 +14,23 @@ int fib(int n)
     if (n == 1)
         return 1;
     return (fib(n - 1) + fib(n - 2));
+}
+
+void uart()
+{
+    volatile char *uart = (volatile char *) 0x10000000;
+    uart[0] = 'H';
+    uart[0] = 'e';
+    uart[0] = 'l';
+    uart[0] = 'l';
+    uart[0] = 'o';
+    uart[0] = ',';
+    uart[0] = ' ';
+    uart[0] = 'w';
+    uart[0] = 'o';
+    uart[0] = 'r';
+    uart[0] = 'l';
+    uart[0] = 'd';
+    uart[0] = '!';
+    uart[0] = '\n';
 }

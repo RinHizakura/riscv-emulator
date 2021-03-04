@@ -32,5 +32,6 @@
 
 #define UART_SIZE 0x100
 #define UART_BASE 0x10000000
+#define UART_END (UART_BASE + UART_SIZE)
 
 #endif
