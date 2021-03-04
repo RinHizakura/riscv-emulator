@@ -1,17 +1,30 @@
 #include "uart.h"
+#include <signal.h>
 #include <string.h>
 #include <unistd.h>
 
 #define uart_reg(uart, addr) uart->reg[addr - UART_BASE]
 
-/* global variable to stop the infinite loop of thread */
-int thread_stop = 0;
+/* global variable to stop the infinite loop of thread, has data race */
+volatile int thread_stop = 0;
 
 static void thread(riscv_uart *uart)
 {
     while (!thread_stop) {
-        printf("This is a pthread\n");
-        sleep(3);
+        char c;
+        scanf("%c", &c);
+        pthread_mutex_lock(&uart->lock);
+
+        while ((uart_reg(uart, UART_LSR) & UART_LSR_RX) == 1) {
+            pthread_cond_wait(&uart->cond, &uart->lock);
+        }
+        uart_reg(uart, UART_RHR) = c;
+        // not exactly used now
+        uart->is_interrupt = 0;
+
+        uart_reg(uart, UART_LSR) |= UART_LSR_RX;
+
+        pthread_mutex_unlock(&uart->lock);
     }
 }
 
@@ -24,10 +37,13 @@ bool init_uart(riscv_uart *uart)
     uart_reg(uart, UART_LSR) |= UART_LSR_TX;
 
     thread_stop = 0;
+    pthread_mutex_init(&uart->lock, NULL);
+    pthread_cond_init(&uart->cond, NULL);
 
     // create a thread for waiting input
-    int ret = pthread_create(&uart->input_thread_pid, NULL, (void *) thread,
-                             (void *) uart);
+    pthread_t tid;
+    int ret = pthread_create(&tid, NULL, (void *) thread, (void *) uart);
+    pthread_detach(tid);
     if (ret) {
         LOG_ERROR("Error %d when create thread!\n", ret);
         return false;
@@ -46,14 +62,23 @@ uint64_t read_uart(riscv_uart *uart,
         return -1;
     }
 
+    pthread_mutex_lock(&uart->lock);
+
+    uint64_t ret_value = -1;
     switch (addr) {
     case UART_RHR:
+        ret_value = uart_reg(uart, addr);
         // no data in receive holding register after reading
         uart_reg(uart, UART_LSR) &= ~UART_LSR_RX;
-        return uart_reg(uart, addr);
+        // thus the next input can come in
+        pthread_cond_broadcast(&uart->cond);
+        break;
     default:
-        return uart_reg(uart, addr);
+        ret_value = uart_reg(uart, addr);
     }
+
+    pthread_mutex_unlock(&uart->lock);
+    return ret_value;
 }
 
 bool write_uart(riscv_uart *uart,
@@ -67,6 +92,8 @@ bool write_uart(riscv_uart *uart,
         return false;
     }
 
+    pthread_mutex_lock(&uart->lock);
+
     switch (addr) {
     case UART_THR:
         /* Note: The case UART_LSR_TX == 0 isn't emulated. It means that our
@@ -78,6 +105,7 @@ bool write_uart(riscv_uart *uart,
         uart_reg(uart, addr) = value & 0xff;
         break;
     }
+    pthread_mutex_unlock(&uart->lock);
 
     return true;
 }
@@ -85,5 +113,7 @@ bool write_uart(riscv_uart *uart,
 void free_uart(riscv_uart *uart)
 {
     thread_stop = 1;
-    pthread_join(uart->input_thread_pid, NULL);
+
+    pthread_mutex_destroy(&uart->lock);
+    pthread_cond_destroy(&uart->cond);
 }

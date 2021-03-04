@@ -38,7 +38,8 @@
 typedef struct {
     uint8_t reg[UART_SIZE];
     bool is_interrupt;
-    pthread_t input_thread_pid;
+    pthread_mutex_t lock;
+    pthread_cond_t cond;
 } riscv_uart;
 
 bool init_uart(riscv_uart *uart);
