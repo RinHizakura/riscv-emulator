@@ -38,6 +38,7 @@
 typedef struct {
     uint8_t reg[UART_SIZE];
     bool is_interrupt;
+    pthread_t child_tid;
     pthread_mutex_t lock;
     pthread_cond_t cond;
 } riscv_uart;

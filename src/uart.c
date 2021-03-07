@@ -1,18 +1,46 @@
 #include "uart.h"
+#include <assert.h>
+#include <errno.h>
 #include <signal.h>
 #include <string.h>
+#include <sys/select.h>
 #include <unistd.h>
 
 #define uart_reg(uart, addr) uart->reg[addr - UART_BASE]
+
+
+/* FIXME: Several pthread_* function is not completely doing
+ * the error handling, we should take care of this. */
 
 /* global variable to stop the infinite loop of thread, has data race */
 volatile int thread_stop = 0;
 
 static void thread(riscv_uart *uart)
 {
-    while (!thread_stop) {
+    int infd = STDIN_FILENO;
+    fd_set readfds;
+
+    struct timeval timeout;
+    timeout.tv_sec = 1;
+    timeout.tv_usec = 0;
+
+    while (!__atomic_load_n(&thread_stop, __ATOMIC_SEQ_CST)) {
+        FD_ZERO(&readfds);
+        FD_SET(infd, &readfds);
+
+        int result = select(infd + 1, &readfds, NULL, NULL, &timeout);
+
+        // if error or timeout expired
+        if (result <= 0)
+            continue;
+
+        assert(FD_ISSET(infd, &readfds));
+
         char c;
-        scanf("%c", &c);
+        int ret = read(infd, &c, 1);
+        if (ret == -1)
+            continue;
+
         pthread_mutex_lock(&uart->lock);
 
         while ((uart_reg(uart, UART_LSR) & UART_LSR_RX) == 1) {
@@ -28,7 +56,6 @@ static void thread(riscv_uart *uart)
     }
 }
 
-
 bool init_uart(riscv_uart *uart)
 {
     memset(uart->reg, 0, sizeof(UART_SIZE));
@@ -37,18 +64,21 @@ bool init_uart(riscv_uart *uart)
     uart_reg(uart, UART_LSR) |= UART_LSR_TX;
 
     thread_stop = 0;
-    pthread_mutex_init(&uart->lock, NULL);
-    pthread_cond_init(&uart->cond, NULL);
+
+    if (pthread_mutex_init(&uart->lock, NULL))
+        return false;
+
+    if (pthread_cond_init(&uart->cond, NULL))
+        return false;
 
     // create a thread for waiting input
     pthread_t tid;
-    int ret = pthread_create(&tid, NULL, (void *) thread, (void *) uart);
-    pthread_detach(tid);
-    if (ret) {
-        LOG_ERROR("Error %d when create thread!\n", ret);
+    if (pthread_create(&tid, NULL, (void *) thread, (void *) uart)) {
+        LOG_ERROR("Error when create thread!\n");
         return false;
     }
 
+    uart->child_tid = tid;
     return true;
 }
 
@@ -112,8 +142,8 @@ bool write_uart(riscv_uart *uart,
 
 void free_uart(riscv_uart *uart)
 {
-    thread_stop = 1;
-
+    __atomic_store_n(&thread_stop, 1, __ATOMIC_SEQ_CST);
+    pthread_join(uart->child_tid, NULL);
     pthread_mutex_destroy(&uart->lock);
     pthread_cond_destroy(&uart->cond);
 }
