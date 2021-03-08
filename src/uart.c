@@ -8,6 +8,13 @@
 
 #define uart_reg(uart, addr) uart->reg[addr - UART_BASE]
 
+/* Some "Built-in Functions for Memory Model Aware Atomic Operations" are
+ * used for expected result, you can see here for more information:
+ * - https://gcc.gnu.org/onlinedocs/gcc/_005f_005fatomic-Builtins.html
+ */
+
+/* TODO: Take care of the best choice of 'memorder' in those atomic operations
+ */
 
 /* FIXME: Several pthread_* function is not completely doing
  * the error handling, we should take care of this. */
@@ -47,8 +54,8 @@ static void thread(riscv_uart *uart)
             pthread_cond_wait(&uart->cond, &uart->lock);
         }
         uart_reg(uart, UART_RHR) = c;
-        // not exactly used now
-        uart->is_interrupt = 0;
+
+        __atomic_store_n(&uart->is_interrupt, 0, __ATOMIC_SEQ_CST);
 
         uart_reg(uart, UART_LSR) |= UART_LSR_RX;
 
@@ -138,6 +145,11 @@ bool write_uart(riscv_uart *uart,
     pthread_mutex_unlock(&uart->lock);
 
     return true;
+}
+
+bool uart_is_interrupt(riscv_uart *uart)
+{
+    return __atomic_exchange_n(&uart->is_interrupt, false, __ATOMIC_SEQ_CST);
 }
 
 void free_uart(riscv_uart *uart)

@@ -72,6 +72,14 @@
 #define MSTATUS_MPIE 0x80UL
 #define MSTATUS_MPP 0x1800UL
 
+// MIP fields
+#define MIP_SSIP 0x2UL
+#define MIP_MSIP 0x8UL
+#define MIP_STIP 0x20UL
+#define MIP_MTIP 0x80UL
+#define MIP_SEIP 0x200UL
+#define MIP_MEIP 0x800UL
+
 // SIP fields
 #define SIP_USIP 0x1UL
 #define SIP_SSIP 0x2UL
@@ -115,13 +123,15 @@
     }
 /* clang-format on */
 
-
 /* macro for setting and clearing csr bits */
-#define set_csr_bit(csr, reg, mask) \
+#define set_csr_bits(csr, reg, mask) \
     write_csr(csr, reg, read_csr(csr, reg) | mask)
 
-#define clear_csr_bit(csr, reg, mask) \
+#define clear_csr_bits(csr, reg, mask) \
     write_csr(csr, reg, read_csr(csr, reg) & ~mask)
+
+/* macro for checking csr bit(single bit only) */
+#define check_csr_bit(csr, reg, mask) (!!((read_csr(csr, reg) & mask)))
 
 typedef struct {
     uint64_t read_mask;

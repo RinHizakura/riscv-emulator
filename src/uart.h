@@ -53,6 +53,7 @@ bool write_uart(riscv_uart *uart,
                 uint8_t size,
                 uint64_t value,
                 riscv_exception *exc);
+bool uart_is_interrupt(riscv_uart *uart);
 void free_uart(riscv_uart *uart);
 
 #endif

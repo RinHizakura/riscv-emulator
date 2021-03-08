@@ -14,8 +14,12 @@ void start_emu(riscv_emu *emu)
     uint64_t start_pc = emu->cpu.pc;
     while (emu->cpu.pc < start_pc + emu->cpu.bus.memory.code_size &&
            emu->cpu.pc >= DRAM_BASE) {
-        bool ret = true;
+        if (check_pending_irq(&emu->cpu)) {
+            // if any interrupt is pending
+            interrput_take_trap(&emu->cpu);
+        }
 
+        bool ret = true;
         ret = fetch(&emu->cpu);
         if (!ret)
             goto get_trap;
@@ -30,7 +34,7 @@ void start_emu(riscv_emu *emu)
 
     get_trap:
         if (!ret) {
-            Trap trap = take_trap(&emu->cpu);
+            Trap trap = exception_take_trap(&emu->cpu);
             if (trap == Trap_Fatal) {
                 LOG_ERROR("Trap %x happen when pc %lx\n", trap, emu->cpu.pc);
                 break;

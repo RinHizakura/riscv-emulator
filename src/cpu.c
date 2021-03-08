@@ -528,9 +528,9 @@ static void instr_sret(riscv_cpu *cpu)
     write_csr(&cpu->csr, SSTATUS,
               (sstatus & ~SSTATUS_SIE) | ((sstatus & SSTATUS_SPIE) >> 4));
     /* SPIE is set to 1 */
-    set_csr_bit(&cpu->csr, SSTATUS, SSTATUS_SPIE);
+    set_csr_bits(&cpu->csr, SSTATUS, SSTATUS_SPIE);
     /* SPP is set to 0 */
-    clear_csr_bit(&cpu->csr, SSTATUS, SSTATUS_SPP);
+    clear_csr_bits(&cpu->csr, SSTATUS, SSTATUS_SPP);
 }
 
 static void instr_mret(riscv_cpu *cpu)
@@ -542,8 +542,8 @@ static void instr_mret(riscv_cpu *cpu)
 
     write_csr(&cpu->csr, MSTATUS,
               (mstatus & ~MSTATUS_MIE) | ((mstatus & MSTATUS_MPIE) >> 4));
-    set_csr_bit(&cpu->csr, MSTATUS, MSTATUS_MPIE);
-    clear_csr_bit(&cpu->csr, MSTATUS, MSTATUS_MPP);
+    set_csr_bits(&cpu->csr, MSTATUS, MSTATUS_MPIE);
+    clear_csr_bits(&cpu->csr, MSTATUS, MSTATUS_MPP);
 }
 
 static void instr_csrrw(riscv_cpu *cpu)
@@ -928,6 +928,8 @@ bool init_cpu(riscv_cpu *cpu, const char *filename)
 
     cpu->mode.mode = MACHINE;
     cpu->exc.exception = NoException;
+    cpu->irq.irq = NoInterrupt;
+
     memset(&cpu->instr, 0, sizeof(riscv_instr));
     memset(&cpu->xreg[0], 0, sizeof(uint64_t) * 32);
 
@@ -983,7 +985,7 @@ bool exec(riscv_cpu *cpu)
     return true;
 }
 
-Trap take_trap(riscv_cpu *cpu)
+Trap exception_take_trap(riscv_cpu *cpu)
 {
     uint64_t exc_pc = cpu->pc - 4;
     riscv_mode prev_mode = cpu->mode;
@@ -1022,7 +1024,7 @@ Trap take_trap(riscv_cpu *cpu)
         write_csr(&cpu->csr, SSTATUS,
                   (sstatus & ~SSTATUS_SPIE) | ((sstatus & SSTATUS_SIE) << 4));
         /* SIE is set to 0 */
-        clear_csr_bit(&cpu->csr, SSTATUS, SSTATUS_SIE);
+        clear_csr_bits(&cpu->csr, SSTATUS, SSTATUS_SIE);
         /* When a trap is taken, SPP is set to 0 if the trap originated from
          * user mode, or 1 otherwise. */
         sstatus = read_csr(&cpu->csr, SSTATUS);
@@ -1041,7 +1043,7 @@ Trap take_trap(riscv_cpu *cpu)
         uint64_t mstatus = read_csr(&cpu->csr, MSTATUS);
         write_csr(&cpu->csr, MSTATUS,
                   (mstatus & ~MSTATUS_MPIE) | ((mstatus & MSTATUS_MIE) << 4));
-        clear_csr_bit(&cpu->csr, MSTATUS, MSTATUS_MIE);
+        clear_csr_bits(&cpu->csr, MSTATUS, MSTATUS_MIE);
         mstatus = read_csr(&cpu->csr, MSTATUS);
         write_csr(&cpu->csr, MSTATUS,
                   (mstatus & ~MSTATUS_MPP) | prev_mode.mode << 11);
@@ -1074,6 +1076,118 @@ Trap take_trap(riscv_cpu *cpu)
         return Trap_Fatal;
     }
 }
+
+void interrput_take_trap(riscv_cpu *cpu)
+{
+    // TODO: take trap for interrput
+}
+
+bool check_pending_irq(riscv_cpu *cpu)
+{
+    /* TODO: concern USER mode of every step in pending interrupt handling for
+     * widely usage */
+
+    /* FIXME:
+     * 1. Priority of interrupt should be considered
+     * 2. The interactive between PLIC and interrput are not fully implement, I
+     * should dig in more to perform better emulation.
+     */
+    int irq = 0;
+    if (uart_is_interrupt(&cpu->bus.uart)) {
+        irq = UART0_IRQ;
+    }
+
+    if (!irq) {
+        // pending the external interrput bit
+        set_csr_bits(&cpu->csr, MIP, MIP_SEIP);
+    }
+
+    /* FIXME: I am coufusing for the MIDELEG mechanism. According to the
+     * document:
+     *
+     * > When a hart is executing in privilege mode x, interrupts are globally
+     * > enabled when x IE=1 and globally disabled when x IE=0. Interrupts for
+     * > lower-privilege modes, w<x, are always globally disabled regardless of
+     * > the setting of the lower-privilege mode’s global w IE bit. Interrupts
+     * for > higher-privilege modes, y>x, are always globally enabled regardless
+     * of the > setting of the higher-privilege mode’s global y IE bit.
+     *
+     * But the document also say that:
+     * > By default, all traps at any privilege level are handled in machine
+     * mode... > To increase performance, implementations can provide individual
+     * read/write bits > within medeleg and mideleg to indicate that certain
+     * exceptions and interrupts > should be processed directly by a lower
+     * privilege level.
+     *
+     * Then what will happen when bit in MIDELEG is not set and in the
+     * SUPERVISOR mode? Does CPU take the interrupt but not handling the causing
+     * trap? On the other hand, it also say that:
+     *
+     * > If bit i in MIDELEG is set, however, interrupts are considered to be
+     * globally > enabled if the hart’s current privilege mode equals the
+     * delegated privilege mode > (S or U) and that mode’s interrupt enable bit
+     * (SIE or UIE in mstatus) is set, > or if the current privilege mode is
+     * less than the delegated privilege mode.
+     *
+     * Does this mean that when bit i in MIDELEG is set and SIE is not set, the
+     * MACHINE level interrput should not be taken ? I should make sure I
+     * cosider the delegated priviledge mode by MIDELEG correctly */
+    uint64_t pending = read_csr(&cpu->csr, MIE) & read_csr(&cpu->csr, MIP);
+
+    if (cpu->mode.mode == MACHINE) {
+        if (!check_csr_bit(&cpu->csr, MSTATUS, MSTATUS_MIE)) {
+            cpu->irq.irq = NoInterrupt;
+            return false;
+        }
+    }
+
+    if (!(pending & MIP_MEIP)) {
+        clear_csr_bits(&cpu->csr, MIP, MIP_MEIP);
+        cpu->irq.irq = MachineExternalInterrupt;
+        return true;
+    }
+    if (!(pending & MIP_MSIP)) {
+        clear_csr_bits(&cpu->csr, MIP, MIP_MSIP);
+        cpu->irq.irq = MachineSoftwareInterrupt;
+        return true;
+    }
+    if (!(pending & MIP_MTIP)) {
+        clear_csr_bits(&cpu->csr, MIP, MIP_MTIP);
+        cpu->irq.irq = MachineTimerInterrupt;
+        return true;
+    }
+
+    if (cpu->mode.mode == SUPERVISOR) {
+        if (!check_csr_bit(&cpu->csr, SSTATUS, SSTATUS_SIE)) {
+            cpu->irq.irq = NoInterrupt;
+            return false;
+        }
+    }
+
+    if (!(pending & MIP_SEIP)) {
+        /* perform an interrupt claim and atomically clear
+         * the corresponding pending bit */
+        write_bus(&cpu->bus, PLIC_CLAIM_1, 32, irq, &cpu->exc);
+        assert(cpu->exc.exception == NoException);
+
+        clear_csr_bits(&cpu->csr, MIP, MIP_SEIP);
+        cpu->irq.irq = SupervisorExternalInterrupt;
+        return true;
+    }
+    if (!(pending & MIP_SSIP)) {
+        clear_csr_bits(&cpu->csr, MIP, MIP_SSIP);
+        cpu->irq.irq = SupervisorSoftwareInterrupt;
+        return true;
+    }
+    if (!(pending & MIP_STIP)) {
+        clear_csr_bits(&cpu->csr, MIP, MIP_STIP);
+        cpu->irq.irq = SupervisorTimerInterrupt;
+        return true;
+    }
+
+    return false;
+}
+
 
 void dump_reg(riscv_cpu *cpu)
 {

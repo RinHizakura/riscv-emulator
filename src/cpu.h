@@ -4,6 +4,7 @@
 #include "bus.h"
 #include "csr.h"
 #include "exception.h"
+#include "irq.h"
 
 typedef struct {
     enum { USER = 0x0, SUPERVISOR = 0x1, MACHINE = 0x3 } mode;
@@ -25,6 +26,7 @@ typedef struct CPU riscv_cpu;
 typedef struct CPU {
     riscv_mode mode;
     riscv_exception exc;
+    riscv_irq irq;
     riscv_instr instr;
     riscv_bus bus;
     riscv_csr csr;
@@ -61,7 +63,9 @@ bool init_cpu(riscv_cpu *cpu, const char *filename);
 bool fetch(riscv_cpu *cpu);
 bool decode(riscv_cpu *cpu);
 bool exec(riscv_cpu *cpu);
-Trap take_trap(riscv_cpu *cpu);
+bool check_pending_irq(riscv_cpu *cpu);
+Trap exception_take_trap(riscv_cpu *cpu);
+void interrput_take_trap(riscv_cpu *cpu);
 void dump_reg(riscv_cpu *cpu);
 void dump_csr(riscv_cpu *cpu);
 void free_cpu(riscv_cpu *cpu);

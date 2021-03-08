@@ -38,7 +38,7 @@ typedef struct {
         InstructionPageFault = 12,
         LoadPageFault = 13,
         StoreAMOPageFault = 15,
-        // extra number to present no exception for error checking
+        // extra number to represent no exception for error checking
         NoException = 99,
     } exception;
 } riscv_exception;
