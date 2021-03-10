@@ -2,7 +2,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "elf.h"
 #include "emu.h"
 
 #define MAX_FILE_LEN 256
@@ -63,13 +62,9 @@ int main(int argc, char *argv[])
         return -1;
     }
 
-    // Extra elf parsing for future use
-    if (opt_compliance)
-        elf_parser(input_file);
-
     riscv_emu *emu = malloc(sizeof(riscv_emu));
 
-    if (!init_emu(emu, input_file)) {
+    if (!init_emu(emu, input_file, opt_elf)) {
         /* FIXME: should properly cleanup first */
         exit(1);
     }

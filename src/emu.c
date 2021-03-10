@@ -1,8 +1,15 @@
-#include "emu.h"
-#include "stdlib.h"
+#include <stdlib.h>
 
-bool init_emu(riscv_emu *emu, const char *filename)
+#include "elf.h"
+#include "emu.h"
+
+bool init_emu(riscv_emu *emu, const char *filename, bool is_elf)
 {
+    if (is_elf) {
+        if (!elf_parser(&emu->elf, filename))
+            return false;
+    }
+
     if (!init_cpu(&emu->cpu, filename))
         return false;
 

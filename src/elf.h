@@ -1,6 +1,7 @@
 #ifndef _ELF_H
 #define _ELF_H
 
+#include <stdbool.h>
 #include <stdint.h>
 
 #define EI_NIDENT 16
@@ -40,6 +41,43 @@ typedef struct {
     Elf64_Xword p_align;
 } Elf64_Phdr;
 
-void elf_parser(char *binary_file);
+#define SHT_SYMTAB 2
+#define SHT_DYNSYM 11
+
+// section header
+typedef struct {
+    Elf64_Word sh_name;
+    Elf64_Word sh_type;
+    Elf64_Xword sh_flags;
+    Elf64_Addr sh_addr;
+    Elf64_Off sh_offset;
+    Elf64_Xword sh_size;
+    Elf64_Word sh_link;
+    Elf64_Word sh_info;
+    Elf64_Xword sh_addralign;
+    Elf64_Xword sh_entsize;
+} Elf64_Shdr;
+
+// symbol table
+typedef struct {
+    Elf64_Word st_name;
+    unsigned char st_info;
+    unsigned char st_other;
+    Elf64_Half st_shndx;
+    Elf64_Addr st_value;
+    Elf64_Xword st_size;
+} Elf64_Sym;
+
+typedef struct {
+    uint64_t code_offset;
+    uint64_t code_start;
+    uint64_t code_end;
+    uint64_t sig_start;
+    uint64_t sig_end;
+} riscv_elf;
+
+bool elf_parser(riscv_elf *elf, const char *binary_file);
+uint64_t elf_start();
+size_t elf_size();
 
 #endif
