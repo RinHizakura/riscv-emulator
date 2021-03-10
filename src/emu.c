@@ -43,7 +43,6 @@ void start_emu(riscv_emu *emu)
             emu->cpu.exc.exception = NoException;
         }
 
-
 #ifdef DEBUG
         dump_reg(&emu->cpu);
         dump_csr(&emu->cpu);

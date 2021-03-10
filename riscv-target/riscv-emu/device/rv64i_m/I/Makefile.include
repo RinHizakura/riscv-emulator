@@ -5,11 +5,11 @@ TARGET_SIM ?= $(TARGETDIR)/../build/emu
 TARGET_FLAGS ?= $(RISCV_TARGET_FLAGS)
 
 RUN_TARGET = $(TARGET_SIM) $(TARGET_FLAGS) \
-	--file $(<) \
+	--elf $(<) \
         --compliance $(*).signature.output 
 
 RISCV_GCC_OPTS ?= \
-    -march=rv64gc \
+    -march=rv64g \
     -mabi=lp64 \
     -g \
     -static \

@@ -49,14 +49,14 @@ check: $(BIN)
 	 riscv64-unknown-linux-gnu-gcc -S ./test/c_test.c
 	 riscv64-unknown-linux-gnu-gcc -Wl,-Ttext=0x0 -nostdlib -o c_test.obj ./c_test.s
 	 riscv64-unknown-linux-gnu-objcopy -O binary c_test.obj c_test.bin
-	 $(BIN) --file ./c_test.bin
+	 $(BIN) --binary ./c_test.bin
 
 test_assembly: CFLAGS += -O3
 test_assembly: LDFLAGS += -O3
 test_assembly: $(BIN)
 	 riscv64-unknown-linux-gnu-gcc -Wl,-Ttext=0x0 -nostdlib -o asm_test.obj ./test/asm_test.s
 	 riscv64-unknown-linux-gnu-objcopy -O binary asm_test.obj asm_test.bin
-	 $(BIN) --file ./asm_test.bin
+	 $(BIN) --binary ./asm_test.bin
 
 # variables for compliance
 COMPLIANCE_DIR ?= ./riscv-arch-test
