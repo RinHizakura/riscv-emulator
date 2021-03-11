@@ -5,12 +5,7 @@
 
 bool init_emu(riscv_emu *emu, const char *filename, bool is_elf)
 {
-    if (is_elf) {
-        if (!elf_parser(&emu->elf, filename))
-            return false;
-    }
-
-    if (!init_cpu(&emu->cpu, filename))
+    if (!init_cpu(&emu->cpu, filename, is_elf))
         return false;
 
     return true;

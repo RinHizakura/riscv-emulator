@@ -15,7 +15,7 @@ typedef struct {
     riscv_uart uart;
 } riscv_bus;
 
-bool init_bus(riscv_bus *bus, const char *filename);
+bool init_bus(riscv_bus *bus, const char *filename, bool is_elf);
 uint64_t read_bus(riscv_bus *bus,
                   uint64_t addr,
                   uint8_t size,

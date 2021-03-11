@@ -2,11 +2,9 @@
 #define RISCV_EMU
 
 #include "cpu.h"
-#include "elf.h"
 #include "memory.h"
 
 typedef struct Emu {
-    riscv_elf elf;
     riscv_cpu cpu;
 } riscv_emu;
 

@@ -74,6 +74,8 @@ typedef struct {
     uint64_t code_end;
     uint64_t sig_start;
     uint64_t sig_end;
+
+    uint8_t *elf_file;
 } riscv_elf;
 
 bool elf_parser(riscv_elf *elf, const char *binary_file);

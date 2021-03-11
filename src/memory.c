@@ -6,8 +6,14 @@
 #include "exception.h"
 #include "memory.h"
 
-bool init_mem(riscv_mem *mem, const char *filename)
+bool init_mem(riscv_mem *mem, const char *filename, bool is_elf)
 {
+    // load binary file to memory
+    if (!filename) {
+        LOG_ERROR("Binary is required for memory!\n");
+        return false;
+    }
+
     // create memory with default size
     mem->mem = calloc(DRAM_SIZE, sizeof(uint8_t));
     if (!mem->mem) {
@@ -15,31 +21,35 @@ bool init_mem(riscv_mem *mem, const char *filename)
         return false;
     }
 
-    // load binary file to memory
-    if (!filename) {
-        LOG_ERROR("Binary is required for memory!\n");
-        return false;
-    }
+    if (is_elf) {
+        if (!elf_parser(&mem->elf, filename))
+            return false;
 
-    FILE *fp = fopen(filename, "rb");
-    if (!fp) {
-        LOG_ERROR("Invalid binary path.\n");
-        return false;
-    }
+        size_t sz = mem->elf.code_end - mem->elf.code_start;
+        memcpy(mem->mem, mem->elf.elf_file + mem->elf.code_offset, sz);
+        mem->code_size = sz;
+        free(mem->elf.elf_file);
+    } else {
+        FILE *fp = fopen(filename, "rb");
+        if (!fp) {
+            LOG_ERROR("Invalid binary path.\n");
+            return false;
+        }
 
-    fseek(fp, 0, SEEK_END);
-    size_t sz = ftell(fp) * sizeof(uint8_t);
-    rewind(fp);
+        fseek(fp, 0, SEEK_END);
+        size_t sz = ftell(fp) * sizeof(uint8_t);
+        rewind(fp);
 
-    size_t read_size = fread(mem->mem, sizeof(uint8_t), sz, fp);
+        size_t read_size = fread(mem->mem, sizeof(uint8_t), sz, fp);
 
-    if (read_size != sz) {
-        LOG_ERROR("Error when reading binary through fread.\n");
+        if (read_size != sz) {
+            LOG_ERROR("Error when reading binary through fread.\n");
+            fclose(fp);
+            return false;
+        }
         fclose(fp);
-        return false;
+        mem->code_size = read_size;
     }
-    fclose(fp);
-    mem->code_size = read_size;
     return true;
 }
 

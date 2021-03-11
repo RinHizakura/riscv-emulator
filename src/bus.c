@@ -2,9 +2,9 @@
 
 #include "bus.h"
 
-bool init_bus(riscv_bus *bus, const char *filename)
+bool init_bus(riscv_bus *bus, const char *filename, bool is_elf)
 {
-    if (!init_mem(&bus->memory, filename))
+    if (!init_mem(&bus->memory, filename, is_elf))
         return false;
 
     /* since the initialize of CLINT / PLIC is simple, we don't put it to
