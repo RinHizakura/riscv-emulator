@@ -65,7 +65,7 @@ static void thread(riscv_uart *uart)
 
 bool init_uart(riscv_uart *uart)
 {
-    memset(uart->reg, 0, sizeof(UART_SIZE));
+    memset(&uart->reg[0], 0, UART_SIZE * sizeof(uint8_t));
     uart->is_interrupt = false;
     // transmitter hold register is empty at first
     uart_reg(uart, UART_LSR) |= UART_LSR_TX;
