@@ -70,8 +70,8 @@ int main(int argc, char *argv[])
     }
 
     start_emu(emu);
-    close_emu(emu);
 
+    // FIXME: Refactor to prettier code
     if (opt_compliance) {
         FILE *f = fopen(signature_out_file, "w");
         if (!f) {
@@ -79,8 +79,19 @@ int main(int argc, char *argv[])
                       signature_out_file);
             return -1;
         }
-        fprintf(f, "%s\n", signature_out_file);
+
+        uint64_t begin = emu->cpu.bus.memory.elf.sig_start + DRAM_BASE;
+        uint64_t end = emu->cpu.bus.memory.elf.sig_end + DRAM_BASE;
+
+        for (uint64_t i = begin; i < end; i += 4) {
+            uint32_t value =
+                read_mem(&emu->cpu.bus.memory, i, 32, &emu->cpu.exc) &
+                0xffffffff;
+            fprintf(f, "%08x\n", value);
+        }
         fclose(f);
     }
+
+    close_emu(emu);
     return 0;
 }
