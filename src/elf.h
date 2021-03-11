@@ -72,6 +72,11 @@ typedef struct {
     uint64_t code_offset;
     uint64_t code_start;
     uint64_t code_end;
+
+    uint64_t data_offset;
+    uint64_t data_start;
+    uint64_t data_end;
+
     uint64_t sig_start;
     uint64_t sig_end;
 

@@ -184,6 +184,12 @@ static void instr_lwu(riscv_cpu *cpu)
     cpu->xreg[cpu->instr.rd] = value;
 }
 
+static void instr_fence(riscv_cpu *cpu)
+{
+    /* Since our emulator only execute instruction on a single thread.
+     * So nothing will do for fence instruction */
+}
+
 static void instr_addi(riscv_cpu *cpu)
 {
     cpu->xreg[cpu->instr.rd] = cpu->xreg[cpu->instr.rs1] + cpu->instr.imm;
@@ -843,6 +849,7 @@ INIT_RISCV_INSTR_LIST(FUNC3, instr_atomic_type);
 
 static riscv_instr_entry opcode_type[] = {
     [0x03] = {I_decode, NULL, &instr_load_type_list},
+    [0x0f] = {I_decode, instr_fence, NULL},
     [0x13] = {I_decode, NULL, &instr_imm_type_list},
     [0x17] = {U_decode, instr_auipc, NULL},
     [0x1b] = {I_decode, NULL, &instr_immw_type_list},
@@ -889,8 +896,8 @@ static bool __decode(riscv_cpu *cpu, riscv_instr_desc *instr_desc)
     if (index >= instr_desc->size) {
         LOG_ERROR(
             "Not implemented or invalid instruction:\n"
-            "opcode = 0x%x funct3 = 0x%x funct7 = 0x%x \n",
-            cpu->instr.opcode, cpu->instr.funct3, cpu->instr.funct7);
+            "opcode = 0x%x funct3 = 0x%x funct7 = 0x%x at pc %lx\n",
+            cpu->instr.opcode, cpu->instr.funct3, cpu->instr.funct7, cpu->pc);
         cpu->exc.exception = IllegalInstruction;
         return false;
     }
@@ -904,8 +911,8 @@ static bool __decode(riscv_cpu *cpu, riscv_instr_desc *instr_desc)
         entry.next == NULL) {
         LOG_ERROR(
             "@ Not implemented or invalid instruction:\n"
-            "opcode = 0x%x funct3 = 0x%x funct7 = 0x%x \n",
-            cpu->instr.opcode, cpu->instr.funct3, cpu->instr.funct7);
+            "opcode = 0x%x funct3 = 0x%x funct7 = 0x%x at pc %lx\n",
+            cpu->instr.opcode, cpu->instr.funct3, cpu->instr.funct7, cpu->pc);
         cpu->exc.exception = IllegalInstruction;
         return false;
     }

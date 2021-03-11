@@ -65,6 +65,7 @@ bool elf_parser(riscv_elf *elf, const char *filename)
     printf("%16s %14s %14s\n", "Name", "Start", "end");
 
     bool first_text = true;
+    bool first_data = true;
     for (int i = 0; i < elf_header.e_shnum; i++) {
         Elf64_Shdr sec_header =
             read_section_header(elf->elf_file, elf_header, i);
@@ -82,6 +83,14 @@ bool elf_parser(riscv_elf *elf, const char *filename)
                 elf->code_end = sec_header.sh_addr + sec_header.sh_size;
         }
 
+        if (!strncmp(sec_name, ".data", 5)) {
+            if (first_data == true) {
+                elf->data_start = sec_header.sh_addr;
+                elf->data_end = sec_header.sh_addr + sec_header.sh_size;
+                first_data = false;
+            } else
+                elf->data_end = sec_header.sh_addr + sec_header.sh_size;
+        }
         if (sec_header.sh_type == SHT_SYMTAB ||
             sec_header.sh_type == SHT_DYNSYM) {
             Elf64_Sym *symtab_header =
@@ -124,8 +133,15 @@ bool elf_parser(riscv_elf *elf, const char *filename)
         if (prog_header.p_vaddr == elf->code_start) {
             assert(prog_header.p_filesz == (elf->code_end - elf->code_start));
             elf->code_offset = prog_header.p_offset;
+            continue;
+        }
+        if (prog_header.p_vaddr == elf->data_start) {
+            assert(prog_header.p_filesz == (elf->data_end - elf->data_start));
+            elf->data_offset = prog_header.p_offset;
         }
     }
 
+    printf(".text start from %lx to %lx\n", elf->code_start, elf->code_end);
+    printf(".data start from %lx to %lx\n", elf->data_start, elf->data_end);
     return true;
 }

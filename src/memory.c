@@ -25,9 +25,15 @@ bool init_mem(riscv_mem *mem, const char *filename, bool is_elf)
         if (!elf_parser(&mem->elf, filename))
             return false;
 
-        size_t sz = mem->elf.code_end - mem->elf.code_start;
-        memcpy(mem->mem, mem->elf.elf_file + mem->elf.code_offset, sz);
-        mem->code_size = sz;
+        size_t code_sz = mem->elf.code_end - mem->elf.code_start;
+        memcpy(mem->mem + mem->elf.code_start,
+               mem->elf.elf_file + mem->elf.code_offset, code_sz);
+        size_t data_sz = mem->elf.data_end - mem->elf.data_start;
+        memcpy(mem->mem + mem->elf.data_start,
+               mem->elf.elf_file + mem->elf.data_offset, data_sz);
+        /* FIXME: assume the end of data section would be the code size, do
+         * this always right? */
+        mem->code_size = mem->elf.data_end;
         free(mem->elf.elf_file);
     } else {
         FILE *fp = fopen(filename, "rb");
