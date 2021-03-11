@@ -671,9 +671,9 @@ INIT_RISCV_INSTR_LIST(FUNC3, instr_load_type);
 
 static riscv_instr_entry instr_srli_srai_type[] = {
     [0x0] =  {NULL, instr_srli, NULL},
-    [0x20] = {NULL, instr_srai, NULL}
+    [0x10] = {NULL, instr_srai, NULL}
 };
-INIT_RISCV_INSTR_LIST(FUNC7, instr_srli_srai_type);
+INIT_RISCV_INSTR_LIST(FUNC7_S, instr_srli_srai_type);
 
 static riscv_instr_entry instr_imm_type[] = {
     [0x0] = {NULL, instr_addi, NULL},
@@ -879,6 +879,9 @@ static bool __decode(riscv_cpu *cpu, riscv_instr_desc *instr_desc)
         break;
     case FUNC5:
         index = (cpu->instr.funct7 & 0b1111100) >> 2;
+        break;
+    case FUNC7_S:
+        index = cpu->instr.funct7 >> 1;
         break;
     case FUNC7:
         index = cpu->instr.funct7;

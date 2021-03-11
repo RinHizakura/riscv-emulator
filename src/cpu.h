@@ -43,6 +43,7 @@ typedef struct {
         FUNC3,
         FUNC5,
         FUNC7,
+        FUNC7_S,
         RS2,
     } type;
 } riscv_instr_desc_type;
