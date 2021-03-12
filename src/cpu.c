@@ -1089,7 +1089,60 @@ Trap exception_take_trap(riscv_cpu *cpu)
 
 void interrput_take_trap(riscv_cpu *cpu)
 {
-    // TODO: take trap for interrput
+    uint64_t irq_pc = cpu->pc;
+    riscv_mode prev_mode = cpu->mode;
+
+    uint8_t cause = cpu->exc.exception;
+
+    uint64_t mideleg = read_csr(&cpu->csr, MIDELEG);
+
+    if ((cpu->mode.mode <= SUPERVISOR) && (((mideleg >> cause) & 1) != 0)) {
+        cpu->mode.mode = SUPERVISOR;
+
+        uint64_t stvec = read_csr(&cpu->csr, STVEC);
+        if (stvec & 0x1)
+            cpu->pc = (stvec & ~0x3) + 4 * cause;
+        else
+            cpu->pc = stvec & ~0x3;
+
+        write_csr(&cpu->csr, SEPC, irq_pc & ~0x1);
+        /* The Interrupt bit in the scause register is set if the trap was
+         * caused by an interrupt */
+        write_csr(&cpu->csr, SCAUSE, 1UL << 63 | cause);
+
+        /* FIXME: write stval with exception-specific information to assist
+         * software in handling the trap.*/
+        write_csr(&cpu->csr, STVAL, 0);
+
+        uint64_t sstatus = read_csr(&cpu->csr, SSTATUS);
+        write_csr(&cpu->csr, SSTATUS,
+                  (sstatus & ~SSTATUS_SPIE) | ((sstatus & SSTATUS_SIE) << 4));
+        clear_csr_bits(&cpu->csr, SSTATUS, SSTATUS_SIE);
+        sstatus = read_csr(&cpu->csr, SSTATUS);
+        write_csr(&cpu->csr, SSTATUS,
+                  (sstatus & ~SSTATUS_SPP) | prev_mode.mode << 8);
+    } else {
+        cpu->mode.mode = MACHINE;
+
+        uint64_t mtvec = read_csr(&cpu->csr, MTVEC);
+        if (mtvec & 0x1)
+            cpu->pc = (mtvec & ~0x3) + 4 * cause;
+        else
+            cpu->pc = mtvec & ~0x3;
+
+        write_csr(&cpu->csr, MEPC, irq_pc & ~0x1);
+        write_csr(&cpu->csr, MCAUSE, 1UL << 63 | cause);
+        /* FIXME: write stval with exception-specific information to assist
+         * software in handling the trap.*/
+        write_csr(&cpu->csr, MTVAL, 0);
+        uint64_t mstatus = read_csr(&cpu->csr, MSTATUS);
+        write_csr(&cpu->csr, MSTATUS,
+                  (mstatus & ~MSTATUS_MPIE) | ((mstatus & MSTATUS_MIE) << 4));
+        clear_csr_bits(&cpu->csr, MSTATUS, MSTATUS_MIE);
+        mstatus = read_csr(&cpu->csr, MSTATUS);
+        write_csr(&cpu->csr, MSTATUS,
+                  (mstatus & ~MSTATUS_MPP) | prev_mode.mode << 11);
+    }
 }
 
 bool check_pending_irq(riscv_cpu *cpu)
