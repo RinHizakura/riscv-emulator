@@ -6,6 +6,15 @@
 
 #include "exception.h"
 
+/* VIRTIO is an abstraction layer over devices in a paravirtualized hypervisor.
+ */
+
+/* We can see the qemu implementation of virtio
+ * - https://github.com/qemu/qemu/blob/master/hw/virtio/virtio-mmio.c
+ * -
+ * https://github.com/qemu/qemu/blob/master/include/standard-headers/linux/virtio_mmio.h
+ */
+
 typedef struct {
     uint8_t *rfsimg;
 } riscv_virtio;
