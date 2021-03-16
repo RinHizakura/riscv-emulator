@@ -928,9 +928,12 @@ static bool __decode(riscv_cpu *cpu, riscv_instr_desc *instr_desc)
     return true;
 }
 
-bool init_cpu(riscv_cpu *cpu, const char *filename, bool is_elf)
+bool init_cpu(riscv_cpu *cpu,
+              const char *filename,
+              const char *rfs_name,
+              bool is_elf)
 {
-    if (!init_bus(&cpu->bus, filename, is_elf))
+    if (!init_bus(&cpu->bus, filename, rfs_name, is_elf))
         return false;
 
     if (!init_csr(&cpu->csr))

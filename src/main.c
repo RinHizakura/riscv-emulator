@@ -9,6 +9,8 @@
 static char input_file[MAX_FILE_LEN];
 static bool opt_binary = false;
 static bool opt_elf = false;
+static char rootfs_img[MAX_FILE_LEN];
+static char opt_rfsimg = false;
 static char signature_out_file[MAX_FILE_LEN];
 static bool opt_compliance = false;
 
@@ -18,11 +20,13 @@ int main(int argc, char *argv[])
     struct option opts[] = {
         {"binary", 1, NULL, 'B'},
         {"elf", 1, NULL, 'E'},
+        {"rfsimg", 1, NULL, 'R'},
         {"compliance", 1, NULL, 'C'},
     };
 
     int c;
-    while ((c = getopt_long(argc, argv, "B:E:C:", opts, &option_index)) != -1) {
+    while ((c = getopt_long(argc, argv, "B:E:R:C:", opts, &option_index)) !=
+           -1) {
         switch (c) {
         case 'B':
             if (opt_elf == true) {
@@ -41,6 +45,11 @@ int main(int argc, char *argv[])
             opt_elf = true;
             strncpy(input_file, optarg, MAX_FILE_LEN - 1);
             input_file[MAX_FILE_LEN - 1] = '\0';
+            break;
+        case 'R':
+            opt_rfsimg = true;
+            strncpy(rootfs_img, optarg, MAX_FILE_LEN - 1);
+            rootfs_img[MAX_FILE_LEN - 1] = '\0';
             break;
         case 'C':
             opt_compliance = true;
@@ -62,9 +71,13 @@ int main(int argc, char *argv[])
         return -1;
     }
 
+    // if no specific root file system, then passing the null string
+    if (!opt_rfsimg)
+        rootfs_img[0] = '\0';
+
     riscv_emu *emu = malloc(sizeof(riscv_emu));
 
-    if (!init_emu(emu, input_file, opt_elf)) {
+    if (!init_emu(emu, input_file, rootfs_img, opt_elf)) {
         /* FIXME: should properly cleanup first */
         exit(1);
     }

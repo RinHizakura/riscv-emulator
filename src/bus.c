@@ -2,7 +2,10 @@
 
 #include "bus.h"
 
-bool init_bus(riscv_bus *bus, const char *filename, bool is_elf)
+bool init_bus(riscv_bus *bus,
+              const char *filename,
+              const char *rfs_name,
+              bool is_elf)
 {
     if (!init_mem(&bus->memory, filename, is_elf))
         return false;
@@ -13,6 +16,9 @@ bool init_bus(riscv_bus *bus, const char *filename, bool is_elf)
     memset(&bus->plic, 0, sizeof(riscv_clint));
 
     if (!init_uart(&bus->uart))
+        return false;
+
+    if (!init_virtio(&bus->virtio, rfs_name))
         return false;
 
     return true;
@@ -68,4 +74,5 @@ void free_bus(riscv_bus *bus)
 {
     free_memory(&bus->memory);
     free_uart(&bus->uart);
+    free_virtio(&bus->virtio);
 }
