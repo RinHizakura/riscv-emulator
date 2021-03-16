@@ -1,5 +1,5 @@
-
 #include "clint.h"
+#include "exception.h"
 
 uint64_t read_clint(riscv_clint *clint,
                     uint64_t addr,

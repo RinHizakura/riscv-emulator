@@ -5,7 +5,7 @@
 #include <stdint.h>
 
 #include "elf.h"
-#include "memmap.h"
+#include "exception.h"
 
 typedef struct {
     riscv_elf elf;

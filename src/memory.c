@@ -4,6 +4,7 @@
 #include <string.h>
 
 #include "exception.h"
+#include "memmap.h"
 #include "memory.h"
 
 bool init_mem(riscv_mem *mem, const char *filename, bool is_elf)

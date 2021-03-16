@@ -38,6 +38,9 @@ uint64_t read_bus(riscv_bus *bus,
     if (addr >= UART_BASE && addr < UART_END)
         return read_uart(&bus->uart, addr, size, exc);
 
+    if (addr >= VIRTIO_BASE && addr < VIRTIO_END)
+        return read_virtio(&bus->virtio, addr, size, exc);
+
     if (addr >= DRAM_BASE && addr < DRAM_END)
         return read_mem(&bus->memory, addr, size, exc);
 
@@ -61,6 +64,9 @@ bool write_bus(riscv_bus *bus,
 
     if (addr >= UART_BASE && addr < UART_END)
         return write_uart(&bus->uart, addr, size, value, exc);
+
+    if (addr >= VIRTIO_BASE && addr < VIRTIO_END)
+        return write_virtio(&bus->virtio, addr, size, value, exc);
 
     if (addr >= DRAM_BASE && addr < DRAM_END)
         return write_mem(&bus->memory, addr, size, value, exc);

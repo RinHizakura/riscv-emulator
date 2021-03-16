@@ -1,4 +1,5 @@
 #include "uart.h"
+
 #include <assert.h>
 #include <errno.h>
 #include <signal.h>

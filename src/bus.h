@@ -2,8 +2,6 @@
 #define RISCV_BUS
 
 #include "clint.h"
-#include "exception.h"
-#include "memmap.h"
 #include "memory.h"
 #include "plic.h"
 #include "uart.h"
