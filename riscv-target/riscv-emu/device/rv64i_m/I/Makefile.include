@@ -1,4 +1,4 @@
-RISCV_PREFIX   ?= riscv64-unknown-linux-gnu-
+RISCV_PREFIX   ?= riscv64-unknown-elf-
 RISCV_GCC      ?= $(RISCV_PREFIX)gcc
 
 TARGET_SIM ?= $(TARGETDIR)/../build/emu
