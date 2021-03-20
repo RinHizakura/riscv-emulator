@@ -18,7 +18,7 @@ bool init_bus(riscv_bus *bus,
     if (!init_uart(&bus->uart))
         return false;
 
-    if (!init_virtio(&bus->virtio, rfs_name))
+    if (!init_virtio_blk(&bus->virtio_blk, rfs_name))
         return false;
 
     return true;
@@ -39,7 +39,7 @@ uint64_t read_bus(riscv_bus *bus,
         return read_uart(&bus->uart, addr, size, exc);
 
     if (addr >= VIRTIO_BASE && addr < VIRTIO_END)
-        return read_virtio(&bus->virtio, addr, size, exc);
+        return read_virtio_blk(&bus->virtio_blk, addr, size, exc);
 
     if (addr >= DRAM_BASE && addr < DRAM_END)
         return read_mem(&bus->memory, addr, size, exc);
@@ -66,7 +66,7 @@ bool write_bus(riscv_bus *bus,
         return write_uart(&bus->uart, addr, size, value, exc);
 
     if (addr >= VIRTIO_BASE && addr < VIRTIO_END)
-        return write_virtio(&bus->virtio, addr, size, value, exc);
+        return write_virtio_blk(&bus->virtio_blk, addr, size, value, exc);
 
     if (addr >= DRAM_BASE && addr < DRAM_END)
         return write_mem(&bus->memory, addr, size, value, exc);
@@ -80,5 +80,5 @@ void free_bus(riscv_bus *bus)
 {
     free_memory(&bus->memory);
     free_uart(&bus->uart);
-    free_virtio(&bus->virtio);
+    free_virtio_blk(&bus->virtio_blk);
 }

@@ -5,14 +5,14 @@
 #include "memory.h"
 #include "plic.h"
 #include "uart.h"
-#include "virtio.h"
+#include "virtio_blk.h"
 
 typedef struct {
     riscv_mem memory;
     riscv_clint clint;
     riscv_plic plic;
     riscv_uart uart;
-    riscv_virtio virtio;
+    riscv_virtio_blk virtio_blk;
 } riscv_bus;
 
 bool init_bus(riscv_bus *bus,
