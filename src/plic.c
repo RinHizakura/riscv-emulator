@@ -6,7 +6,7 @@ uint64_t read_plic(riscv_plic *plic,
                    riscv_exception *exc)
 {
     // support only word-aligned and word size access now
-    if ((size != 32) || ((addr & ~0x3) != addr)) {
+    if ((size != 32) || !(addr & 0x3)) {
         exc->exception = LoadAccessFault;
         return -1;
     }
@@ -47,7 +47,7 @@ bool write_plic(riscv_plic *plic,
                 riscv_exception *exc)
 {
     // support only word-aligned and word size access now
-    if ((size != 32) || ((addr & ~0x3) != addr)) {
+    if ((size != 32) || !(addr & 0x3)) {
         exc->exception = StoreAMOAccessFault;
         return false;
     }

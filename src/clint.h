@@ -21,9 +21,7 @@
 #define CLINT_MTIME (CLINT_BASE + 0XBFF8)
 
 typedef struct {
-    /* note that msip has only 32 bits, but we define it as uint64_t for the
-     * consistent clint read and write logic */
-    uint64_t msip;
+    uint32_t msip;
     uint64_t mtimecmp;
     uint64_t mtime;
 } riscv_clint;

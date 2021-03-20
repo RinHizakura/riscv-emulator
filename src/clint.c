@@ -6,36 +6,25 @@ uint64_t read_clint(riscv_clint *clint,
                     uint8_t size,
                     riscv_exception *exc)
 {
-    uint64_t reg_value;
-    uint8_t offset;
-
-    if (addr >= CLINT_MSIP && addr < CLINT_MSIP + 4) {
-        // remember that we use uint64_t to record 32 bits msip
-        reg_value = clint->msip & 0xffffffff;
-        offset = addr - CLINT_MSIP;
-    } else if (addr >= CLINT_MTIMECMP && addr < CLINT_MTIMECMP + 8) {
-        reg_value = clint->mtimecmp;
-        offset = addr - CLINT_MTIMECMP;
-    } else if (addr >= CLINT_MTIME && addr < CLINT_MTIME + 8) {
-        reg_value = clint->mtime;
-        offset = addr - CLINT_MTIME;
-    } else {
-        exc->exception = LoadAccessFault;
-        return -1;
+    // support only word-aligned and word size access now
+    if (size != 32 || !(addr & 0x3)) {
+        exc->exception = StoreAMOAccessFault;
+        return false;
     }
 
-    switch (size) {
-    case 8:
-    case 16:
-    case 32:
-        return (reg_value >> (offset << 3)) & ((1 << size) - 1);
-    case 64:
-        return reg_value;
-    default:
-        exc->exception = LoadAccessFault;
-        LOG_ERROR("Invalid clint size!\n");
-        return -1;
-    }
+    if (addr == CLINT_MSIP)
+        return clint->msip;
+    else if (addr == CLINT_MTIMECMP)
+        return clint->mtimecmp & 0xFFFFFFFF;
+    else if (addr == CLINT_MTIMECMP + 4)
+        return (clint->mtimecmp >> 32) & 0xFFFFFFFF;
+    else if (addr == CLINT_MTIME)
+        return clint->mtime & 0xFFFFFFFF;
+    else if (addr == CLINT_MTIME + 4)
+        return (clint->mtime >> 32) & 0xFFFFFFFF;
+
+    exc->exception = LoadAccessFault;
+    return -1;
 }
 
 bool write_clint(riscv_clint *clint,
@@ -44,38 +33,30 @@ bool write_clint(riscv_clint *clint,
                  uint64_t value,
                  riscv_exception *exc)
 {
-    uint64_t *reg;
-    uint8_t offset;
-
-    if (addr >= CLINT_MSIP && addr < CLINT_MSIP + 4) {
-        reg = &clint->msip;
-        offset = addr - CLINT_MSIP;
-    } else if (addr >= CLINT_MTIMECMP && addr < CLINT_MTIMECMP + 8) {
-        reg = &clint->mtimecmp;
-        offset = addr - CLINT_MTIMECMP;
-    } else if (addr >= CLINT_MTIME && addr < CLINT_MTIME + 8) {
-        reg = &clint->mtime;
-        offset = addr - CLINT_MTIME;
-    } else {
+    // support only word-aligned and word size access now
+    if (size != 32 || !(addr & 0x3)) {
         exc->exception = StoreAMOAccessFault;
         return false;
     }
 
-    switch (size) {
-    case 8:
-    case 16:
-    case 32:
-        // clear the target byte
-        *reg &= ~(((1 << size) - 1) << (offset << 3));
-        // set the new value to the target byte
-        *reg |= (value & ((1 << size) - 1)) << (offset << 3);
-        break;
-    case 64:
-        *reg = value;
-        break;
-    default:
-        exc->exception = LoadAccessFault;
-        LOG_ERROR("Invalid clint size!\n");
+    value &= 0xFFFFFFFF;
+
+    if (addr == CLINT_MSIP) {
+        clint->msip = value;
+    } else if (addr == CLINT_MTIMECMP) {
+        uint64_t timecmp_hi = clint->mtimecmp >> 32;
+        clint->mtimecmp = timecmp_hi << 32 | value;
+    } else if (addr == CLINT_MTIMECMP + 4) {
+        uint64_t timecmp_lo = clint->mtimecmp & 0xFFFFFFFF;
+        clint->mtimecmp = timecmp_lo | value << 32;
+    } else if (addr == CLINT_MTIME) {
+        uint64_t time_hi = clint->mtime >> 32;
+        clint->mtime = time_hi << 32 | value;
+    } else if (addr == CLINT_MTIME + 4) {
+        uint64_t time_lo = clint->mtime & 0xFFFFFFFF;
+        clint->mtime = time_lo | value << 32;
+    } else {
+        exc->exception = StoreAMOAccessFault;
         return false;
     }
 
