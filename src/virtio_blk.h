@@ -18,11 +18,22 @@
 #include "exception.h"
 #include "virtio.h"
 
-/* TODO: consider the read write permission of each mmio register */
-
 typedef struct {
-    uint32_t reg[VIRTIO_REG_CNT];  // mmio register except config
+    uint32_t device_features[2];
+    uint32_t device_features_sel;
+    uint32_t driver_features[2];
+    uint32_t guest_page_size;
+    uint32_t queue_num;
+    uint32_t queue_align;
+    uint32_t queue_pfn;
+    uint32_t queue_ready;
+    uint32_t queue_notify;
+    uint32_t interrupt_status;
+    uint32_t status;
+    uint32_t config_generation;
+
     uint8_t config[8];
+
     uint8_t *rfsimg;
 } riscv_virtio_blk;
 
