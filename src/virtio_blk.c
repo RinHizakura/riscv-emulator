@@ -1,14 +1,25 @@
 #include <assert.h>
+#include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include "memmap.h"
 #include "virtio_blk.h"
 
+#define ALIGN_UP(n, m) ((((n) + (m) -1) / (m)) * (m))
+
+
 static void reset_virtio_blk(riscv_virtio_blk *virtio_blk)
 {
-    // Upon reset, the device MUST clear all bits in InterruptStatus
+    /* FIXME: Can't find the content of reset sequence in document...... */
+    virtio_blk->queue_sel = 0;
+    virtio_blk->guest_features = 0;
+    virtio_blk->status = 0;
     virtio_blk->isr = 0;
+
+    virtio_blk->vq[0].desc = 0;
+    virtio_blk->vq[0].avail = 0;
+    virtio_blk->vq[0].used = 0;
 }
 
 bool init_virtio_blk(riscv_virtio_blk *virtio_blk, const char *rfs_name)
@@ -16,6 +27,8 @@ bool init_virtio_blk(riscv_virtio_blk *virtio_blk, const char *rfs_name)
     memset(virtio_blk, 0, sizeof(riscv_virtio_blk));
     // notify is set to -1 for no event happen
     virtio_blk->queue_notify = -1;
+    // default the align of virtqueue to 4096
+    virtio_blk->vq[0].align = VIRTQUEUE_ALIGN;
 
     if (rfs_name[0] == '\0') {
         virtio_blk->rfsimg = NULL;
@@ -152,6 +165,13 @@ bool write_virtio_blk(riscv_virtio_blk *virtio_blk,
     case VIRTIO_MMIO_QUEUE_PFN:
         assert(virtio_blk->queue_sel == 0);
         virtio_blk->vq[0].desc = value << virtio_blk->guest_page_shift;
+        virtio_blk->vq[0].avail =
+            virtio_blk->vq[0].desc +
+            virtio_blk->vq[0].num * sizeof(riscv_virtq_desc);
+        virtio_blk->vq[0].used = ALIGN_UP(
+            virtio_blk->vq[0].avail +
+                offsetof(riscv_virtq_avail, ring[virtio_blk->vq[0].num]),
+            virtio_blk->vq[0].align);
         break;
     case VIRTIO_MMIO_QUEUE_NOTIFY:
         assert(value == 0);

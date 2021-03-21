@@ -928,6 +928,23 @@ static bool __decode(riscv_cpu *cpu, riscv_instr_desc *instr_desc)
     return true;
 }
 
+static bool access_disk(riscv_cpu *cpu)
+{
+    riscv_virtio_blk *virtio_blk = &cpu->bus.virtio_blk;
+
+    assert(virtio_blk->queue_sel == 0);
+
+    /* the interrupt was asserted because the device has used a buffer
+     * in at least one of the active virtual queues. */
+    virtio_blk->isr |= 0x1;
+
+    uint64_t desc = virtio_blk->vq[0].desc;
+    uint64_t avail = virtio_blk->vq[0].avail;
+    uint64_t used = virtio_blk->vq[0].used;
+
+    // TODO...
+}
+
 bool init_cpu(riscv_cpu *cpu,
               const char *filename,
               const char *rfs_name,
@@ -1253,7 +1270,6 @@ bool check_pending_irq(riscv_cpu *cpu)
 
     return false;
 }
-
 
 void dump_reg(riscv_cpu *cpu)
 {

@@ -18,6 +18,19 @@
 #include "exception.h"
 #include "virtio.h"
 
+typedef struct VRingAvail {
+    uint16_t flags;
+    uint16_t idx;
+    uint16_t ring[];
+} riscv_virtq_avail;
+
+typedef struct {
+    uint64_t addr;
+    uint32_t len;
+    uint16_t flags;
+    uint16_t next;
+} riscv_virtq_desc;
+
 typedef struct {
     uint32_t num;
     uint32_t align;
@@ -25,10 +38,10 @@ typedef struct {
     uint64_t desc;
     uint64_t avail;
     uint64_t used;
-} riscv_virtio_queue;
+} riscv_virtq;
 
 typedef struct {
-    riscv_virtio_queue vq[1];
+    riscv_virtq vq[1];
     uint16_t queue_sel;
 
     uint64_t host_features;
