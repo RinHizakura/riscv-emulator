@@ -5,9 +5,17 @@
 #include "memmap.h"
 #include "virtio_blk.h"
 
+static void reset_virtio_blk(riscv_virtio_blk *virtio_blk)
+{
+    // Upon reset, the device MUST clear all bits in InterruptStatus
+    virtio_blk->isr = 0;
+}
+
 bool init_virtio_blk(riscv_virtio_blk *virtio_blk, const char *rfs_name)
 {
     memset(virtio_blk, 0, sizeof(riscv_virtio_blk));
+    // notify is set to -1 for no event happen
+    virtio_blk->queue_notify = -1;
 
     if (rfs_name[0] == '\0') {
         virtio_blk->rfsimg = NULL;
@@ -66,17 +74,14 @@ uint64_t read_virtio_blk(riscv_virtio_blk *virtio_blk,
     case VIRTIO_MMIO_VENDOR_ID:
         return VIRT_VENDOR;
     case VIRTIO_MMIO_DEVICE_FEATURES:
-        assert(virtio_blk->host_features_sel < 2);
-        return (virtio_blk->host_features >>
-                (32 * virtio_blk->host_features_sel)) &
-               0xFFFFFFFF;
+        return virtio_blk->host_features_sel ? 0 : virtio_blk->host_features;
     case VIRTIO_MMIO_QUEUE_NUM_MAX:
         return VIRTQUEUE_MAX_SIZE;
     case VIRTIO_MMIO_QUEUE_PFN:
         assert(virtio_blk->queue_sel == 0);
         return virtio_blk->vq[0].desc >> virtio_blk->guest_page_shift;
     case VIRTIO_MMIO_INTERRUPT_STATUS:
-        return virtio_blk->interrupt_status;
+        return virtio_blk->isr;
     case VIRTIO_MMIO_STATUS:
         return virtio_blk->status;
     default:
@@ -101,25 +106,76 @@ bool write_virtio_blk(riscv_virtio_blk *virtio_blk,
         int index = offset - VIRTIO_MMIO_CONFIG;
         if (index >= 8)
             goto write_virtio_fail;
-        virtio_blk->config[index] = value;
+        virtio_blk->config[index] = value & 0xFF;
+        return true;
     }
+
+    value &= 0xFFFFFFFF;
 
     // support only word-aligned and word size access for other registers
     if ((size != 32) || !(addr & 0x3))
         goto write_virtio_fail;
 
     switch (offset) {
+    case VIRTIO_MMIO_DEVICE_FEATURES_SEL:
+        virtio_blk->host_features_sel = value ? 1 : 0;
+        break;
+    case VIRTIO_MMIO_DRIVER_FEATURES:
+        if (virtio_blk->guest_features_sel)
+            LOG_ERROR(
+                "Attempt to write guest features with guest_features_sel > 0 "
+                "in legacy mode\n");
+        else
+            virtio_blk->guest_features = value;
+        break;
+    case VIRTIO_MMIO_DRIVER_FEATURES_SEL:
+        virtio_blk->guest_features_sel = value ? 1 : 0;
+        break;
     case VIRTIO_MMIO_GUEST_PAGE_SIZE:
         assert(value != 0);
         virtio_blk->guest_page_shift = __builtin_ctz(value);
+        break;
+    case VIRTIO_MMIO_QUEUE_SEL:
+        if (value != 0) {
+            LOG_ERROR("Support only on virtio queue now \n");
+            goto write_virtio_fail;
+        }
+        break;
+    case VIRTIO_MMIO_QUEUE_NUM:
+        assert(virtio_blk->queue_sel == 0);
+        virtio_blk->vq[0].num = value;
+        break;
+    case VIRTIO_MMIO_QUEUE_ALIGN:
+        assert(virtio_blk->queue_sel == 0);
+        virtio_blk->vq[0].align = value;
         break;
     case VIRTIO_MMIO_QUEUE_PFN:
         assert(virtio_blk->queue_sel == 0);
         virtio_blk->vq[0].desc = value << virtio_blk->guest_page_shift;
         break;
+    case VIRTIO_MMIO_QUEUE_NOTIFY:
+        assert(value == 0);
+        virtio_blk->queue_notify = value;
+        break;
+    case VIRTIO_MMIO_INTERRUPT_ACK:
+        /* clear bits by given bitmask to represent that the events causing
+         * the interrupt have been handled */
+        virtio_blk->isr &= ~(value & 0xff);
+        break;
+    case VIRTIO_MMIO_STATUS:
+        virtio_blk->status = value & 0xff;
+
+        // Writing zero (0x0) to this register triggers a device reset.
+        if (virtio_blk->status == 0)
+            reset_virtio_blk(virtio_blk);
+        /* FIXME: we may have to do something for the indicating driver
+         * progress? */
+        break;
     default:
         goto write_virtio_fail;
     }
+
+    return true;
 
 write_virtio_fail:
     exc->exception = StoreAMOAccessFault;

@@ -19,23 +19,27 @@
 #include "virtio.h"
 
 typedef struct {
+    uint32_t num;
+    uint32_t align;
+
     uint64_t desc;
+    uint64_t avail;
+    uint64_t used;
 } riscv_virtio_queue;
 
 typedef struct {
     riscv_virtio_queue vq[1];
-    uint32_t queue_sel;
+    uint16_t queue_sel;
 
     uint64_t host_features;
-    uint32_t host_features_sel;
     uint64_t guest_features;
+    uint32_t host_features_sel;
     uint32_t guest_features_sel;
     uint32_t guest_page_shift;
-    uint32_t queue_num;
-    uint32_t queue_align;
+
     uint32_t queue_notify;
-    uint32_t interrupt_status;
-    uint32_t status;
+    uint8_t isr;
+    uint8_t status;
 
     uint8_t config[8];
 
