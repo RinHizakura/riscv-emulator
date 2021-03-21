@@ -13,9 +13,8 @@
  */
 
 
-/* Refer to:
- * - 4.2.2 MMIO Device Register Layout
- * - 4.2.4 Legacy interface */
+/* The design base on 4.2.4 Legacy interface, and 4.2.2 MMIO Device Register
+ * Layout could be supported as future work */
 #define VIRTIO_MMIO_MAGIC_VALUE 0x0
 #define VIRTIO_MMIO_VERSION 0x4
 #define VIRTIO_MMIO_DEVICE_ID 0x8
@@ -30,18 +29,10 @@
 #define VIRTIO_MMIO_QUEUE_NUM 0x38
 #define VIRTIO_MMIO_QUEUE_ALIGN 0x3c
 #define VIRTIO_MMIO_QUEUE_PFN 0x40
-#define VIRTIO_MMIO_QUEUE_READY 0x044
 #define VIRTIO_MMIO_QUEUE_NOTIFY 0x050
 #define VIRTIO_MMIO_INTERRUPT_STATUS 0x60
 #define VIRTIO_MMIO_INTERRUPT_ACK 0x064
 #define VIRTIO_MMIO_STATUS 0x070
-#define VIRTIO_MMIO_QUEUE_DESC_LOW 0x80
-#define VIRTIO_MMIO_QUEUE_DESC_HIGH 0x84
-#define VIRTIO_MMIO_QUEUE_DRIVER_LOW 0x90
-#define VIRTIO_MMIO_QUEUE_DRIVER_HIGH 0x94
-#define VIRTIO_MMIO_QUEUE_DEVICE_LOW 0xa0
-#define VIRTIO_MMIO_QUEUE_DEVICE_HIGH 0xa4
-#define VIRTIO_MMIO_CONFIG_GENERATION 0xfc
 #define VIRTIO_MMIO_CONFIG 0x100
 
 #define VIRTIO_REG_CNT (0x100 / 4)

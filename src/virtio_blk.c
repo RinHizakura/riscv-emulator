@@ -42,7 +42,7 @@ uint64_t read_virtio_blk(riscv_virtio_blk *virtio_blk,
                          uint64_t size,
                          riscv_exception *exc)
 {
-    uint32_t offset = addr - VIRTIO_BASE;
+    uint64_t offset = addr - VIRTIO_BASE;
 
     // support only byte size access for VIRTIO_MMIO_CONFIG
     if (offset >= VIRTIO_MMIO_CONFIG) {
@@ -56,7 +56,6 @@ uint64_t read_virtio_blk(riscv_virtio_blk *virtio_blk,
     if ((size != 32) || !(addr & 0x3))
         goto read_virtio_fail;
 
-
     switch (offset) {
     case VIRTIO_MMIO_MAGIC_VALUE:
         return VIRT_MAGIC;
@@ -67,20 +66,19 @@ uint64_t read_virtio_blk(riscv_virtio_blk *virtio_blk,
     case VIRTIO_MMIO_VENDOR_ID:
         return VIRT_VENDOR;
     case VIRTIO_MMIO_DEVICE_FEATURES:
-        assert(virtio_blk->device_features_sel < 2);
-        return virtio_blk->device_features[virtio_blk->device_features_sel];
+        assert(virtio_blk->host_features_sel < 2);
+        return (virtio_blk->host_features >>
+                (32 * virtio_blk->host_features_sel)) &
+               0xFFFFFFFF;
     case VIRTIO_MMIO_QUEUE_NUM_MAX:
         return VIRTQUEUE_MAX_SIZE;
     case VIRTIO_MMIO_QUEUE_PFN:
-        return virtio_blk->queue_pfn;
-    case VIRTIO_MMIO_QUEUE_READY:
-        return virtio_blk->queue_ready;
+        assert(virtio_blk->queue_sel == 0);
+        return virtio_blk->vq[0].desc >> virtio_blk->guest_page_shift;
     case VIRTIO_MMIO_INTERRUPT_STATUS:
         return virtio_blk->interrupt_status;
     case VIRTIO_MMIO_STATUS:
         return virtio_blk->status;
-    case VIRTIO_MMIO_CONFIG_GENERATION:
-        return virtio_blk->config_generation;
     default:
         goto read_virtio_fail;
     }
@@ -96,6 +94,36 @@ bool write_virtio_blk(riscv_virtio_blk *virtio_blk,
                       uint64_t value,
                       riscv_exception *exc)
 {
+    uint64_t offset = addr - VIRTIO_BASE;
+
+    // support only byte size access for VIRTIO_MMIO_CONFIG
+    if (offset >= VIRTIO_MMIO_CONFIG) {
+        int index = offset - VIRTIO_MMIO_CONFIG;
+        if (index >= 8)
+            goto write_virtio_fail;
+        virtio_blk->config[index] = value;
+    }
+
+    // support only word-aligned and word size access for other registers
+    if ((size != 32) || !(addr & 0x3))
+        goto write_virtio_fail;
+
+    switch (offset) {
+    case VIRTIO_MMIO_GUEST_PAGE_SIZE:
+        assert(value != 0);
+        virtio_blk->guest_page_shift = __builtin_ctz(value);
+        break;
+    case VIRTIO_MMIO_QUEUE_PFN:
+        assert(virtio_blk->queue_sel == 0);
+        virtio_blk->vq[0].desc = value << virtio_blk->guest_page_shift;
+        break;
+    default:
+        goto write_virtio_fail;
+    }
+
+write_virtio_fail:
+    exc->exception = StoreAMOAccessFault;
+    return false;
 }
 
 void free_virtio_blk(riscv_virtio_blk *virtio_blk)
