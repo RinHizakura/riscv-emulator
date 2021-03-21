@@ -6,10 +6,8 @@ uint64_t read_plic(riscv_plic *plic,
                    riscv_exception *exc)
 {
     // support only word-aligned and word size access now
-    if ((size != 32) || !(addr & 0x3)) {
-        exc->exception = LoadAccessFault;
-        return -1;
-    }
+    if ((size != 32) || !(addr & 0x3))
+        goto read_plic_fail;
 
     if (addr >= PLIC_PRIORITY && addr < PLIC_PRIORITY_END) {
         return plic->priority[(addr - PLIC_PRIORITY) / 4];
@@ -32,10 +30,11 @@ uint64_t read_plic(riscv_plic *plic,
         case PLIC_CLAIM_1:
             return plic->claim[1];
         default:
-            break;
+            goto read_plic_fail;
         }
     }
 
+read_plic_fail:
     exc->exception = LoadAccessFault;
     return -1;
 }
@@ -47,10 +46,8 @@ bool write_plic(riscv_plic *plic,
                 riscv_exception *exc)
 {
     // support only word-aligned and word size access now
-    if ((size != 32) || !(addr & 0x3)) {
-        exc->exception = StoreAMOAccessFault;
-        return false;
-    }
+    if ((size != 32) || !(addr & 0x3))
+        goto write_plic_fail;
 
     value &= 0xffffffff;
 
@@ -79,9 +76,12 @@ bool write_plic(riscv_plic *plic,
             plic->claim[1] = value;
             break;
         default:
-            exc->exception = StoreAMOAccessFault;
-            return false;
+            goto write_plic_fail;
         }
     }
     return true;
+
+write_plic_fail:
+    exc->exception = StoreAMOAccessFault;
+    return false;
 }

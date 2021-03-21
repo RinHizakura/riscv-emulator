@@ -7,10 +7,8 @@ uint64_t read_clint(riscv_clint *clint,
                     riscv_exception *exc)
 {
     // support only word-aligned and word size access now
-    if (size != 32 || !(addr & 0x3)) {
-        exc->exception = StoreAMOAccessFault;
-        return false;
-    }
+    if (size != 32 || !(addr & 0x3))
+        goto read_clint_fail;
 
     if (addr == CLINT_MSIP)
         return clint->msip;
@@ -23,6 +21,7 @@ uint64_t read_clint(riscv_clint *clint,
     else if (addr == CLINT_MTIME + 4)
         return (clint->mtime >> 32) & 0xFFFFFFFF;
 
+read_clint_fail:
     exc->exception = LoadAccessFault;
     return -1;
 }
@@ -34,10 +33,8 @@ bool write_clint(riscv_clint *clint,
                  riscv_exception *exc)
 {
     // support only word-aligned and word size access now
-    if (size != 32 || !(addr & 0x3)) {
-        exc->exception = StoreAMOAccessFault;
-        return false;
-    }
+    if (size != 32 || !(addr & 0x3))
+        goto write_clint_fail;
 
     value &= 0xFFFFFFFF;
 
@@ -56,9 +53,12 @@ bool write_clint(riscv_clint *clint,
         uint64_t time_lo = clint->mtime & 0xFFFFFFFF;
         clint->mtime = time_lo | value << 32;
     } else {
-        exc->exception = StoreAMOAccessFault;
-        return false;
+        goto write_clint_fail;
     }
 
     return true;
+
+write_clint_fail:
+    exc->exception = StoreAMOAccessFault;
+    return false;
 }
