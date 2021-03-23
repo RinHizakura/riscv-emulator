@@ -18,6 +18,9 @@
 #include "exception.h"
 #include "virtio.h"
 
+#define VRING_DESC_F_NEXT 1
+#define VRING_DESC_F_WRITE 2
+
 typedef struct VRingAvail {
     uint16_t flags;
     uint16_t idx;
