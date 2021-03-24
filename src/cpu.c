@@ -1248,6 +1248,9 @@ bool check_pending_irq(riscv_cpu *cpu)
     int irq = 0;
     if (uart_is_interrupt(&cpu->bus.uart)) {
         irq = UART0_IRQ;
+    } else if (virtio_is_interrupt(&cpu->bus.virtio_blk)) {
+        access_disk(cpu);
+        irq = VIRTIO_IRQ;
     }
 
     if (!irq) {

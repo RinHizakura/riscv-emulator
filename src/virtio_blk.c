@@ -26,7 +26,7 @@ bool init_virtio_blk(riscv_virtio_blk *virtio_blk, const char *rfs_name)
 {
     memset(virtio_blk, 0, sizeof(riscv_virtio_blk));
     // notify is set to -1 for no event happen
-    virtio_blk->queue_notify = -1;
+    virtio_blk->queue_notify = 0xFFFFFFFF;
     // default the align of virtqueue to 4096
     virtio_blk->vq[0].align = VIRTQUEUE_ALIGN;
 
@@ -199,6 +199,15 @@ bool write_virtio_blk(riscv_virtio_blk *virtio_blk,
 
 write_virtio_fail:
     exc->exception = StoreAMOAccessFault;
+    return false;
+}
+
+bool virtio_is_interrupt(riscv_virtio_blk *virtio_blk)
+{
+    if (virtio_blk->queue_notify != 0xFFFFFFFF) {
+        virtio_blk->queue_notify = 0xFFFFFFFF;
+        return true;
+    }
     return false;
 }
 

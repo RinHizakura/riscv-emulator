@@ -79,6 +79,7 @@ bool write_virtio_blk(riscv_virtio_blk *virtio_blk,
                       uint8_t size,
                       uint64_t value,
                       riscv_exception *exc);
+bool virtio_is_interrupt(riscv_virtio_blk *virtio_blk);
 void free_virtio_blk(riscv_virtio_blk *virtio_blk);
 
 #endif

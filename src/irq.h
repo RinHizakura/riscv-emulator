@@ -7,6 +7,7 @@
 
 enum {
     UART0_IRQ = 10,
+    VIRTIO_IRQ = 1,
 };
 
 typedef struct {
