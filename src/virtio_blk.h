@@ -18,8 +18,15 @@
 #include "exception.h"
 #include "virtio.h"
 
-#define VRING_DESC_F_NEXT 1
-#define VRING_DESC_F_WRITE 2
+#define SECTOR_SIZE 512
+
+#define VIRTIO_BLK_T_IN 0
+#define VIRTIO_BLK_T_OUT 1
+
+#define VIRTQ_DESC_F_NEXT 1
+#define VIRTQ_DESC_F_WRITE 2
+
+#define VIRTIO_BLK_S_OK 0
 
 typedef struct VRingAvail {
     uint16_t flags;

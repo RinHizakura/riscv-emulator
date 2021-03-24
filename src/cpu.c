@@ -938,7 +938,8 @@ static inline riscv_virtq_desc load_desc(riscv_cpu *cpu, uint64_t addr)
                               .next = (tmp >> 48) & 0xffff};
 }
 
-static bool access_disk(riscv_cpu *cpu)
+// FIXME: error of read / write bus should be handled
+static void access_disk(riscv_cpu *cpu)
 {
     riscv_virtio_blk *virtio_blk = &cpu->bus.virtio_blk;
 
@@ -952,8 +953,9 @@ static bool access_disk(riscv_cpu *cpu)
     uint64_t avail = virtio_blk->vq[0].avail;
     uint64_t used = virtio_blk->vq[0].used;
 
-    /* idx field indicates where the driver would put the next descriptor entry
-     * in the ring (modulo the queue size). This starts at 0, and increases. */
+    /* (for avail) idx field indicates where the driver would put the next
+     * descriptor entry in the ring (modulo the queue size). This starts at 0,
+     * and increases. */
     int idx = read_bus(&cpu->bus, avail + 2, 16, &cpu->exc);
     int desc_offset = read_bus(&cpu->bus, avail + 4 + idx / VIRTQUEUE_MAX_SIZE,
                                16, &cpu->exc);
@@ -970,11 +972,47 @@ static bool access_disk(riscv_cpu *cpu)
     riscv_virtq_desc desc2 =
         load_desc(cpu, desc + sizeof(riscv_virtq_desc) * desc1.next);
 
-    assert(desc0.flags & VRING_DESC_F_NEXT);
+    assert(desc0.flags & VIRTQ_DESC_F_NEXT);
+    assert(desc1.flags & VIRTQ_DESC_F_NEXT);
+    assert(!(desc2.flags & VIRTQ_DESC_F_NEXT));
+
+    // the desc address should map to memory and we can then use memcpy directly
+    assert(desc1.addr >= DRAM_BASE && desc1.addr < DRAM_END);
+    assert((desc1.addr + desc1.len) >= DRAM_BASE &&
+           (desc1.addr + desc1.len) < DRAM_END);
 
     // take value of type and sector in field of struct virtio_blk_req
     int blk_req_type = read_bus(&cpu->bus, desc0.addr, 32, &cpu->exc);
     int blk_req_sector = read_bus(&cpu->bus, desc0.addr + 8, 64, &cpu->exc);
+
+    // write device
+    if (blk_req_type == VIRTIO_BLK_T_OUT) {
+        assert(desc1.flags & VIRTQ_DESC_F_WRITE);
+
+        memcpy(cpu->bus.virtio_blk.rfsimg + (blk_req_sector * SECTOR_SIZE),
+               cpu->bus.memory.mem + (desc1.addr - DRAM_BASE), desc1.len);
+    }
+    // read device
+    else {
+        assert(!(desc1.flags & VIRTQ_DESC_F_WRITE));
+
+        memcpy(cpu->bus.memory.mem + (desc1.addr - DRAM_BASE),
+               cpu->bus.virtio_blk.rfsimg + (blk_req_sector * SECTOR_SIZE),
+               desc1.len);
+    }
+
+    assert(desc2.flags & VIRTQ_DESC_F_WRITE);
+
+    /* The final status byte is written by the device: VIRTIO_BLK_S_OK for
+     * success */
+    write_bus(&cpu->bus, desc2.addr, 8, VIRTIO_BLK_S_OK, &cpu->exc);
+
+    /* (for used) idx field indicates where the device would put the next
+     * descriptor entry in the ring (modulo the queue size). This starts at 0,
+     * and increases */
+
+    idx = read_bus(&cpu->bus, used + 2, 16, &cpu->exc);
+    write_bus(&cpu->bus, used + 2, 16, idx + 1, &cpu->exc);
 }
 
 bool init_cpu(riscv_cpu *cpu,
