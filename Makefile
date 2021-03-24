@@ -68,6 +68,9 @@ test_assembly: $(BIN)
 	 riscv64-unknown-elf-objcopy -O binary asm_test.obj asm_test.bin
 	 $(BIN) --binary ./asm_test.bin
 
+os:
+	$(BIN) --binary xv6/kernel_bin --rfsimg xv6/fs.img
+
 # variables for compliance
 COMPLIANCE_DIR ?= ./riscv-arch-test
 export TARGETDIR ?= $(shell pwd)/riscv-target
