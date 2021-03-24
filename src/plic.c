@@ -35,6 +35,7 @@ uint64_t read_plic(riscv_plic *plic,
     }
 
 read_plic_fail:
+    LOG_ERROR("read plic failed\n");
     exc->exception = LoadAccessFault;
     return -1;
 }
@@ -82,6 +83,7 @@ bool write_plic(riscv_plic *plic,
     return true;
 
 write_plic_fail:
+    LOG_ERROR("write plic failed\n");
     exc->exception = StoreAMOAccessFault;
     return false;
 }

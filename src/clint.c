@@ -22,6 +22,7 @@ uint64_t read_clint(riscv_clint *clint,
         return (clint->mtime >> 32) & 0xFFFFFFFF;
 
 read_clint_fail:
+    LOG_ERROR("read clint failed\n");
     exc->exception = LoadAccessFault;
     return -1;
 }
@@ -59,6 +60,7 @@ bool write_clint(riscv_clint *clint,
     return true;
 
 write_clint_fail:
+    LOG_ERROR("write clint failed\n");
     exc->exception = StoreAMOAccessFault;
     return false;
 }
