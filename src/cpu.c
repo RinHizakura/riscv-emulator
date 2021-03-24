@@ -6,6 +6,9 @@
 
 #include "cpu.h"
 
+static uint64_t read(riscv_cpu *cpu, uint64_t addr, uint8_t size);
+static bool write(riscv_cpu *cpu, uint64_t addr, uint8_t size, uint64_t value);
+
 /* Many type conversion are appied for expected result. To know the detail, you
  * should check out the International Standard of C:
  * http://www.open-std.org/jtc1/sc22/wg14/www/docs/n1548.pdf
@@ -110,7 +113,7 @@ static void J_decode(riscv_cpu *cpu)
 static void instr_lb(riscv_cpu *cpu)
 {
     uint64_t addr = cpu->xreg[cpu->instr.rs1] + cpu->instr.imm;
-    uint64_t value = read_bus(&cpu->bus, addr, 8, &cpu->exc);
+    uint64_t value = read(cpu, addr, 8);
     if (cpu->exc.exception != NoException) {
         assert(value == (uint64_t) -1);
         return;
@@ -121,7 +124,7 @@ static void instr_lb(riscv_cpu *cpu)
 static void instr_lh(riscv_cpu *cpu)
 {
     uint64_t addr = cpu->xreg[cpu->instr.rs1] + cpu->instr.imm;
-    uint64_t value = read_bus(&cpu->bus, addr, 16, &cpu->exc);
+    uint64_t value = read(cpu, addr, 16);
     if (cpu->exc.exception != NoException) {
         assert(value == (uint64_t) -1);
         return;
@@ -132,7 +135,7 @@ static void instr_lh(riscv_cpu *cpu)
 static void instr_lw(riscv_cpu *cpu)
 {
     uint64_t addr = cpu->xreg[cpu->instr.rs1] + cpu->instr.imm;
-    uint64_t value = read_bus(&cpu->bus, addr, 32, &cpu->exc);
+    uint64_t value = read(cpu, addr, 32);
     if (cpu->exc.exception != NoException) {
         assert(value == (uint64_t) -1);
         return;
@@ -143,7 +146,7 @@ static void instr_lw(riscv_cpu *cpu)
 static void instr_ld(riscv_cpu *cpu)
 {
     uint64_t addr = cpu->xreg[cpu->instr.rs1] + cpu->instr.imm;
-    uint64_t value = read_bus(&cpu->bus, addr, 64, &cpu->exc);
+    uint64_t value = read(cpu, addr, 64);
     if (cpu->exc.exception != NoException) {
         assert(value == (uint64_t) -1);
         return;
@@ -154,7 +157,7 @@ static void instr_ld(riscv_cpu *cpu)
 static void instr_lbu(riscv_cpu *cpu)
 {
     uint64_t addr = cpu->xreg[cpu->instr.rs1] + cpu->instr.imm;
-    uint64_t value = read_bus(&cpu->bus, addr, 8, &cpu->exc);
+    uint64_t value = read(cpu, addr, 8);
     if (cpu->exc.exception != NoException) {
         assert(value == (uint64_t) -1);
         return;
@@ -165,7 +168,7 @@ static void instr_lbu(riscv_cpu *cpu)
 static void instr_lhu(riscv_cpu *cpu)
 {
     uint64_t addr = cpu->xreg[cpu->instr.rs1] + cpu->instr.imm;
-    uint64_t value = read_bus(&cpu->bus, addr, 16, &cpu->exc);
+    uint64_t value = read(cpu, addr, 16);
     if (cpu->exc.exception != NoException) {
         assert(value == (uint64_t) -1);
         return;
@@ -176,7 +179,7 @@ static void instr_lhu(riscv_cpu *cpu)
 static void instr_lwu(riscv_cpu *cpu)
 {
     uint64_t addr = cpu->xreg[cpu->instr.rs1] + cpu->instr.imm;
-    uint64_t value = read_bus(&cpu->bus, addr, 32, &cpu->exc);
+    uint64_t value = read(cpu, addr, 32);
     if (cpu->exc.exception != NoException) {
         assert(value == (uint64_t) -1);
         return;
@@ -378,25 +381,25 @@ static void instr_sraiw(riscv_cpu *cpu)
 static void instr_sb(riscv_cpu *cpu)
 {
     uint64_t addr = cpu->xreg[cpu->instr.rs1] + cpu->instr.imm;
-    write_bus(&cpu->bus, addr, 8, cpu->xreg[cpu->instr.rs2], &cpu->exc);
+    write(cpu, addr, 8, cpu->xreg[cpu->instr.rs2]);
 }
 
 static void instr_sh(riscv_cpu *cpu)
 {
     uint64_t addr = cpu->xreg[cpu->instr.rs1] + cpu->instr.imm;
-    write_bus(&cpu->bus, addr, 16, cpu->xreg[cpu->instr.rs2], &cpu->exc);
+    write(cpu, addr, 16, cpu->xreg[cpu->instr.rs2]);
 }
 
 static void instr_sw(riscv_cpu *cpu)
 {
     uint64_t addr = cpu->xreg[cpu->instr.rs1] + cpu->instr.imm;
-    write_bus(&cpu->bus, addr, 32, cpu->xreg[cpu->instr.rs2], &cpu->exc);
+    write(cpu, addr, 32, cpu->xreg[cpu->instr.rs2]);
 }
 
 static void instr_sd(riscv_cpu *cpu)
 {
     uint64_t addr = cpu->xreg[cpu->instr.rs1] + cpu->instr.imm;
-    write_bus(&cpu->bus, addr, 64, cpu->xreg[cpu->instr.rs2], &cpu->exc);
+    write(cpu, addr, 64, cpu->xreg[cpu->instr.rs2]);
 }
 
 static void instr_lui(riscv_cpu *cpu)
@@ -599,56 +602,50 @@ static void instr_csrrci(riscv_cpu *cpu)
 /* TODO: the lock acquire and realease are not implemented now */
 static void instr_amoaddw(riscv_cpu *cpu)
 {
-    uint64_t tmp =
-        read_bus(&cpu->bus, cpu->xreg[cpu->instr.rs1], 32, &cpu->exc);
+    uint64_t tmp = read(cpu, cpu->xreg[cpu->instr.rs1], 32);
     if (cpu->exc.exception != NoException) {
         assert(tmp == (uint64_t) -1);
         return;
     }
-    if (!write_bus(&cpu->bus, cpu->xreg[cpu->instr.rs1], 32,
-                   tmp + cpu->xreg[cpu->instr.rs2], &cpu->exc))
+    if (!write(cpu, cpu->xreg[cpu->instr.rs1], 32,
+               tmp + cpu->xreg[cpu->instr.rs2]))
         return;
     cpu->xreg[cpu->instr.rd] = tmp;
 }
 
 static void instr_amoswapw(riscv_cpu *cpu)
 {
-    uint64_t tmp =
-        read_bus(&cpu->bus, cpu->xreg[cpu->instr.rs1], 32, &cpu->exc);
+    uint64_t tmp = read(cpu, cpu->xreg[cpu->instr.rs1], 32);
     if (cpu->exc.exception != NoException) {
         assert(tmp == (uint64_t) -1);
         return;
     }
-    if (!write_bus(&cpu->bus, cpu->xreg[cpu->instr.rs1], 32,
-                   cpu->xreg[cpu->instr.rs2], &cpu->exc))
+    if (!write(cpu, cpu->xreg[cpu->instr.rs1], 32, cpu->xreg[cpu->instr.rs2]))
         return;
     cpu->xreg[cpu->instr.rd] = tmp;
 }
 
 static void instr_amoaddd(riscv_cpu *cpu)
 {
-    uint64_t tmp =
-        read_bus(&cpu->bus, cpu->xreg[cpu->instr.rs1], 64, &cpu->exc);
+    uint64_t tmp = read(cpu, cpu->xreg[cpu->instr.rs1], 64);
     if (cpu->exc.exception != NoException) {
         assert(tmp == (uint64_t) -1);
         return;
     }
-    if (!write_bus(&cpu->bus, cpu->xreg[cpu->instr.rs1], 64,
-                   tmp + cpu->xreg[cpu->instr.rs2], &cpu->exc))
+    if (!write(cpu, cpu->xreg[cpu->instr.rs1], 64,
+               tmp + cpu->xreg[cpu->instr.rs2]))
         return;
     cpu->xreg[cpu->instr.rd] = tmp;
 }
 
 static void instr_amoswapd(riscv_cpu *cpu)
 {
-    uint64_t tmp =
-        read_bus(&cpu->bus, cpu->xreg[cpu->instr.rs1], 64, &cpu->exc);
+    uint64_t tmp = read(cpu, cpu->xreg[cpu->instr.rs1], 64);
     if (cpu->exc.exception != NoException) {
         assert(tmp == (uint64_t) -1);
         return;
     }
-    if (!write_bus(&cpu->bus, cpu->xreg[cpu->instr.rs1], 64,
-                   cpu->xreg[cpu->instr.rs2], &cpu->exc))
+    if (!write(cpu, cpu->xreg[cpu->instr.rs1], 64, cpu->xreg[cpu->instr.rs2]))
         return;
     cpu->xreg[cpu->instr.rd] = tmp;
 }
@@ -1015,6 +1012,139 @@ static void access_disk(riscv_cpu *cpu)
     write_bus(&cpu->bus, used + 2, 16, idx + 1, &cpu->exc);
 }
 
+
+#define PAGE_SHIFT 12
+#define LEVELS 3
+// Sv39 page tables contain 2 9 page table entries (PTEs), eight bytes each.
+#define PTESIZE 8
+static uint64_t addr_translate(riscv_cpu *cpu, uint64_t addr, Access access)
+{
+    /* Reference to:
+     * - 4.3.2 Virtual Address Translation Process
+     * - 4.4 Sv39: Page-Based 39-bit Virtual-Memory System */
+
+    // the format of SV39 virtual address
+    uint64_t vpn[3] = {(addr >> 12) & 0x1ff, (addr >> 21) & 0x1ff,
+                       (addr >> 30) & 0x1ff};
+
+    /* 1. Let a be satp.ppn × PAGESIZE, and let i = LEVELS − 1. */
+    uint64_t a = (read_csr(&cpu->csr, SATP) & SATP_PPN) << PAGE_SHIFT;
+    int i = LEVELS - 1;
+
+    uint64_t pte;
+    while (1) {
+        /* 2. Let pte be the value of the PTE at address a+va.vpn[i]×PTESIZE. */
+        pte = read_bus(&cpu->bus, a + vpn[i] * 8, 64, &cpu->exc);
+        if (cpu->exc.exception != NoException)
+            return -1;
+
+        /* 3. If pte.v = 0, or if pte.r = 0 and pte.w = 1, stop and raise a
+         * page-fault exception corresponding to the original access type */
+        int v = pte & 1;
+        int r = (pte >> 1) & 1;
+        int w = (pte >> 2) & 1;
+        if (v == 0 || (r == 0 && w == 1))
+            goto translate_fail;
+
+        /* 4.
+         *
+         * Otherwise, the PTE is valid.
+         *
+         * If pte.r = 1 or pte.x = 1, go to step 5.
+         *
+         * Otherwise, this PTE is a pointer to the next level of the page table.
+         * Let i = i − 1. If i < 0, stop and raise a page-fault exception
+         * corresponding to the original access type.
+         *
+         * Otherwise, let a = pte.ppn × PAGESIZE and go to step 2. */
+        int x = (pte >> 3) & 1;
+
+        if (r == 1 || x == 1)
+            break;
+
+        i--;
+        if (i < 0)
+            goto translate_fail;
+
+        a = ((pte >> 10) & 0xfffffffffff) << PAGE_SHIFT;
+    }
+
+    /* 5. (skip) A leaf PTE has been found. Determine if the requested memory
+     * access is allowed by the pte.r, pte.w, pte.x, and pte.u bits, given the
+     * current privilege mode and the value of the SUM and MXR fields of the
+     * mstatus register. If not, stop and raise a page-fault exception
+     * corresponding to the original access type. */
+
+    /* 6. If i > 0 and pte.ppn[i − 1 : 0] != 0, this is a misaligned superpage;
+     * stop and raise a page-fault exception corresponding to the original
+     * access type. */
+
+    if ((i > 0) && ((pte >> 10) & 0xfffffffffffUL) != 0)
+        goto translate_fail;
+
+    /* 7. If pte.a = 0, or if the memory access is a store and pte.d = 0, raise
+     * a page-fault exception corresponding to the original access type */
+    if (((pte & 0x40) == 0) ||
+        ((access == Access_Store) && ((pte & 0x80) == 0)))
+        goto translate_fail;
+
+
+    /* 8. The translation is successful. The translated physical address is
+     * given as follows:
+     * - pa.pgoff = va.pgoff.
+     * - If i > 0, then this is a superpage translation and
+     *   pa.ppn[i − 1 : 0] = va.vpn[i − 1 : 0].
+     * - pa.ppn[LEVELS − 1 : i] = pte.ppn[LEVELS − 1 : i]. */
+
+    uint64_t ppn[3] = {(pte >> 10) & 0x1ff, (pte >> 19) & 0x1ff,
+                       (pte >> 28) & 0x3ffffff};
+
+    int fix = 0;
+    while (i > 0) {
+        ppn[fix] = vpn[fix];
+        fix++;
+        i--;
+    }
+
+    return ppn[2] << 30 | ppn[1] << 21 | ppn[0] << 12 | (addr & 0xffff);
+
+translate_fail:
+    switch (access) {
+    case Access_Instr:
+        cpu->exc.exception = InstructionPageFault;
+        break;
+    case Access_Load:
+        cpu->exc.exception = LoadPageFault;
+        break;
+    case Access_Store:
+        cpu->exc.exception = StoreAMOPageFault;
+        break;
+    }
+    return -1;
+}
+
+/* these two functions are the indirect layer of read / write bus from cpu,
+ * which will do address translation before actually read / write the bus */
+static uint64_t read(riscv_cpu *cpu, uint64_t addr, uint8_t size)
+{
+    if (cpu->enable_paging) {
+        addr = addr_translate(cpu, addr, Access_Load);
+        if (cpu->exc.exception != NoException)
+            return false;
+    }
+    return read_bus(&cpu->bus, addr, size, &cpu->exc);
+}
+
+static bool write(riscv_cpu *cpu, uint64_t addr, uint8_t size, uint64_t value)
+{
+    if (cpu->enable_paging) {
+        addr = addr_translate(cpu, addr, Access_Store);
+        if (cpu->exc.exception != NoException)
+            return false;
+    }
+    return write_bus(&cpu->bus, addr, size, value, &cpu->exc);
+}
+
 bool init_cpu(riscv_cpu *cpu,
               const char *filename,
               const char *rfs_name,
@@ -1029,6 +1159,7 @@ bool init_cpu(riscv_cpu *cpu,
     cpu->mode.mode = MACHINE;
     cpu->exc.exception = NoException;
     cpu->irq.irq = NoInterrupt;
+    cpu->enable_paging = false;
 
     memset(&cpu->instr, 0, sizeof(riscv_instr));
     memset(&cpu->xreg[0], 0, sizeof(uint64_t) * 32);
@@ -1041,11 +1172,17 @@ bool init_cpu(riscv_cpu *cpu,
 
 bool fetch(riscv_cpu *cpu)
 {
-    uint32_t instr = read_bus(&cpu->bus, cpu->pc, 32, &cpu->exc);
-    if (cpu->exc.exception != NoException) {
-        assert(instr == (uint32_t) -1);
-        return false;
+    uint64_t pc = cpu->pc;
+
+    if (cpu->enable_paging) {
+        pc = addr_translate(cpu, pc, Access_Instr);
+        if (cpu->exc.exception != NoException)
+            return false;
     }
+    uint32_t instr = read_bus(&cpu->bus, pc, 32, &cpu->exc);
+    if (cpu->exc.exception != NoException)
+        return false;
+
     // opcode for indexing the table will be decoded first
     cpu->instr.instr = instr;
     cpu->instr.opcode = instr & 0x7f;

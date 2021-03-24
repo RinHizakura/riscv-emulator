@@ -90,6 +90,9 @@
 // All bits besides SSIP, USIP, and UEIP in the sip register are read-only
 #define SIP_WRITABLE SIP_SSIP | SIP_USIP | SIP_UEIP
 
+// SATP fields
+#define SATP_PPN 0xfffffffffffUL
+
 // mask for naive usage
 #define ALL_VALID 0xffffffffffffffffUL
 #define ALL_INVALID 0x0
