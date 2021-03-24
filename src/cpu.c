@@ -67,6 +67,17 @@ static void I_decode(riscv_cpu *cpu)
     cpu->instr.imm = (int32_t)(instr & 0xfff00000) >> 20;
 }
 
+/* This function is used for csr-related instruction. It is
+ * similar to I-type decoding and the only different is the sign extension
+ * of right shift on fied imm */
+static void C_decode(riscv_cpu *cpu)
+{
+    uint32_t instr = cpu->instr.instr;
+    cpu->instr.rd = (instr >> 7) & 0x1f;
+    cpu->instr.rs1 = ((instr >> 15) & 0x1f);
+    cpu->instr.imm = (instr & 0xfff00000) >> 20;
+}
+
 static void S_decode(riscv_cpu *cpu)
 {
     uint32_t instr = cpu->instr.instr;
@@ -858,7 +869,7 @@ static riscv_instr_entry opcode_type[] = {
     [0x63] = {B_decode, NULL, &instr_branch_type_list},
     [0x67] = {I_decode, instr_jalr, NULL},
     [0x6f] = {J_decode, instr_jal, NULL},
-    [0x73] = {I_decode, NULL, &instr_csr_type_list},
+    [0x73] = {C_decode, NULL, &instr_csr_type_list},
 };
 INIT_RISCV_INSTR_LIST(OPCODE, opcode_type);
 /* clang-format on */

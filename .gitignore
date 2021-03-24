@@ -2,3 +2,5 @@
 *.obj
 *.s
 build
+xv6-kernel
+xv6-fs.img
