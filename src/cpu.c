@@ -1012,13 +1012,18 @@ static void access_disk(riscv_cpu *cpu)
     write_bus(&cpu->bus, used + 2, 16, idx + 1, &cpu->exc);
 }
 
-
 #define PAGE_SHIFT 12
 #define LEVELS 3
 // Sv39 page tables contain 2 9 page table entries (PTEs), eight bytes each.
 #define PTESIZE 8
 static uint64_t addr_translate(riscv_cpu *cpu, uint64_t addr, Access access)
 {
+    uint64_t satp = read_csr(&cpu->csr, SATP);
+
+    // if not enable page table translation
+    if (satp >> 60 != 8)
+        return addr;
+
     /* Reference to:
      * - 4.3.2 Virtual Address Translation Process
      * - 4.4 Sv39: Page-Based 39-bit Virtual-Memory System */
@@ -1028,7 +1033,7 @@ static uint64_t addr_translate(riscv_cpu *cpu, uint64_t addr, Access access)
                        (addr >> 30) & 0x1ff};
 
     /* 1. Let a be satp.ppn × PAGESIZE, and let i = LEVELS − 1. */
-    uint64_t a = (read_csr(&cpu->csr, SATP) & SATP_PPN) << PAGE_SHIFT;
+    uint64_t a = (satp & SATP_PPN) << PAGE_SHIFT;
     int i = LEVELS - 1;
 
     uint64_t pte;
@@ -1127,21 +1132,17 @@ translate_fail:
  * which will do address translation before actually read / write the bus */
 static uint64_t read(riscv_cpu *cpu, uint64_t addr, uint8_t size)
 {
-    if (cpu->enable_paging) {
-        addr = addr_translate(cpu, addr, Access_Load);
-        if (cpu->exc.exception != NoException)
-            return false;
-    }
+    addr = addr_translate(cpu, addr, Access_Load);
+    if (cpu->exc.exception != NoException)
+        return false;
     return read_bus(&cpu->bus, addr, size, &cpu->exc);
 }
 
 static bool write(riscv_cpu *cpu, uint64_t addr, uint8_t size, uint64_t value)
 {
-    if (cpu->enable_paging) {
-        addr = addr_translate(cpu, addr, Access_Store);
-        if (cpu->exc.exception != NoException)
-            return false;
-    }
+    addr = addr_translate(cpu, addr, Access_Store);
+    if (cpu->exc.exception != NoException)
+        return false;
     return write_bus(&cpu->bus, addr, size, value, &cpu->exc);
 }
 
@@ -1159,7 +1160,6 @@ bool init_cpu(riscv_cpu *cpu,
     cpu->mode.mode = MACHINE;
     cpu->exc.exception = NoException;
     cpu->irq.irq = NoInterrupt;
-    cpu->enable_paging = false;
 
     memset(&cpu->instr, 0, sizeof(riscv_instr));
     memset(&cpu->xreg[0], 0, sizeof(uint64_t) * 32);
@@ -1172,13 +1172,10 @@ bool init_cpu(riscv_cpu *cpu,
 
 bool fetch(riscv_cpu *cpu)
 {
-    uint64_t pc = cpu->pc;
+    uint64_t pc = addr_translate(cpu, cpu->pc, Access_Instr);
+    if (cpu->exc.exception != NoException)
+        return false;
 
-    if (cpu->enable_paging) {
-        pc = addr_translate(cpu, pc, Access_Instr);
-        if (cpu->exc.exception != NoException)
-            return false;
-    }
     uint32_t instr = read_bus(&cpu->bus, pc, 32, &cpu->exc);
     if (cpu->exc.exception != NoException)
         return false;

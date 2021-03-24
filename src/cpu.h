@@ -36,7 +36,6 @@ typedef struct CPU {
 
     uint64_t xreg[32];
     uint64_t pc;
-    bool enable_paging;
     void (*exec_func)(riscv_cpu *cpu);
 } riscv_cpu;
 
