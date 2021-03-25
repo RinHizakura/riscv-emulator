@@ -68,6 +68,7 @@ static void I_decode(riscv_cpu *cpu)
     cpu->instr.rs1 = ((instr >> 15) & 0x1f);
     cpu->instr.imm = (int32_t)(instr & 0xfff00000) >> 20;
     cpu->instr.funct3 = (instr >> 12) & 0x7;
+    cpu->instr.funct7 = (instr >> 25) & 0x7f;
 }
 
 /* This function is used for csr-related instruction. It is
@@ -600,6 +601,14 @@ static void instr_mret(riscv_cpu *cpu)
     clear_csr_bits(&cpu->csr, MSTATUS, MSTATUS_MPP);
 }
 
+static void instr_wfi(riscv_cpu *cpu) {}
+
+static void instr_sfencevma(riscv_cpu *cpu) {}
+
+static void instr_hfencebvma(riscv_cpu *cpu) {}
+
+static void instr_hfencegvma(riscv_cpu *cpu) {}
+
 static void instr_csrrw(riscv_cpu *cpu)
 {
     uint64_t tmp = read_csr(&cpu->csr, cpu->instr.imm);
@@ -800,10 +809,10 @@ static riscv_instr_entry instr_immw_type[] = {
 INIT_RISCV_INSTR_LIST(FUNC3, instr_immw_type);
 
 static riscv_instr_entry instr_store_type[] = {
-   [0x0] = {NULL, instr_sb, NULL},
-   [0x1] = {NULL, instr_sh, NULL},
-   [0x2] = {NULL, instr_sw, NULL},
-   [0x3] = {NULL, instr_sd, NULL},
+    [0x0] = {NULL, instr_sb, NULL},
+    [0x1] = {NULL, instr_sh, NULL},
+    [0x2] = {NULL, instr_sw, NULL},
+    [0x3] = {NULL, instr_sd, NULL},
 };
 INIT_RISCV_INSTR_LIST(FUNC3, instr_store_type);
 
@@ -848,27 +857,36 @@ static riscv_instr_entry instr_branch_type[] = {
 };
 INIT_RISCV_INSTR_LIST(FUNC3, instr_branch_type);
 
-static riscv_instr_entry instr_sret_mret_type[] = {
-    [0x08] = {NULL, instr_sret, NULL},
-    [0x18] = {NULL, instr_mret, NULL},
+static riscv_instr_entry instr_ecall_ebreak_type[] = {
+    [0x0] = {NULL, instr_ecall, NULL},
+    [0x1] = {NULL, instr_ebreak, NULL},
 };
-INIT_RISCV_INSTR_LIST(FUNC7, instr_sret_mret_type);
+INIT_RISCV_INSTR_LIST(RS2, instr_ecall_ebreak_type);
+
+static riscv_instr_entry instr_sret_wfi_type[] = {
+    [0x2] = {NULL, instr_sret, NULL},
+    [0x5] = {NULL, instr_wfi, NULL}
+};
+INIT_RISCV_INSTR_LIST(RS2, instr_sret_wfi_type);
 
 static riscv_instr_entry instr_ret_type[] = {
-     [0x0] = {NULL, instr_ecall, NULL},
-     [0x1] = {NULL, instr_ebreak, NULL},
-     [0x2] = {NULL, NULL, &instr_sret_mret_type_list},
+    [0x00] = {NULL, NULL, &instr_ecall_ebreak_type_list},
+    [0x08] = {NULL, NULL, &instr_sret_wfi_type_list},
+    [0x18] = {NULL, instr_mret, NULL},
+    [0x09] = {NULL, instr_sfencevma, NULL},
+    [0x11] = {NULL, instr_hfencebvma, NULL},
+    [0x51] = {NULL, instr_hfencegvma, NULL}
 };
-INIT_RISCV_INSTR_LIST(RS2, instr_ret_type);
+INIT_RISCV_INSTR_LIST(FUNC7, instr_ret_type);
 
 static riscv_instr_entry instr_csr_type[] = {
-     [0x0] = {NULL, NULL, &instr_ret_type_list},
-     [0x1] = {NULL, instr_csrrw, NULL},
-     [0x2] = {NULL, instr_csrrs, NULL},
-     [0x3] = {NULL, instr_csrrc, NULL},
-     [0x5] = {NULL, instr_csrrwi, NULL},
-     [0x6] = {NULL, instr_csrrsi, NULL},
-     [0x7] = {NULL, instr_csrrci, NULL},
+    [0x0] = {NULL, NULL, &instr_ret_type_list},
+    [0x1] = {NULL, instr_csrrw, NULL},
+    [0x2] = {NULL, instr_csrrs, NULL},
+    [0x3] = {NULL, instr_csrrc, NULL},
+    [0x5] = {NULL, instr_csrrwi, NULL},
+    [0x6] = {NULL, instr_csrrsi, NULL},
+    [0x7] = {NULL, instr_csrrci, NULL},
 };
 INIT_RISCV_INSTR_LIST(FUNC3, instr_csr_type);
 
@@ -883,7 +901,6 @@ static riscv_instr_entry instr_amoaddd_amoswapd_type[] = {
     [0x01] = {NULL, instr_amoswapd, NULL}
 };
 INIT_RISCV_INSTR_LIST(FUNC5, instr_amoaddd_amoswapd_type);
-
 
 static riscv_instr_entry instr_atomic_type[] = {
     [0x2] = {NULL, NULL, &instr_amoaddw_amoswapw_type_list},
@@ -944,7 +961,8 @@ static bool __decode(riscv_cpu *cpu, riscv_instr_desc *instr_desc)
         LOG_ERROR(
             "Not implemented or invalid instruction:\n"
             "opcode = 0x%x funct3 = 0x%x funct7 = 0x%x at pc %lx\n",
-            cpu->instr.opcode, cpu->instr.funct3, cpu->instr.funct7, cpu->pc);
+            cpu->instr.opcode, cpu->instr.funct3, cpu->instr.funct7,
+            cpu->pc - 4);
         cpu->exc.exception = IllegalInstruction;
         return false;
     }
@@ -959,7 +977,8 @@ static bool __decode(riscv_cpu *cpu, riscv_instr_desc *instr_desc)
         LOG_ERROR(
             "@ Not implemented or invalid instruction:\n"
             "opcode = 0x%x funct3 = 0x%x funct7 = 0x%x at pc %lx\n",
-            cpu->instr.opcode, cpu->instr.funct3, cpu->instr.funct7, cpu->pc);
+            cpu->instr.opcode, cpu->instr.funct3, cpu->instr.funct7,
+            cpu->pc - 4);
         cpu->exc.exception = IllegalInstruction;
         return false;
     }
@@ -1134,12 +1153,8 @@ static uint64_t addr_translate(riscv_cpu *cpu, uint64_t addr, Access access)
     if ((i > 0) && ((pte >> 10) & 0xfffffffffffUL) != 0)
         goto translate_fail;
 
-    /* 7. If pte.a = 0, or if the memory access is a store and pte.d = 0, raise
-     * a page-fault exception corresponding to the original access type */
-    if (((pte & 0x40) == 0) ||
-        ((access == Access_Store) && ((pte & 0x80) == 0)))
-        goto translate_fail;
-
+    /* 7. (Skip) If pte.a = 0, or if the memory access is a store and pte.d = 0,
+     * raise a page-fault exception corresponding to the original access type */
 
     /* 8. The translation is successful. The translated physical address is
      * given as follows:
@@ -1158,7 +1173,7 @@ static uint64_t addr_translate(riscv_cpu *cpu, uint64_t addr, Access access)
         i--;
     }
 
-    return ppn[2] << 30 | ppn[1] << 21 | ppn[0] << 12 | (addr & 0xffff);
+    return ppn[2] << 30 | ppn[1] << 21 | ppn[0] << 12 | (addr & 0xfff);
 
 translate_fail:
     switch (access) {
