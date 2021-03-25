@@ -68,13 +68,16 @@ static void I_decode(riscv_cpu *cpu)
 }
 
 /* This function is used for csr-related instruction. It is
- * similar to I-type decoding and the only different is the sign extension
- * of right shift on fied imm */
+ * similar to I-type decoding and the only different is:
+ * 1. the sign extension of right shift on fied imm
+ * 2. the parsing of field rs2
+ */
 static void C_decode(riscv_cpu *cpu)
 {
     uint32_t instr = cpu->instr.instr;
     cpu->instr.rd = (instr >> 7) & 0x1f;
     cpu->instr.rs1 = ((instr >> 15) & 0x1f);
+    cpu->instr.rs2 = ((instr >> 20) & 0x1f);
     cpu->instr.imm = (instr & 0xfff00000) >> 20;
 }
 
@@ -1225,9 +1228,9 @@ bool fetch(riscv_cpu *cpu)
 
     LOG_DEBUG(
         "[DEBUG] instr: 0x%x\n"
-        "opcode = 0x%x funct3 = 0x%x funct7 = 0x%x \n",
+        "opcode = 0x%x funct3 = 0x%x funct7 = 0x%x rs2 = 0x%x\n",
         cpu->instr.instr, cpu->instr.opcode, cpu->instr.funct3,
-        cpu->instr.funct7);
+        cpu->instr.funct7, cpu->instr.rs2);
 
     return true;
 }
