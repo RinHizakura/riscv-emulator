@@ -1050,14 +1050,14 @@ static void access_disk(riscv_cpu *cpu)
 
     // write device
     if (blk_req_type == VIRTIO_BLK_T_OUT) {
-        assert(desc1.flags & VIRTQ_DESC_F_WRITE);
+        assert(!(desc1.flags & VIRTQ_DESC_F_WRITE));
 
         memcpy(cpu->bus.virtio_blk.rfsimg + (blk_req_sector * SECTOR_SIZE),
                cpu->bus.memory.mem + (desc1.addr - DRAM_BASE), desc1.len);
     }
     // read device
     else {
-        assert(!(desc1.flags & VIRTQ_DESC_F_WRITE));
+        assert(desc1.flags & VIRTQ_DESC_F_WRITE);
 
         memcpy(cpu->bus.memory.mem + (desc1.addr - DRAM_BASE),
                cpu->bus.virtio_blk.rfsimg + (blk_req_sector * SECTOR_SIZE),
