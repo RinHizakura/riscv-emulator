@@ -1087,7 +1087,7 @@ static uint64_t addr_translate(riscv_cpu *cpu, uint64_t addr, Access access)
     uint64_t satp = read_csr(&cpu->csr, SATP);
 
     // if not enable page table translation
-    if (satp >> 60 != 8)
+    if (satp >> 60 != 8 || cpu->mode.mode == MACHINE)
         return addr;
 
     /* Reference to:
@@ -1196,7 +1196,7 @@ static uint64_t read(riscv_cpu *cpu, uint64_t addr, uint8_t size)
 {
     addr = addr_translate(cpu, addr, Access_Load);
     if (cpu->exc.exception != NoException)
-        return false;
+        return -1;
     return read_bus(&cpu->bus, addr, size, &cpu->exc);
 }
 
