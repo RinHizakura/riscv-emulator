@@ -40,7 +40,6 @@ void start_emu(riscv_emu *emu)
             goto get_trap;
 
         ret = exec(&emu->cpu);
-
     get_trap:
         if (!ret) {
             Trap trap = exception_take_trap(&emu->cpu);

@@ -57,6 +57,8 @@ static void R_decode(riscv_cpu *cpu)
     cpu->instr.rd = (instr >> 7) & 0x1f;
     cpu->instr.rs1 = ((instr >> 15) & 0x1f);
     cpu->instr.rs2 = ((instr >> 20) & 0x1f);
+    cpu->instr.funct3 = (instr >> 12) & 0x7;
+    cpu->instr.funct7 = (instr >> 25) & 0x7f;
 }
 
 static void I_decode(riscv_cpu *cpu)
@@ -65,6 +67,7 @@ static void I_decode(riscv_cpu *cpu)
     cpu->instr.rd = (instr >> 7) & 0x1f;
     cpu->instr.rs1 = ((instr >> 15) & 0x1f);
     cpu->instr.imm = (int32_t)(instr & 0xfff00000) >> 20;
+    cpu->instr.funct3 = (instr >> 12) & 0x7;
 }
 
 /* This function is used for csr-related instruction. It is
@@ -79,6 +82,8 @@ static void C_decode(riscv_cpu *cpu)
     cpu->instr.rs1 = ((instr >> 15) & 0x1f);
     cpu->instr.rs2 = ((instr >> 20) & 0x1f);
     cpu->instr.imm = (instr & 0xfff00000) >> 20;
+    cpu->instr.funct3 = (instr >> 12) & 0x7;
+    cpu->instr.funct7 = (instr >> 25) & 0x7f;
 }
 
 static void S_decode(riscv_cpu *cpu)
@@ -91,6 +96,7 @@ static void S_decode(riscv_cpu *cpu)
      * decoding */
     cpu->instr.imm = (((int32_t)(instr & 0xfe000000) >> 20) |
                       (int32_t)((instr >> 7) & 0x1f));
+    cpu->instr.funct3 = (instr >> 12) & 0x7;
 }
 
 static void B_decode(riscv_cpu *cpu)
@@ -103,6 +109,7 @@ static void B_decode(riscv_cpu *cpu)
                      | (int32_t)((instr & 0x80) << 4)       // 11
                      | (int32_t)((instr >> 20) & 0x7e0)     // 10:5
                      | (int32_t)((instr >> 7) & 0x1e);      // 4:1
+    cpu->instr.funct3 = (instr >> 12) & 0x7;
 }
 
 static void U_decode(riscv_cpu *cpu)
@@ -1223,8 +1230,6 @@ bool fetch(riscv_cpu *cpu)
     // opcode for indexing the table will be decoded first
     cpu->instr.instr = instr;
     cpu->instr.opcode = instr & 0x7f;
-    cpu->instr.funct3 = (instr >> 12) & 0x7;
-    cpu->instr.funct7 = (instr >> 25) & 0x7f;
 
     LOG_DEBUG(
         "[DEBUG] instr: 0x%x\n"
@@ -1250,12 +1255,13 @@ bool exec(riscv_cpu *cpu)
     if (cpu->exc.exception != NoException)
         return false;
 
-    /* FIXME: If all of our implementation are right, we don't actually need to
-     * clean up the structure below. But for easily debugging purpose, we'll
-     * reset all of the instruction-relatd structure now. */
+        /* If all of our implementation are right, we don't actually need to
+         * clean up the structure below. But for easily debugging purpose, we'll
+         * reset all of the instruction-relatd structure now. */
+#ifdef DEBUG
     memset(&cpu->instr, 0, sizeof(riscv_instr));
     cpu->exec_func = NULL;
-
+#endif
     return true;
 }
 
@@ -1427,7 +1433,7 @@ bool check_pending_irq(riscv_cpu *cpu)
         irq = VIRTIO_IRQ;
     }
 
-    if (!irq) {
+    if (irq) {
         // pending the external interrput bit
         set_csr_bits(&cpu->csr, MIP, MIP_SEIP);
     }
@@ -1471,17 +1477,17 @@ bool check_pending_irq(riscv_cpu *cpu)
         }
     }
 
-    if (!(pending & MIP_MEIP)) {
+    if (pending & MIP_MEIP) {
         clear_csr_bits(&cpu->csr, MIP, MIP_MEIP);
         cpu->irq.irq = MachineExternalInterrupt;
         return true;
     }
-    if (!(pending & MIP_MSIP)) {
+    if (pending & MIP_MSIP) {
         clear_csr_bits(&cpu->csr, MIP, MIP_MSIP);
         cpu->irq.irq = MachineSoftwareInterrupt;
         return true;
     }
-    if (!(pending & MIP_MTIP)) {
+    if (pending & MIP_MTIP) {
         clear_csr_bits(&cpu->csr, MIP, MIP_MTIP);
         cpu->irq.irq = MachineTimerInterrupt;
         return true;
@@ -1494,7 +1500,7 @@ bool check_pending_irq(riscv_cpu *cpu)
         }
     }
 
-    if (!(pending & MIP_SEIP)) {
+    if (pending & MIP_SEIP) {
         /* perform an interrupt claim and atomically clear
          * the corresponding pending bit */
         write_bus(&cpu->bus, PLIC_CLAIM_1, 32, irq, &cpu->exc);
@@ -1504,12 +1510,12 @@ bool check_pending_irq(riscv_cpu *cpu)
         cpu->irq.irq = SupervisorExternalInterrupt;
         return true;
     }
-    if (!(pending & MIP_SSIP)) {
+    if (pending & MIP_SSIP) {
         clear_csr_bits(&cpu->csr, MIP, MIP_SSIP);
         cpu->irq.irq = SupervisorSoftwareInterrupt;
         return true;
     }
-    if (!(pending & MIP_STIP)) {
+    if (pending & MIP_STIP) {
         clear_csr_bits(&cpu->csr, MIP, MIP_STIP);
         cpu->irq.irq = SupervisorTimerInterrupt;
         return true;
