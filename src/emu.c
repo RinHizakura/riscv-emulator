@@ -26,6 +26,10 @@ void start_emu(riscv_emu *emu)
 
         bool ret = true;
         ret = fetch(&emu->cpu);
+#ifdef DEBUG
+        dump_reg(&emu->cpu);
+        dump_csr(&emu->cpu);
+#endif
         if (!ret)
             goto get_trap;
 
@@ -47,11 +51,6 @@ void start_emu(riscv_emu *emu)
             // reset exception flag if recovery from trap
             emu->cpu.exc.exception = NoException;
         }
-
-#ifdef DEBUG
-        dump_reg(&emu->cpu);
-        dump_csr(&emu->cpu);
-#endif
     }
 
     dump_reg(&emu->cpu);

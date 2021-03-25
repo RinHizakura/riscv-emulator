@@ -533,6 +533,31 @@ static void instr_jal(riscv_cpu *cpu)
     cpu->pc = cpu->pc + cpu->instr.imm - 4;
 }
 
+static void instr_ecall(riscv_cpu *cpu)
+{
+    assert(cpu->instr.instr & 0x73);
+
+    switch (cpu->mode.mode) {
+    case MACHINE:
+        cpu->exc.exception = EnvironmentCallFromMMode;
+        return;
+    case SUPERVISOR:
+        cpu->exc.exception = EnvironmentCallFromSMode;
+        return;
+    case USER:
+        cpu->exc.exception = EnvironmentCallFromUMode;
+        return;
+    default:
+        cpu->exc.exception = IllegalInstruction;
+        return;
+    }
+}
+
+static void instr_ebreak(riscv_cpu *cpu)
+{
+    cpu->exc.exception = Breakpoint;
+}
+
 static void instr_sret(riscv_cpu *cpu)
 {
     cpu->pc = read_csr(&cpu->csr, SEPC);
@@ -556,7 +581,6 @@ static void instr_sret(riscv_cpu *cpu)
 static void instr_mret(riscv_cpu *cpu)
 {
     cpu->pc = read_csr(&cpu->csr, MEPC);
-
     uint64_t mstatus = read_csr(&cpu->csr, MSTATUS);
     cpu->mode.mode = (mstatus & MSTATUS_MPP) >> 11;
 
@@ -821,6 +845,8 @@ static riscv_instr_entry instr_sret_mret_type[] = {
 INIT_RISCV_INSTR_LIST(FUNC7, instr_sret_mret_type);
 
 static riscv_instr_entry instr_ret_type[] = {
+     [0x0] = {NULL, instr_ecall, NULL},
+     [0x1] = {NULL, instr_ebreak, NULL},
      [0x2] = {NULL, NULL, &instr_sret_mret_type_list},
 };
 INIT_RISCV_INSTR_LIST(RS2, instr_ret_type);
