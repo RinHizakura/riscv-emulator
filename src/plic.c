@@ -6,7 +6,7 @@ uint64_t read_plic(riscv_plic *plic,
                    riscv_exception *exc)
 {
     // support only word-aligned and word size access now
-    if ((size != 32) || !(addr & 0x3))
+    if ((size != 32) || (addr & 0x3))
         goto read_plic_fail;
 
     if (addr >= PLIC_PRIORITY && addr < PLIC_PRIORITY_END) {
@@ -35,7 +35,7 @@ uint64_t read_plic(riscv_plic *plic,
     }
 
 read_plic_fail:
-    LOG_ERROR("read plic failed\n");
+    LOG_ERROR("read plic addr %lx for size %d failed\n", addr, size);
     exc->exception = LoadAccessFault;
     return -1;
 }
@@ -47,7 +47,7 @@ bool write_plic(riscv_plic *plic,
                 riscv_exception *exc)
 {
     // support only word-aligned and word size access now
-    if ((size != 32) || !(addr & 0x3))
+    if ((size != 32) || (addr & 0x3))
         goto write_plic_fail;
 
     value &= 0xffffffff;
@@ -83,7 +83,7 @@ bool write_plic(riscv_plic *plic,
     return true;
 
 write_plic_fail:
-    LOG_ERROR("write plic failed\n");
+    LOG_ERROR("wrtie plic addr %lx for size %d failed\n", addr, size);
     exc->exception = StoreAMOAccessFault;
     return false;
 }

@@ -72,7 +72,7 @@ typedef struct {
 bool init_virtio_blk(riscv_virtio_blk *virtio_blk, const char *rfs_name);
 uint64_t read_virtio_blk(riscv_virtio_blk *virtio_blk,
                          uint64_t addr,
-                         uint64_t size,
+                         uint8_t size,
                          riscv_exception *exc);
 bool write_virtio_blk(riscv_virtio_blk *virtio_blk,
                       uint64_t addr,

@@ -60,7 +60,7 @@ bool init_virtio_blk(riscv_virtio_blk *virtio_blk, const char *rfs_name)
 
 uint64_t read_virtio_blk(riscv_virtio_blk *virtio_blk,
                          uint64_t addr,
-                         uint64_t size,
+                         uint8_t size,
                          riscv_exception *exc)
 {
     uint64_t offset = addr - VIRTIO_BASE;
@@ -74,7 +74,7 @@ uint64_t read_virtio_blk(riscv_virtio_blk *virtio_blk,
     }
 
     // support only word-aligned and word size access for other registers
-    if ((size != 32) || !(addr & 0x3))
+    if ((size != 32) || (addr & 0x3))
         goto read_virtio_fail;
 
     switch (offset) {
@@ -102,6 +102,7 @@ uint64_t read_virtio_blk(riscv_virtio_blk *virtio_blk,
     }
 
 read_virtio_fail:
+    LOG_ERROR("read virtio addr %lx for size %d failed\n", addr, size);
     exc->exception = LoadAccessFault;
     return -1;
 }
@@ -126,7 +127,7 @@ bool write_virtio_blk(riscv_virtio_blk *virtio_blk,
     value &= 0xFFFFFFFF;
 
     // support only word-aligned and word size access for other registers
-    if ((size != 32) || !(addr & 0x3))
+    if ((size != 32) || (addr & 0x3))
         goto write_virtio_fail;
 
     switch (offset) {
@@ -198,6 +199,7 @@ bool write_virtio_blk(riscv_virtio_blk *virtio_blk,
     return true;
 
 write_virtio_fail:
+    LOG_ERROR("write virtio addr %lx for size %d failed\n", addr, size);
     exc->exception = StoreAMOAccessFault;
     return false;
 }
