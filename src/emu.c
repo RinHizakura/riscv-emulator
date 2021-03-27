@@ -16,9 +16,7 @@ bool init_emu(riscv_emu *emu,
 
 void start_emu(riscv_emu *emu)
 {
-    uint64_t start_pc = emu->cpu.pc;
-    while (emu->cpu.pc < start_pc + emu->cpu.bus.memory.code_size &&
-           emu->cpu.pc >= DRAM_BASE) {
+    while (1) {
         if (check_pending_irq(&emu->cpu)) {
             // if any interrupt is pending
             interrput_take_trap(&emu->cpu);

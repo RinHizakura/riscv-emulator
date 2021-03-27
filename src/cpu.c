@@ -1377,13 +1377,12 @@ void interrput_take_trap(riscv_cpu *cpu)
     uint64_t irq_pc = cpu->pc;
     riscv_mode prev_mode = cpu->mode;
 
-    uint8_t cause = cpu->exc.exception;
+    uint8_t cause = cpu->irq.irq;
 
     uint64_t mideleg = read_csr(&cpu->csr, MIDELEG);
 
     if ((cpu->mode.mode <= SUPERVISOR) && (((mideleg >> cause) & 1) != 0)) {
         cpu->mode.mode = SUPERVISOR;
-
         uint64_t stvec = read_csr(&cpu->csr, STVEC);
         if (stvec & 0x1)
             cpu->pc = (stvec & ~0x3) + 4 * cause;
@@ -1432,26 +1431,11 @@ void interrput_take_trap(riscv_cpu *cpu)
 
 bool check_pending_irq(riscv_cpu *cpu)
 {
-    /* TODO: concern USER mode of every step in pending interrupt handling for
-     * widely usage */
-
     /* FIXME:
      * 1. Priority of interrupt should be considered
      * 2. The interactive between PLIC and interrput are not fully implement, I
      * should dig in more to perform better emulation.
      */
-    int irq = 0;
-    if (uart_is_interrupt(&cpu->bus.uart)) {
-        irq = UART0_IRQ;
-    } else if (virtio_is_interrupt(&cpu->bus.virtio_blk)) {
-        access_disk(cpu);
-        irq = VIRTIO_IRQ;
-    }
-
-    if (irq) {
-        // pending the external interrput bit
-        set_csr_bits(&cpu->csr, MIP, MIP_SEIP);
-    }
 
     /* FIXME: I am coufusing for the MIDELEG mechanism. According to the
      * document:
@@ -1460,30 +1444,20 @@ bool check_pending_irq(riscv_cpu *cpu)
      * > enabled when x IE=1 and globally disabled when x IE=0. Interrupts for
      * > lower-privilege modes, w<x, are always globally disabled regardless of
      * > the setting of the lower-privilege mode’s global w IE bit. Interrupts
-     * for > higher-privilege modes, y>x, are always globally enabled regardless
-     * of the > setting of the higher-privilege mode’s global y IE bit.
+     * > for higher-privilege modes, y>x, are always globally enabled regardless
+     * > of the setting of the higher-privilege mode’s global y IE bit.
      *
      * But the document also say that:
-     * > By default, all traps at any privilege level are handled in machine
-     * mode... > To increase performance, implementations can provide individual
-     * read/write bits > within medeleg and mideleg to indicate that certain
-     * exceptions and interrupts > should be processed directly by a lower
-     * privilege level.
-     *
-     * Then what will happen when bit in MIDELEG is not set and in the
-     * SUPERVISOR mode? Does CPU take the interrupt but not handling the causing
-     * trap? On the other hand, it also say that:
      *
      * > If bit i in MIDELEG is set, however, interrupts are considered to be
-     * globally > enabled if the hart’s current privilege mode equals the
-     * delegated privilege mode > (S or U) and that mode’s interrupt enable bit
-     * (SIE or UIE in mstatus) is set, > or if the current privilege mode is
-     * less than the delegated privilege mode.
+     * > globally enabled if the hart’s current privilege mode equals the
+     * > delegated privilege mode (S or U) and that mode’s interrupt enable bit
+     * > (SIE or UIE in mstatus) is set, or if the current privilege mode is
+     * > less than the delegated privilege mode.
      *
      * Does this mean that when bit i in MIDELEG is set and SIE is not set, the
      * MACHINE level interrput should not be taken ? I should make sure I
      * cosider the delegated priviledge mode by MIDELEG correctly */
-    uint64_t pending = read_csr(&cpu->csr, MIE) & read_csr(&cpu->csr, MIP);
 
     if (cpu->mode.mode == MACHINE) {
         if (!check_csr_bit(&cpu->csr, MSTATUS, MSTATUS_MIE)) {
@@ -1491,6 +1465,8 @@ bool check_pending_irq(riscv_cpu *cpu)
             return false;
         }
     }
+
+    uint64_t pending = read_csr(&cpu->csr, MIE) & read_csr(&cpu->csr, MIP);
 
     if (pending & MIP_MEIP) {
         clear_csr_bits(&cpu->csr, MIP, MIP_MEIP);
@@ -1514,6 +1490,22 @@ bool check_pending_irq(riscv_cpu *cpu)
             return false;
         }
     }
+
+    int irq = 0;
+    if (uart_is_interrupt(&cpu->bus.uart)) {
+        irq = UART0_IRQ;
+    } else if (virtio_is_interrupt(&cpu->bus.virtio_blk)) {
+        access_disk(cpu);
+        irq = VIRTIO_IRQ;
+    }
+
+    if (irq) {
+        // pending the external interrput bit
+        set_csr_bits(&cpu->csr, MIP, MIP_SEIP);
+    }
+
+    // update pending for supervisor mode
+    pending = read_csr(&cpu->csr, SIE) & read_csr(&cpu->csr, SIP);
 
     if (pending & MIP_SEIP) {
         /* perform an interrupt claim and atomically clear
