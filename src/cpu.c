@@ -323,6 +323,13 @@ static void instr_div(riscv_cpu *cpu)
 
         // the quotient of division by zero has all bits set
         cpu->xreg[cpu->instr.rd] = -1;
+    } else if (dividend == 0x8000000000000000 && divisor == -1) {
+        /* 1. Signed division overflow occurs only when the most-negative
+         * integer is divided by −1
+         *
+         * 2. The quotient of a signed division with overflow is equal to the
+         * dividend*/
+        cpu->xreg[cpu->instr.rd] = dividend;
     } else {
         cpu->xreg[cpu->instr.rd] = dividend / divisor;
     }
@@ -461,6 +468,28 @@ static void instr_sllw(riscv_cpu *cpu)
     uint32_t shamt = (cpu->xreg[cpu->instr.rs2] & 0x1f);
     cpu->xreg[cpu->instr.rd] =
         (int32_t)((uint32_t) cpu->xreg[cpu->instr.rs1] << shamt);
+}
+
+static void instr_divw(riscv_cpu *cpu)
+{
+    int32_t dividend = cpu->xreg[cpu->instr.rs1] & 0xffffffff;
+    int32_t divisor = cpu->xreg[cpu->instr.rs2] & 0xffffffff;
+
+    if (divisor == 0) {
+        /* TODO: set DZ (Divide by Zero) in the FCSR */
+
+        // the quotient of division by zero has all bits set
+        cpu->xreg[cpu->instr.rd] = -1;
+    } else if (dividend == 0x80000000 && divisor == -1) {
+        /* 1. Signed division overflow occurs only when the most-negative
+         * integer is divided by −1
+         *
+         * 2. The quotient of a signed division with overflow is equal to the
+         * dividend*/
+        cpu->xreg[cpu->instr.rd] = dividend;
+    } else {
+        cpu->xreg[cpu->instr.rd] = dividend / divisor;
+    }
 }
 
 static void instr_srlw(riscv_cpu *cpu)
@@ -843,6 +872,11 @@ static riscv_instr_entry instr_sllw_type[] = {
 };
 INIT_RISCV_INSTR_LIST(FUNC7, instr_sllw_type);
 
+static riscv_instr_entry instr_divw_type[] = {
+    [0x01] = {NULL, instr_divw, NULL}
+};
+INIT_RISCV_INSTR_LIST(FUNC7, instr_divw_type);
+
 static riscv_instr_entry instr_srlw_divuw_sraw_type[] = {
     [0x00] = {NULL, instr_srlw, NULL},
     [0x01] = {NULL, instr_divuw, NULL},
@@ -858,6 +892,7 @@ INIT_RISCV_INSTR_LIST(FUNC7, instr_remuw_type);
 static riscv_instr_entry instr_regw_type[] = {
     [0x0] = {NULL, NULL, &instr_addw_subw_type_list},
     [0x1] = {NULL, NULL, &instr_sllw_type_list},
+    [0x4] = {NULL, NULL, &instr_divw_type_list},
     [0x5] = {NULL, NULL, &instr_srlw_divuw_sraw_type_list},
     [0x7] = {NULL, NULL, &instr_remuw_type_list},
 };
