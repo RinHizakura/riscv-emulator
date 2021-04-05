@@ -227,6 +227,17 @@ static void instr_slli(riscv_cpu *cpu)
     cpu->xreg[cpu->instr.rd] = cpu->xreg[cpu->instr.rs1] << shamt;
 }
 
+static void instr_mulh(riscv_cpu *cpu)
+{
+    /* FIXME: we are using the gcc extension, maybe we'll need another
+     * portable version */
+    int64_t rs1 = cpu->xreg[cpu->instr.rs1];
+    int64_t rs2 = cpu->xreg[cpu->instr.rs2];
+
+    __int128_t result = (__int128_t) rs1 * (__int128_t) rs2;
+    cpu->xreg[cpu->instr.rd] = result >> 64;
+}
+
 static void instr_slti(riscv_cpu *cpu)
 {
     cpu->xreg[cpu->instr.rd] =
@@ -301,10 +312,32 @@ static void instr_slt(riscv_cpu *cpu)
                                    : 0;
 }
 
+static void instr_mulhsu(riscv_cpu *cpu)
+{
+    /* FIXME: we are using the gcc extension, maybe we'll need another
+     * portable version */
+    int64_t rs1 = cpu->xreg[cpu->instr.rs1];
+    uint64_t rs2 = cpu->xreg[cpu->instr.rs2];
+
+    __int128_t result = (__int128_t) rs1 * (__uint128_t) rs2;
+    cpu->xreg[cpu->instr.rd] = result >> 64;
+}
+
 static void instr_sltu(riscv_cpu *cpu)
 {
     cpu->xreg[cpu->instr.rd] =
         (cpu->xreg[cpu->instr.rs1] < cpu->xreg[cpu->instr.rs2]) ? 1 : 0;
+}
+
+static void instr_mulhu(riscv_cpu *cpu)
+{
+    /* FIXME: we are using the gcc extension, maybe we'll need another
+     * portable version */
+    uint64_t rs1 = cpu->xreg[cpu->instr.rs1];
+    uint64_t rs2 = cpu->xreg[cpu->instr.rs2];
+
+    __uint128_t result = (__uint128_t) rs1 * (__uint128_t) rs2;
+    cpu->xreg[cpu->instr.rd] = result >> 64;
 }
 
 static void instr_xor(riscv_cpu *cpu)
@@ -367,6 +400,22 @@ static void instr_or(riscv_cpu *cpu)
 {
     cpu->xreg[cpu->instr.rd] =
         cpu->xreg[cpu->instr.rs1] | cpu->xreg[cpu->instr.rs2];
+}
+
+static void instr_rem(riscv_cpu *cpu)
+{
+    int64_t dividend = cpu->xreg[cpu->instr.rs1];
+    int64_t divisor = cpu->xreg[cpu->instr.rs2];
+
+    if (divisor == 0) {
+        // the remainder of division by zero equals the dividend
+        cpu->xreg[cpu->instr.rd] = dividend;
+    } else if (dividend == 0x8000000000000000 && divisor == -1) {
+        /* The remainder with overflow is zero. */
+        cpu->xreg[cpu->instr.rd] = 0;
+    } else {
+        cpu->xreg[cpu->instr.rd] = dividend % divisor;
+    }
 }
 
 static void instr_and(riscv_cpu *cpu)
@@ -457,6 +506,13 @@ static void instr_addw(riscv_cpu *cpu)
                                          (uint32_t) cpu->xreg[cpu->instr.rs2]);
 }
 
+static void instr_mulw(riscv_cpu *cpu)
+{
+    int32_t rs1 = cpu->xreg[cpu->instr.rs1] & 0xffffffff;
+    int32_t rs2 = cpu->xreg[cpu->instr.rs2] & 0xffffffff;
+    cpu->xreg[cpu->instr.rd] = rs1 * rs2;
+}
+
 static void instr_subw(riscv_cpu *cpu)
 {
     cpu->xreg[cpu->instr.rd] = (int32_t)((uint32_t) cpu->xreg[cpu->instr.rs1] -
@@ -521,14 +577,32 @@ static void instr_sraw(riscv_cpu *cpu)
         (int32_t)((uint32_t) cpu->xreg[cpu->instr.rs1]) >> shamt;
 }
 
+static void instr_remw(riscv_cpu *cpu)
+{
+    int32_t dividend = cpu->xreg[cpu->instr.rs1] & 0xffffffff;
+    int32_t divisor = cpu->xreg[cpu->instr.rs2] & 0xffffffff;
+
+    if (divisor == 0) {
+        // the remainder of division by zero equals the dividend
+        cpu->xreg[cpu->instr.rd] = dividend;
+    } else if (dividend == 0x800000000 && divisor == -1) {
+        /* The remainder with overflow is zero. */
+        cpu->xreg[cpu->instr.rd] = 0;
+    } else {
+        cpu->xreg[cpu->instr.rd] = dividend % divisor;
+    }
+}
+
 static void instr_remuw(riscv_cpu *cpu)
 {
     uint32_t dividend = cpu->xreg[cpu->instr.rs1];
     uint32_t divisor = cpu->xreg[cpu->instr.rs2];
 
+    // REMUW always sign-extend the 32-bit result to 64 bits, including on a
+    // divide by zero.
     if (divisor == 0) {
         // the remainder of division by zero equals the dividend
-        cpu->xreg[cpu->instr.rd] = dividend;
+        cpu->xreg[cpu->instr.rd] = (int32_t) dividend;
     } else {
         cpu->xreg[cpu->instr.rd] = (int32_t)(dividend % divisor);
     }
@@ -789,20 +863,23 @@ static riscv_instr_entry instr_add_mul_sub_type[] = {
 };
 INIT_RISCV_INSTR_LIST(FUNC7, instr_add_mul_sub_type);
 
-static riscv_instr_entry instr_sll_type[] = {
-    [0x00] = {NULL, instr_sll, NULL}
+static riscv_instr_entry instr_sll_mulh_type[] = {
+    [0x00] = {NULL, instr_sll, NULL},
+    [0x01] = {NULL, instr_mulh, NULL}
 };
-INIT_RISCV_INSTR_LIST(FUNC7, instr_sll_type);
+INIT_RISCV_INSTR_LIST(FUNC7, instr_sll_mulh_type);
 
-static riscv_instr_entry instr_slt_type[] = {
-    [0x00] = {NULL, instr_slt, NULL}
+static riscv_instr_entry instr_slt_mulhsu_type[] = {
+    [0x00] = {NULL, instr_slt, NULL},
+    [0x01] = {NULL, instr_mulhsu, NULL}
 };
-INIT_RISCV_INSTR_LIST(FUNC7, instr_slt_type);
+INIT_RISCV_INSTR_LIST(FUNC7, instr_slt_mulhsu_type);
 
-static riscv_instr_entry instr_sltu_type[] = {
-    [0x00] = {NULL, instr_sltu, NULL}
+static riscv_instr_entry instr_sltu_mulhu_type[] = {
+    [0x00] = {NULL, instr_sltu, NULL},
+    [0x01] = {NULL, instr_mulhu, NULL}
 };
-INIT_RISCV_INSTR_LIST(FUNC7, instr_sltu_type);
+INIT_RISCV_INSTR_LIST(FUNC7, instr_sltu_mulhu_type);
 
 static riscv_instr_entry instr_xor_div_type[] = {
     [0x00] = {NULL, instr_xor, NULL},
@@ -817,10 +894,11 @@ static riscv_instr_entry instr_srl_divu_sra_type[] = {
 };
 INIT_RISCV_INSTR_LIST(FUNC7, instr_srl_divu_sra_type);
 
-static riscv_instr_entry instr_or_type[] = {
-    [0x00] = {NULL, instr_or, NULL}
+static riscv_instr_entry instr_or_rem_type[] = {
+    [0x00] = {NULL, instr_or, NULL},
+    [0x01] = {NULL, instr_rem, NULL}
 };
-INIT_RISCV_INSTR_LIST(FUNC7, instr_or_type);
+INIT_RISCV_INSTR_LIST(FUNC7, instr_or_rem_type);
 
 static riscv_instr_entry instr_and_remu_type[] = {
     [0x00] = {NULL, instr_and, NULL},
@@ -830,12 +908,12 @@ INIT_RISCV_INSTR_LIST(FUNC7, instr_and_remu_type);
 
 static riscv_instr_entry instr_reg_type[] = {
     [0x0] = {NULL, NULL, &instr_add_mul_sub_type_list},
-    [0x1] = {NULL, NULL, &instr_sll_type_list},
-    [0x2] = {NULL, NULL, &instr_slt_type_list},
-    [0x3] = {NULL, NULL, &instr_sltu_type_list},
+    [0x1] = {NULL, NULL, &instr_sll_mulh_type_list},
+    [0x2] = {NULL, NULL, &instr_slt_mulhsu_type_list},
+    [0x3] = {NULL, NULL, &instr_sltu_mulhu_type_list},
     [0x4] = {NULL, NULL, &instr_xor_div_type_list},
     [0x5] = {NULL, NULL, &instr_srl_divu_sra_type_list},
-    [0x6] = {NULL, NULL, &instr_or_type_list},
+    [0x6] = {NULL, NULL, &instr_or_rem_type_list},
     [0x7] = {NULL, NULL, &instr_and_remu_type_list}
 };
 INIT_RISCV_INSTR_LIST(FUNC3, instr_reg_type);
@@ -861,11 +939,12 @@ static riscv_instr_entry instr_store_type[] = {
 };
 INIT_RISCV_INSTR_LIST(FUNC3, instr_store_type);
 
-static riscv_instr_entry instr_addw_subw_type[] = {
+static riscv_instr_entry instr_addw_mulw_subw_type[] = {
     [0x00] = {NULL, instr_addw, NULL},
+    [0x01] = {NULL, instr_mulw, NULL},
     [0x20] = {NULL, instr_subw, NULL}
 };
-INIT_RISCV_INSTR_LIST(FUNC7, instr_addw_subw_type);
+INIT_RISCV_INSTR_LIST(FUNC7, instr_addw_mulw_subw_type);
 
 static riscv_instr_entry instr_sllw_type[] = {
     [0x00] = {NULL, instr_sllw, NULL},
@@ -884,16 +963,22 @@ static riscv_instr_entry instr_srlw_divuw_sraw_type[] = {
 };
 INIT_RISCV_INSTR_LIST(FUNC7, instr_srlw_divuw_sraw_type);
 
+static riscv_instr_entry instr_remw_type[] = {
+    [0x01] = {NULL, instr_remw, NULL}
+};
+INIT_RISCV_INSTR_LIST(FUNC7, instr_remw_type);
+
 static riscv_instr_entry instr_remuw_type[] = {
     [0x01] =  {NULL, instr_remuw, NULL}
 };
 INIT_RISCV_INSTR_LIST(FUNC7, instr_remuw_type);
 
 static riscv_instr_entry instr_regw_type[] = {
-    [0x0] = {NULL, NULL, &instr_addw_subw_type_list},
+    [0x0] = {NULL, NULL, &instr_addw_mulw_subw_type_list},
     [0x1] = {NULL, NULL, &instr_sllw_type_list},
     [0x4] = {NULL, NULL, &instr_divw_type_list},
     [0x5] = {NULL, NULL, &instr_srlw_divuw_sraw_type_list},
+    [0x6] = {NULL, NULL, &instr_remw_type_list},
     [0x7] = {NULL, NULL, &instr_remuw_type_list},
 };
 INIT_RISCV_INSTR_LIST(FUNC3, instr_regw_type);
