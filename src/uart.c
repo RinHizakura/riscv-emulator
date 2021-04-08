@@ -138,6 +138,7 @@ bool write_uart(riscv_uart *uart,
          * emulated UART doesn't drop the character.
          */
         printf("%c", (char) (value & 0xff));
+        fflush(stdout);
         break;
     default:
         uart_reg(uart, addr) = value & 0xff;
