@@ -56,7 +56,7 @@ static void thread(riscv_uart *uart)
         }
         uart_reg(uart, UART_RHR) = c;
 
-        __atomic_store_n(&uart->is_interrupt, 0, __ATOMIC_SEQ_CST);
+        __atomic_store_n(&uart->is_interrupt, true, __ATOMIC_SEQ_CST);
 
         uart_reg(uart, UART_LSR) |= UART_LSR_RX;
 
