@@ -69,15 +69,15 @@ test_assembly: $(BIN)
 	 $(BIN) --binary ./asm_test.bin
 
 os: $(BIN)
-	$(BIN) --binary xv6/kernel_bin --rfsimg xv6/fs.img
+	$(BIN) --binary xv6/kernel.bin --rfsimg xv6/fs.img
 
 # variables for compliance
 COMPLIANCE_DIR ?= ./riscv-arch-test
 export TARGETDIR ?= $(shell pwd)/riscv-target
 export RISCV_TARGET ?= riscv-emu
 export XLEN ?= 64
-export RISCV_DEVICE ?= privilege
-export RISCV_TEST = misalign-lw-01
+export RISCV_DEVICE ?= I
+#export RISCV_TEST = misalign-lw-01
 export RISCV_TARGET_FLAGS ?=
 export RISCV_ASSERT ?= 0
 export JOBS = -j1
