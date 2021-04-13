@@ -6,8 +6,11 @@
 
 #include "cpu.h"
 
-static uint64_t read(riscv_cpu *cpu, uint64_t addr, uint8_t size);
-static bool write(riscv_cpu *cpu, uint64_t addr, uint8_t size, uint64_t value);
+static uint64_t read_cpu(riscv_cpu *cpu, uint64_t addr, uint8_t size);
+static bool write_cpu(riscv_cpu *cpu,
+                      uint64_t addr,
+                      uint8_t size,
+                      uint64_t value);
 
 /* Many type conversion are appied for expected result. To know the detail, you
  * should check out the International Standard of C:
@@ -135,7 +138,7 @@ static void J_decode(riscv_cpu *cpu)
 static void instr_lb(riscv_cpu *cpu)
 {
     uint64_t addr = cpu->xreg[cpu->instr.rs1] + cpu->instr.imm;
-    uint64_t value = read(cpu, addr, 8);
+    uint64_t value = read_cpu(cpu, addr, 8);
     if (cpu->exc.exception != NoException) {
         assert(value == (uint64_t) -1);
         return;
@@ -146,7 +149,7 @@ static void instr_lb(riscv_cpu *cpu)
 static void instr_lh(riscv_cpu *cpu)
 {
     uint64_t addr = cpu->xreg[cpu->instr.rs1] + cpu->instr.imm;
-    uint64_t value = read(cpu, addr, 16);
+    uint64_t value = read_cpu(cpu, addr, 16);
     if (cpu->exc.exception != NoException) {
         assert(value == (uint64_t) -1);
         return;
@@ -157,7 +160,7 @@ static void instr_lh(riscv_cpu *cpu)
 static void instr_lw(riscv_cpu *cpu)
 {
     uint64_t addr = cpu->xreg[cpu->instr.rs1] + cpu->instr.imm;
-    uint64_t value = read(cpu, addr, 32);
+    uint64_t value = read_cpu(cpu, addr, 32);
     if (cpu->exc.exception != NoException) {
         assert(value == (uint64_t) -1);
         return;
@@ -168,7 +171,7 @@ static void instr_lw(riscv_cpu *cpu)
 static void instr_ld(riscv_cpu *cpu)
 {
     uint64_t addr = cpu->xreg[cpu->instr.rs1] + cpu->instr.imm;
-    uint64_t value = read(cpu, addr, 64);
+    uint64_t value = read_cpu(cpu, addr, 64);
     if (cpu->exc.exception != NoException) {
         assert(value == (uint64_t) -1);
         return;
@@ -179,7 +182,7 @@ static void instr_ld(riscv_cpu *cpu)
 static void instr_lbu(riscv_cpu *cpu)
 {
     uint64_t addr = cpu->xreg[cpu->instr.rs1] + cpu->instr.imm;
-    uint64_t value = read(cpu, addr, 8);
+    uint64_t value = read_cpu(cpu, addr, 8);
     if (cpu->exc.exception != NoException) {
         assert(value == (uint64_t) -1);
         return;
@@ -190,7 +193,7 @@ static void instr_lbu(riscv_cpu *cpu)
 static void instr_lhu(riscv_cpu *cpu)
 {
     uint64_t addr = cpu->xreg[cpu->instr.rs1] + cpu->instr.imm;
-    uint64_t value = read(cpu, addr, 16);
+    uint64_t value = read_cpu(cpu, addr, 16);
     if (cpu->exc.exception != NoException) {
         assert(value == (uint64_t) -1);
         return;
@@ -201,7 +204,7 @@ static void instr_lhu(riscv_cpu *cpu)
 static void instr_lwu(riscv_cpu *cpu)
 {
     uint64_t addr = cpu->xreg[cpu->instr.rs1] + cpu->instr.imm;
-    uint64_t value = read(cpu, addr, 32);
+    uint64_t value = read_cpu(cpu, addr, 32);
     if (cpu->exc.exception != NoException) {
         assert(value == (uint64_t) -1);
         return;
@@ -209,7 +212,7 @@ static void instr_lwu(riscv_cpu *cpu)
     cpu->xreg[cpu->instr.rd] = value;
 }
 
-static void instr_fence(riscv_cpu *cpu)
+static void instr_fence(__attribute__((unused)) riscv_cpu *cpu)
 {
     /* Since our emulator only execute instruction on a single thread.
      * So nothing will do for fence instruction */
@@ -356,7 +359,7 @@ static void instr_div(riscv_cpu *cpu)
 
         // the quotient of division by zero has all bits set
         cpu->xreg[cpu->instr.rd] = -1;
-    } else if (dividend == 0x8000000000000000 && divisor == -1) {
+    } else if (dividend == INT64_MIN && divisor == -1) {
         /* 1. Signed division overflow occurs only when the most-negative
          * integer is divided by −1
          *
@@ -410,7 +413,7 @@ static void instr_rem(riscv_cpu *cpu)
     if (divisor == 0) {
         // the remainder of division by zero equals the dividend
         cpu->xreg[cpu->instr.rd] = dividend;
-    } else if (dividend == 0x8000000000000000 && divisor == -1) {
+    } else if (dividend == INT64_MIN && divisor == -1) {
         /* The remainder with overflow is zero. */
         cpu->xreg[cpu->instr.rd] = 0;
     } else {
@@ -474,25 +477,25 @@ static void instr_sraiw(riscv_cpu *cpu)
 static void instr_sb(riscv_cpu *cpu)
 {
     uint64_t addr = cpu->xreg[cpu->instr.rs1] + cpu->instr.imm;
-    write(cpu, addr, 8, cpu->xreg[cpu->instr.rs2]);
+    write_cpu(cpu, addr, 8, cpu->xreg[cpu->instr.rs2]);
 }
 
 static void instr_sh(riscv_cpu *cpu)
 {
     uint64_t addr = cpu->xreg[cpu->instr.rs1] + cpu->instr.imm;
-    write(cpu, addr, 16, cpu->xreg[cpu->instr.rs2]);
+    write_cpu(cpu, addr, 16, cpu->xreg[cpu->instr.rs2]);
 }
 
 static void instr_sw(riscv_cpu *cpu)
 {
     uint64_t addr = cpu->xreg[cpu->instr.rs1] + cpu->instr.imm;
-    write(cpu, addr, 32, cpu->xreg[cpu->instr.rs2]);
+    write_cpu(cpu, addr, 32, cpu->xreg[cpu->instr.rs2]);
 }
 
 static void instr_sd(riscv_cpu *cpu)
 {
     uint64_t addr = cpu->xreg[cpu->instr.rs1] + cpu->instr.imm;
-    write(cpu, addr, 64, cpu->xreg[cpu->instr.rs2]);
+    write_cpu(cpu, addr, 64, cpu->xreg[cpu->instr.rs2]);
 }
 
 static void instr_lui(riscv_cpu *cpu)
@@ -536,7 +539,7 @@ static void instr_divw(riscv_cpu *cpu)
 
         // the quotient of division by zero has all bits set
         cpu->xreg[cpu->instr.rd] = -1;
-    } else if (dividend == 0x80000000 && divisor == -1) {
+    } else if (dividend == INT32_MIN && divisor == -1) {
         /* 1. Signed division overflow occurs only when the most-negative
          * integer is divided by −1
          *
@@ -585,7 +588,7 @@ static void instr_remw(riscv_cpu *cpu)
     if (divisor == 0) {
         // the remainder of division by zero equals the dividend
         cpu->xreg[cpu->instr.rd] = dividend;
-    } else if (dividend == 0x800000000 && divisor == -1) {
+    } else if (dividend == INT32_MIN && divisor == -1) {
         /* The remainder with overflow is zero. */
         cpu->xreg[cpu->instr.rd] = 0;
     } else {
@@ -719,13 +722,13 @@ static void instr_mret(riscv_cpu *cpu)
     clear_csr_bits(&cpu->csr, MSTATUS, MSTATUS_MPP);
 }
 
-static void instr_wfi(riscv_cpu *cpu) {}
+static void instr_wfi(__attribute__((unused)) riscv_cpu *cpu) {}
 
-static void instr_sfencevma(riscv_cpu *cpu) {}
+static void instr_sfencevma(__attribute__((unused)) riscv_cpu *cpu) {}
 
-static void instr_hfencebvma(riscv_cpu *cpu) {}
+static void instr_hfencebvma(__attribute__((unused)) riscv_cpu *cpu) {}
 
-static void instr_hfencegvma(riscv_cpu *cpu) {}
+static void instr_hfencegvma(__attribute__((unused)) riscv_cpu *cpu) {}
 
 static void instr_csrrw(riscv_cpu *cpu)
 {
@@ -774,50 +777,52 @@ static void instr_csrrci(riscv_cpu *cpu)
 /* TODO: the lock acquire and realease are not implemented now */
 static void instr_amoaddw(riscv_cpu *cpu)
 {
-    uint64_t tmp = read(cpu, cpu->xreg[cpu->instr.rs1], 32);
+    uint64_t tmp = read_cpu(cpu, cpu->xreg[cpu->instr.rs1], 32);
     if (cpu->exc.exception != NoException) {
         assert(tmp == (uint64_t) -1);
         return;
     }
-    if (!write(cpu, cpu->xreg[cpu->instr.rs1], 32,
-               tmp + cpu->xreg[cpu->instr.rs2]))
+    if (!write_cpu(cpu, cpu->xreg[cpu->instr.rs1], 32,
+                   tmp + cpu->xreg[cpu->instr.rs2]))
         return;
     cpu->xreg[cpu->instr.rd] = tmp;
 }
 
 static void instr_amoswapw(riscv_cpu *cpu)
 {
-    uint64_t tmp = read(cpu, cpu->xreg[cpu->instr.rs1], 32);
+    uint64_t tmp = read_cpu(cpu, cpu->xreg[cpu->instr.rs1], 32);
     if (cpu->exc.exception != NoException) {
         assert(tmp == (uint64_t) -1);
         return;
     }
-    if (!write(cpu, cpu->xreg[cpu->instr.rs1], 32, cpu->xreg[cpu->instr.rs2]))
+    if (!write_cpu(cpu, cpu->xreg[cpu->instr.rs1], 32,
+                   cpu->xreg[cpu->instr.rs2]))
         return;
     cpu->xreg[cpu->instr.rd] = tmp;
 }
 
 static void instr_amoaddd(riscv_cpu *cpu)
 {
-    uint64_t tmp = read(cpu, cpu->xreg[cpu->instr.rs1], 64);
+    uint64_t tmp = read_cpu(cpu, cpu->xreg[cpu->instr.rs1], 64);
     if (cpu->exc.exception != NoException) {
         assert(tmp == (uint64_t) -1);
         return;
     }
-    if (!write(cpu, cpu->xreg[cpu->instr.rs1], 64,
-               tmp + cpu->xreg[cpu->instr.rs2]))
+    if (!write_cpu(cpu, cpu->xreg[cpu->instr.rs1], 64,
+                   tmp + cpu->xreg[cpu->instr.rs2]))
         return;
     cpu->xreg[cpu->instr.rd] = tmp;
 }
 
 static void instr_amoswapd(riscv_cpu *cpu)
 {
-    uint64_t tmp = read(cpu, cpu->xreg[cpu->instr.rs1], 64);
+    uint64_t tmp = read_cpu(cpu, cpu->xreg[cpu->instr.rs1], 64);
     if (cpu->exc.exception != NoException) {
         assert(tmp == (uint64_t) -1);
         return;
     }
-    if (!write(cpu, cpu->xreg[cpu->instr.rs1], 64, cpu->xreg[cpu->instr.rs2]))
+    if (!write_cpu(cpu, cpu->xreg[cpu->instr.rs1], 64,
+                   cpu->xreg[cpu->instr.rs2]))
         return;
     cpu->xreg[cpu->instr.rd] = tmp;
 }
@@ -1328,7 +1333,7 @@ translate_fail:
 
 /* these two functions are the indirect layer of read / write bus from cpu,
  * which will do address translation before actually read / write the bus */
-static uint64_t read(riscv_cpu *cpu, uint64_t addr, uint8_t size)
+static uint64_t read_cpu(riscv_cpu *cpu, uint64_t addr, uint8_t size)
 {
     addr = addr_translate(cpu, addr, Access_Load);
     if (cpu->exc.exception != NoException)
@@ -1336,7 +1341,10 @@ static uint64_t read(riscv_cpu *cpu, uint64_t addr, uint8_t size)
     return read_bus(&cpu->bus, addr, size, &cpu->exc);
 }
 
-static bool write(riscv_cpu *cpu, uint64_t addr, uint8_t size, uint64_t value)
+static bool write_cpu(riscv_cpu *cpu,
+                      uint64_t addr,
+                      uint8_t size,
+                      uint64_t value)
 {
     addr = addr_translate(cpu, addr, Access_Store);
     if (cpu->exc.exception != NoException)
