@@ -69,7 +69,7 @@ test_assembly: $(BIN)
 	 $(BIN) --binary ./asm_test.bin
 
 os: $(BIN)
-	$(BIN) --binary xv6/kernel.bin --rfsimg xv6/fs.img
+	$(BIN) --elf xv6/kernel.img --rfsimg xv6/fs.img
 
 # variables for compliance
 COMPLIANCE_DIR ?= ./riscv-arch-test
@@ -87,7 +87,7 @@ $(COMPLIANCE_DIR):
 	git submodule update --init
 	touch $(@)
 
-compilance: $(BIN) $(COMPLIANCE_DIR)
+compliance: $(BIN) $(COMPLIANCE_DIR)
 	$(MAKE) -C $(COMPLIANCE_DIR) clean
 	$(MAKE) -C $(COMPLIANCE_DIR)
 
