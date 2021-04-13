@@ -1386,9 +1386,17 @@ bool fetch(riscv_cpu *cpu)
     if (cpu->exc.exception != NoException)
         return false;
 
-    // opcode for indexing the table will be decoded first
-    cpu->instr.instr = instr;
-    cpu->instr.opcode = instr & 0x7f;
+    if ((instr & 0x3) != 0x3) {
+        cpu->pc += 2;
+        // TODO: retrieve info for the "C" standard extension instructions
+        return false;
+    } else {
+        cpu->pc += 4;
+
+        // opcode for indexing the table will be decoded first
+        cpu->instr.instr = instr;
+        cpu->instr.opcode = instr & 0x7f;
+    }
 
     LOG_DEBUG(
         "[DEBUG] instr: 0x%x\n"

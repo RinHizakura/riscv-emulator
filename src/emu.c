@@ -31,8 +31,6 @@ void start_emu(riscv_emu *emu)
         if (!ret)
             goto get_trap;
 
-        emu->cpu.pc += 4;
-
         ret = decode(&emu->cpu);
         if (!ret)
             goto get_trap;
@@ -50,8 +48,10 @@ void start_emu(riscv_emu *emu)
         }
     }
 
+#ifdef DEBUG
     dump_reg(&emu->cpu);
     dump_csr(&emu->cpu);
+#endif
 }
 
 void close_emu(riscv_emu *emu)
