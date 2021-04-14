@@ -1,5 +1,4 @@
 *.bin
-*.img
 *.obj
 *.s
 build
