@@ -10,7 +10,6 @@
 typedef struct {
     riscv_elf elf;
     uint8_t *mem;
-    uint64_t code_size;
 } riscv_mem;
 
 bool init_mem(riscv_mem *mem, const char *filename, bool is_elf);

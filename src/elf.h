@@ -68,14 +68,14 @@ typedef struct {
     Elf64_Xword st_size;
 } Elf64_Sym;
 
-typedef struct {
-    uint64_t code_offset;
-    uint64_t code_start;
-    uint64_t code_end;
+// FIXME: need more program header
+#define MAX_PROGRAM_HEADER 2
 
-    uint64_t data_offset;
-    uint64_t data_start;
-    uint64_t data_end;
+typedef struct {
+    int header_num;
+    uint64_t start[MAX_PROGRAM_HEADER];
+    uint64_t size[MAX_PROGRAM_HEADER];
+    uint64_t offset[MAX_PROGRAM_HEADER];
 
     uint64_t sig_start;
     uint64_t sig_end;
