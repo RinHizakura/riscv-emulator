@@ -1,6 +1,6 @@
 # riscv-emulator
 
-**This project is still on the process for completion!!**
+**(Note: This project is still on the process for completion!)**
 
 The project is built to learn RISC-V architecture as the purpose for me. It mainly comes 
 from [rvemu](https://github.com/d0iasm/rvemu), which is a RISC-V emulator with 

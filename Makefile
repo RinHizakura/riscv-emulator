@@ -53,20 +53,7 @@ check: $(BIN)
 		 -march=rv64g \
 		 -mabi=lp64 \
 		 -o c_test.obj ./c_test.s
-	 riscv64-unknown-elf-objcopy -O binary c_test.obj c_test.bin
-	 $(BIN) --binary ./c_test.bin
-
-test_assembly: CFLAGS += -O3
-test_assembly: LDFLAGS += -O3
-test_assembly: $(BIN)
-	 riscv64-unknown-elf-gcc \
-		 -Wl,-Ttext=0x0 \
-		 -nostdlib \
-		 -march=rv64g \
-		 -mabi=lp64 \
-		 -o asm_test.obj ./test/asm_test.s
-	 riscv64-unknown-elf-objcopy -O binary asm_test.obj asm_test.bin
-	 $(BIN) --binary ./asm_test.bin
+	 $(BIN) --elf ./c_test.obj
 
 os: $(BIN)
 	$(BIN) --elf xv6/kernel.img --rfsimg xv6/fs.img
