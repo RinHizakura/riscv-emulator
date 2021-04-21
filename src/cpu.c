@@ -79,7 +79,7 @@ static void I_decode(riscv_cpu *cpu)
  * 1. the sign extension of right shift on fied imm
  * 2. the parsing of field rs2
  */
-static void C_decode(riscv_cpu *cpu)
+static void CSR_decode(riscv_cpu *cpu)
 {
     uint32_t instr = cpu->instr.instr;
     cpu->instr.rd = (instr >> 7) & 0x1f;
@@ -133,6 +133,32 @@ static void J_decode(riscv_cpu *cpu)
                      | (int32_t)((instr & 0xff000))         // 19:12
                      | (int32_t)((instr >> 9) & 0x800)      // 11
                      | (int32_t)((instr >> 20) & 0x7fe);    // 10:1
+}
+
+/* For C extension instruction decoding:
+ * 1. Same opcode can relate to different type of instructions, so only funct3
+ * is calculated first.
+ * 2. Since immediate has distinct format on different instrutions, decoding
+ * value will be delayed for actual instrution.
+ */
+static void Cx_decode(riscv_cpu *cpu)
+{
+    uint16_t instr = cpu->instr.instr & 0xffff;
+    cpu->instr.funct3 = (instr >> 13) & 0x7;
+}
+
+static void CL_decode(riscv_cpu *cpu)
+{
+    uint16_t instr = cpu->instr.instr & 0xffff;
+    cpu->instr.rd = ((instr >> 2) & 0x7) + 8;
+    cpu->instr.rs1 = ((instr >> 7) & 0x7) + 8;
+}
+
+static void CI_decode(riscv_cpu *cpu)
+{
+    uint16_t instr = cpu->instr.instr & 0xffff;
+    // note that 'rd' could also be used as 'rs1'
+    cpu->instr.rd = (instr >> 7) & 0x1f;
 }
 
 static void instr_lb(riscv_cpu *cpu)
@@ -827,6 +853,25 @@ static void instr_amoswapd(riscv_cpu *cpu)
     cpu->xreg[cpu->instr.rd] = tmp;
 }
 
+static void instr_caddi(riscv_cpu *cpu) {}
+
+static void instr_clw(riscv_cpu *cpu) {}
+
+static void instr_cld(riscv_cpu *cpu)
+{
+    uint32_t instr = cpu->instr.instr;
+    // offset[5:3|7:6] = isnt[12:10|6:5]
+    uint8_t offset = ((instr >> 7) & 0x38) | ((instr << 1) & 0xc0);
+
+    uint64_t addr = cpu->xreg[cpu->instr.rs1] + offset;
+    uint64_t value = read_cpu(cpu, addr, 64);
+    if (cpu->exc.exception != NoException) {
+        assert(value == (uint64_t) -1);
+        return;
+    }
+    cpu->xreg[cpu->instr.rd] = value;
+}
+
 /* clang-format off */
 #define INIT_RISCV_INSTR_LIST(_type, _instr)  \
     static riscv_instr_desc _instr##_list = { \
@@ -1049,7 +1094,20 @@ static riscv_instr_entry instr_atomic_type[] = {
 };
 INIT_RISCV_INSTR_LIST(FUNC3, instr_atomic_type);
 
+static riscv_instr_entry instr_c0_type[] = {
+    [0x2] = {CL_decode, instr_clw, NULL},
+    [0x3] = {CL_decode, instr_cld, NULL}
+};
+INIT_RISCV_INSTR_LIST(FUNC3, instr_c0_type);
+
+static riscv_instr_entry instr_c1_type[] = {
+    [0x0] = {CI_decode, instr_caddi, NULL},
+};
+INIT_RISCV_INSTR_LIST(FUNC3, instr_c1_type);
+
 static riscv_instr_entry opcode_type[] = {
+    [0x00] = {Cx_decode, NULL, &instr_c0_type_list},
+    [0x01] = {Cx_decode, NULL, &instr_c1_type_list}, 
     [0x03] = {I_decode, NULL, &instr_load_type_list},
     [0x0f] = {I_decode, instr_fence, NULL},
     [0x13] = {I_decode, NULL, &instr_imm_type_list},
@@ -1063,7 +1121,7 @@ static riscv_instr_entry opcode_type[] = {
     [0x63] = {B_decode, NULL, &instr_branch_type_list},
     [0x67] = {I_decode, instr_jalr, NULL},
     [0x6f] = {J_decode, instr_jal, NULL},
-    [0x73] = {C_decode, NULL, &instr_csr_type_list},
+    [0x73] = {CSR_decode, NULL, &instr_csr_type_list},
 };
 INIT_RISCV_INSTR_LIST(OPCODE, opcode_type);
 /* clang-format on */
@@ -1388,12 +1446,17 @@ bool fetch(riscv_cpu *cpu)
 
     if ((instr & 0x3) != 0x3) {
         cpu->pc += 2;
-        // TODO: retrieve info for the "C" standard extension instructions
-        return false;
+
+        instr &= 0xffff;
+
+        if (instr == 0)
+            return false;
+
+        cpu->instr.instr = instr;
+        cpu->instr.opcode = instr & 0x3;
     } else {
         cpu->pc += 4;
 
-        // opcode for indexing the table will be decoded first
         cpu->instr.instr = instr;
         cpu->instr.opcode = instr & 0x7f;
     }
