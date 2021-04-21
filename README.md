@@ -17,24 +17,23 @@ To build the emulator.
 $ make
 ```
 
-Then you can load and run a RISC-V bare-metal raw binary file.
+Then you can load a bare-metal RISC-V raw binary file.
 ```
 $ ./build/emu --binary <binary name>
 ```
 
-This emulator is also validated to run [xv6-riscv](https://github.com/mit-pdos/xv6-riscv), 
+Loading ELF format binary is also supported, but the implementation now is non-general and 
+ugly(you may fail to load your binary).
+```
+$ ./build/emu --elf <ELF name>
+```
+
+The emulator is also validated to run [xv6-riscv](https://github.com/mit-pdos/xv6-riscv), 
 which is a simple UNIX operating system(note that I compile it with `-march=rv64g` flag 
 since we don't support RV64C now). You'll find that it takes times from booting to execute 
 a shell, since no optimization is applied now and may be added in the future.
 ```
 $ make os
-```
-
-In fact, we do have the feature to load the ELF format binary. But since I don't fully 
-understand the ELF format. So the implementation now is non-general and ugly. It is 
-tested on compliance test and xv6 binary only, so you may fail to load the other ELFs.
-```
-$ ./build/emu --elf <ELF name>
 ```
 
 ## Compliance Test
