@@ -13,7 +13,7 @@ bool init_bus(riscv_bus *bus,
     /* since the initialize of CLINT / PLIC is simple, we don't put it to
      * another function */
     memset(&bus->clint, 0, sizeof(riscv_clint));
-    memset(&bus->plic, 0, sizeof(riscv_clint));
+    memset(&bus->plic, 0, sizeof(riscv_plic));
 
     if (!init_uart(&bus->uart))
         return false;
