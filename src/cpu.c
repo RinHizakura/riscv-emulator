@@ -855,12 +855,26 @@ static void instr_amoswapd(riscv_cpu *cpu)
 
 static void instr_caddi(riscv_cpu *cpu) {}
 
-static void instr_clw(riscv_cpu *cpu) {}
+static void instr_clw(riscv_cpu *cpu)
+{
+    uint32_t instr = cpu->instr.instr;
+    // offset[5:3|2|6] = inst[12:10|6|5]
+    uint8_t offset =
+        ((instr >> 7) & 0x38) | ((instr << 1) & 0x40) | ((instr >> 4) & 0x4);
+
+    uint64_t addr = cpu->xreg[cpu->instr.rs1] + offset;
+    uint64_t value = read_cpu(cpu, addr, 32);
+    if (cpu->exc.exception != NoException) {
+        assert(value == (uint64_t) -1);
+        return;
+    }
+    cpu->xreg[cpu->instr.rd] = ((int32_t) value);
+}
 
 static void instr_cld(riscv_cpu *cpu)
 {
     uint32_t instr = cpu->instr.instr;
-    // offset[5:3|7:6] = isnt[12:10|6:5]
+    // offset[5:3|7:6] = inst[12:10|6:5]
     uint8_t offset = ((instr >> 7) & 0x38) | ((instr << 1) & 0xc0);
 
     uint64_t addr = cpu->xreg[cpu->instr.rs1] + offset;
@@ -1437,6 +1451,7 @@ bool init_cpu(riscv_cpu *cpu,
 bool fetch(riscv_cpu *cpu)
 {
     uint64_t pc = addr_translate(cpu, cpu->pc, Access_Instr);
+
     if (cpu->exc.exception != NoException)
         return false;
 
