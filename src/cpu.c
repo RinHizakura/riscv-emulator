@@ -1449,8 +1449,10 @@ bool fetch(riscv_cpu *cpu)
 
         instr &= 0xffff;
 
-        if (instr == 0)
+        if (instr == 0) {
+            cpu->exc.exception = IllegalInstruction;
             return false;
+        }
 
         cpu->instr.instr = instr;
         cpu->instr.opcode = instr & 0x3;
@@ -1582,7 +1584,7 @@ Trap exception_take_trap(riscv_cpu *cpu)
     case StoreAMOPageFault:
         return Trap_Invisible;
     default:
-        LOG_ERROR("Not defined exception!");
+        LOG_ERROR("Not defined exception %d\n", cpu->exc.exception);
         return Trap_Fatal;
     }
 }
