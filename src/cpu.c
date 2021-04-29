@@ -860,7 +860,21 @@ static void instr_amoswapd(riscv_cpu *cpu)
     cpu->xreg[cpu->instr.rd] = tmp;
 }
 
-static void instr_caddi(riscv_cpu *cpu) {}
+static void instr_caddi(riscv_cpu *cpu)
+{
+    uint32_t instr = cpu->instr.instr;
+    // imm[5|4:0] = inst[12|6:2], sign-extended 6-bit immediate
+    uint64_t nzimm = ((instr >> 7) & 0x20) | ((instr >> 2) & 0x1f);
+
+    nzimm |= ((nzimm & 0x20) ? 0xFFFFFFFFFFFFFFC0 : 0);
+    // C.ADDI is only valid when rd != x0 and nzimm != 0
+    if (cpu->instr.rd != 0 && nzimm != 0)
+        cpu->xreg[cpu->instr.rd] = cpu->xreg[cpu->instr.rd] + nzimm;
+}
+
+static void instr_caddiw(riscv_cpu *cpu) {}
+
+static void instr_cli(riscv_cpu *cpu) {}
 
 static void instr_clw(riscv_cpu *cpu)
 {
@@ -1146,6 +1160,8 @@ INIT_RISCV_INSTR_LIST(FUNC3, instr_c0_type);
 
 static riscv_instr_entry instr_c1_type[] = {
     [0x0] = {CI_decode, instr_caddi, NULL},
+    [0x1] = {CI_decode, instr_caddiw, NULL},
+    [0x2] = {CI_decode, instr_cli, NULL},
 };
 INIT_RISCV_INSTR_LIST(FUNC3, instr_c1_type);
 
