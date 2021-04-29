@@ -11,11 +11,6 @@ bool init_emu(riscv_emu *emu,
     if (!init_cpu(&emu->cpu, filename, rfs_name, is_elf))
         return false;
 
-    return true;
-}
-
-void start_emu(riscv_emu *emu)
-{
     while (1) {
         if (check_pending_irq(&emu->cpu)) {
             // if any interrupt is pending
@@ -54,8 +49,7 @@ void start_emu(riscv_emu *emu)
 #endif
 }
 
-void close_emu(riscv_emu *emu)
+void free_emu(riscv_emu *emu)
 {
     free_cpu(&emu->cpu);
-    free(emu);
 }

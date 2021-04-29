@@ -12,7 +12,6 @@ bool init_emu(riscv_emu *emu,
               const char *filename,
               const char *rfs_name,
               bool is_elf);
-void start_emu(riscv_emu *emu);
-void close_emu(riscv_emu *emu);
+void free_emu(riscv_emu *emu);
 
 #endif

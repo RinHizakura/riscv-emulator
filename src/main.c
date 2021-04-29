@@ -82,8 +82,6 @@ int main(int argc, char *argv[])
         exit(1);
     }
 
-    start_emu(emu);
-
     // FIXME: Refactor to prettier code
     if (opt_compliance) {
         FILE *f = fopen(signature_out_file, "w");
@@ -105,6 +103,7 @@ int main(int argc, char *argv[])
         fclose(f);
     }
 
-    close_emu(emu);
+    free_emu(emu);
+    free(emu);
     return 0;
 }
