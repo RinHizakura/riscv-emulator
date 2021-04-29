@@ -154,6 +154,13 @@ static void CL_decode(riscv_cpu *cpu)
     cpu->instr.rs1 = ((instr >> 7) & 0x7) + 8;
 }
 
+static void CS_decode(riscv_cpu *cpu)
+{
+    uint16_t instr = cpu->instr.instr & 0xffff;
+    cpu->instr.rs2 = ((instr >> 2) & 0x7) + 8;
+    cpu->instr.rs1 = ((instr >> 7) & 0x7) + 8;
+}
+
 static void CI_decode(riscv_cpu *cpu)
 {
     uint16_t instr = cpu->instr.instr & 0xffff;
@@ -886,6 +893,27 @@ static void instr_cld(riscv_cpu *cpu)
     cpu->xreg[cpu->instr.rd] = value;
 }
 
+static void instr_csw(riscv_cpu *cpu)
+{
+    uint32_t instr = cpu->instr.instr;
+    // offset[5:3|2|6] = inst[12:10|6|5]
+    uint8_t offset =
+        ((instr >> 7) & 0x38) | ((instr << 1) & 0x40) | ((instr >> 4) & 0x4);
+
+    uint64_t addr = cpu->xreg[cpu->instr.rs1] + offset;
+    write_cpu(cpu, addr, 32, cpu->xreg[cpu->instr.rs2]);
+}
+
+static void instr_csd(riscv_cpu *cpu)
+{
+    uint32_t instr = cpu->instr.instr;
+    // offset[5:3|7:6] = inst[12:10|6:5]
+    uint8_t offset = ((instr >> 7) & 0x38) | ((instr << 1) & 0xc0);
+
+    uint64_t addr = cpu->xreg[cpu->instr.rs1] + offset;
+    write_cpu(cpu, addr, 64, cpu->xreg[cpu->instr.rs2]);
+}
+
 /* clang-format off */
 #define INIT_RISCV_INSTR_LIST(_type, _instr)  \
     static riscv_instr_desc _instr##_list = { \
@@ -1110,7 +1138,9 @@ INIT_RISCV_INSTR_LIST(FUNC3, instr_atomic_type);
 
 static riscv_instr_entry instr_c0_type[] = {
     [0x2] = {CL_decode, instr_clw, NULL},
-    [0x3] = {CL_decode, instr_cld, NULL}
+    [0x3] = {CL_decode, instr_cld, NULL},
+    [0x6] = {CS_decode, instr_csw, NULL},
+    [0x7] = {CS_decode, instr_csd, NULL}
 };
 INIT_RISCV_INSTR_LIST(FUNC3, instr_c0_type);
 
