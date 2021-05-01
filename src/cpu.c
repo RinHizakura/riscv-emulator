@@ -977,7 +977,14 @@ static void instr_clui_addi16sp(riscv_cpu *cpu)
     }
     // rd==x2 correspond to the C.ADDI16SP instruction.
     else if (rd == 2) {
-        // TODO
+        // nzimm[9|4|6|8:7|5] = inst[12|6|5|4:3|2]
+        uint64_t nzimm = ((instr >> 3) & 0x200) | ((instr >> 2) & 0x10) |
+                         ((instr << 1) & 0x40) | ((instr << 4) & 0x180) |
+                         ((instr << 3) & 0x20);
+
+        nzimm |= ((nzimm & 0x200) ? 0xFFFFFFFFFFFFFC00 : 0);
+        if (nzimm != 0)
+            cpu->xreg[2] = cpu->xreg[2] + nzimm;
     }
 }
 
