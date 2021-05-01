@@ -168,6 +168,12 @@ static void CI_decode(riscv_cpu *cpu)
     cpu->instr.rd = (instr >> 7) & 0x1f;
 }
 
+static void CSS_decode(riscv_cpu *cpu)
+{
+    uint16_t instr = cpu->instr.instr & 0xffff;
+    cpu->instr.rs2 = (instr >> 2) & 0x1f;
+}
+
 static void instr_lb(riscv_cpu *cpu)
 {
     uint64_t addr = cpu->xreg[cpu->instr.rs1] + cpu->instr.imm;
@@ -860,22 +866,6 @@ static void instr_amoswapd(riscv_cpu *cpu)
     cpu->xreg[cpu->instr.rd] = tmp;
 }
 
-static void instr_caddi(riscv_cpu *cpu)
-{
-    uint32_t instr = cpu->instr.instr;
-    // imm[5|4:0] = inst[12|6:2], sign-extended 6-bit immediate
-    uint64_t nzimm = ((instr >> 7) & 0x20) | ((instr >> 2) & 0x1f);
-
-    nzimm |= ((nzimm & 0x20) ? 0xFFFFFFFFFFFFFFC0 : 0);
-    // C.ADDI is only valid when rd != x0 and nzimm != 0
-    if (cpu->instr.rd != 0 && nzimm != 0)
-        cpu->xreg[cpu->instr.rd] = cpu->xreg[cpu->instr.rd] + nzimm;
-}
-
-static void instr_caddiw(riscv_cpu *cpu) {}
-
-static void instr_cli(riscv_cpu *cpu) {}
-
 static void instr_clw(riscv_cpu *cpu)
 {
     uint32_t instr = cpu->instr.instr;
@@ -925,6 +915,44 @@ static void instr_csd(riscv_cpu *cpu)
     uint8_t offset = ((instr >> 7) & 0x38) | ((instr << 1) & 0xc0);
 
     uint64_t addr = cpu->xreg[cpu->instr.rs1] + offset;
+    write_cpu(cpu, addr, 64, cpu->xreg[cpu->instr.rs2]);
+}
+
+static void instr_caddi(riscv_cpu *cpu)
+{
+    uint32_t instr = cpu->instr.instr;
+    // imm[5|4:0] = inst[12|6:2], sign-extended 6-bit immediate
+    uint64_t nzimm = ((instr >> 7) & 0x20) | ((instr >> 2) & 0x1f);
+
+    nzimm |= ((nzimm & 0x20) ? 0xFFFFFFFFFFFFFFC0 : 0);
+    // C.ADDI is only valid when rd != x0 and nzimm != 0
+    if (cpu->instr.rd != 0 && nzimm != 0)
+        cpu->xreg[cpu->instr.rd] = cpu->xreg[cpu->instr.rd] + nzimm;
+}
+
+static void instr_caddiw(riscv_cpu *cpu)
+{
+    uint32_t instr = cpu->instr.instr;
+    // imm[5|4:0] = inst[12|6:2]
+    uint32_t imm = ((instr >> 7) & 0x20) | ((instr >> 2) & 0x1f);
+
+    imm |= ((imm & 0x20) ? 0xFFFFFFC0 : 0);
+
+    // C.ADDIW is only valid when rd != x0
+    if (cpu->instr.rd != 0)
+        cpu->xreg[cpu->instr.rd] =
+            (int32_t)((uint32_t) cpu->xreg[cpu->instr.rd] + imm);
+}
+
+static void instr_cli(riscv_cpu *cpu) {}
+
+static void instr_sdsp(riscv_cpu *cpu)
+{
+    uint32_t instr = cpu->instr.instr;
+    // offset[5:3|8:6] = inst[12:10|9:7]
+    uint16_t offset = ((instr >> 1) & 0x1c0) | ((instr >> 7) & 0x38);
+
+    uint64_t addr = cpu->xreg[2] + offset;
     write_cpu(cpu, addr, 64, cpu->xreg[cpu->instr.rs2]);
 }
 
@@ -1165,9 +1193,16 @@ static riscv_instr_entry instr_c1_type[] = {
 };
 INIT_RISCV_INSTR_LIST(FUNC3, instr_c1_type);
 
+static riscv_instr_entry instr_c2_type[] = {
+    [0x7] = {CSS_decode, instr_sdsp, NULL},
+};
+INIT_RISCV_INSTR_LIST(FUNC3, instr_c2_type);
+
+
 static riscv_instr_entry opcode_type[] = {
     [0x00] = {Cx_decode, NULL, &instr_c0_type_list},
     [0x01] = {Cx_decode, NULL, &instr_c1_type_list}, 
+    [0x02] = {Cx_decode, NULL, &instr_c2_type_list}, 
     [0x03] = {I_decode, NULL, &instr_load_type_list},
     [0x0f] = {I_decode, instr_fence, NULL},
     [0x13] = {I_decode, NULL, &instr_imm_type_list},
