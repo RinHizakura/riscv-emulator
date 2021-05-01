@@ -956,6 +956,31 @@ static void instr_cli(riscv_cpu *cpu)
         cpu->xreg[cpu->instr.rd] = imm;
 }
 
+static void instr_clui_addi16sp(riscv_cpu *cpu)
+{
+    uint32_t instr = cpu->instr.instr;
+    uint64_t rd = cpu->instr.rd;
+
+    /* C.LUI loads the non-zero 6-bit immediate field into bits 17–12 of the
+     * destination register, clears the bottom 12 bits, and sign-extends bit 17
+     * into all higher bits of the destination.
+     *
+     * C.LUI is only valid when rd != {x0, x2}, and when the immediate is not
+     * equal to zero. */
+    if (rd != 0 && rd != 2) {
+        // nzimm[17|16:12] = inst[12|6:2]
+        uint64_t nzimm = ((instr << 5) & 0x20000) | ((instr << 10) & 0x1f000);
+        nzimm |= ((nzimm & 0x20000) ? 0xFFFFFFFFFFFC0000 : 0);
+        // The code points with nzimm=0 are reserved
+        if (nzimm != 0)
+            cpu->xreg[rd] = nzimm;
+    }
+    // rd==x2 correspond to the C.ADDI16SP instruction.
+    else if (rd == 2) {
+        // TODO
+    }
+}
+
 static void instr_sdsp(riscv_cpu *cpu)
 {
     uint32_t instr = cpu->instr.instr;
@@ -1200,6 +1225,7 @@ static riscv_instr_entry instr_c1_type[] = {
     [0x0] = {CI_decode, instr_caddi, NULL},
     [0x1] = {CI_decode, instr_caddiw, NULL},
     [0x2] = {CI_decode, instr_cli, NULL},
+    [0x3] = {CI_decode, instr_clui_addi16sp, NULL},
 };
 INIT_RISCV_INSTR_LIST(FUNC3, instr_c1_type);
 
