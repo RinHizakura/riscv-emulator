@@ -944,7 +944,17 @@ static void instr_caddiw(riscv_cpu *cpu)
             (int32_t)((uint32_t) cpu->xreg[cpu->instr.rd] + imm);
 }
 
-static void instr_cli(riscv_cpu *cpu) {}
+static void instr_cli(riscv_cpu *cpu)
+{
+    uint32_t instr = cpu->instr.instr;
+    // imm[5|4:0] = inst[12|6:2]
+    uint64_t imm = ((instr >> 7) & 0x20) | ((instr >> 2) & 0x1f);
+
+    imm |= ((imm & 0x20) ? 0xFFFFFFFFFFFFFFC0 : 0);
+
+    if (cpu->instr.rd)
+        cpu->xreg[cpu->instr.rd] = imm;
+}
 
 static void instr_sdsp(riscv_cpu *cpu)
 {
