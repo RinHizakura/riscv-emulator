@@ -174,6 +174,13 @@ static void CSS_decode(riscv_cpu *cpu)
     cpu->instr.rs2 = (instr >> 2) & 0x1f;
 }
 
+static void CA_decode(riscv_cpu *cpu)
+{
+    uint16_t instr = cpu->instr.instr & 0xffff;
+    cpu->instr.rd = ((instr >> 7) & 0x7) + 8;
+    cpu->instr.funct2 = (instr >> 10) & 0x3;
+}
+
 static void instr_lb(riscv_cpu *cpu)
 {
     uint64_t addr = cpu->xreg[cpu->instr.rs1] + cpu->instr.imm;
@@ -988,6 +995,16 @@ static void instr_clui_addi16sp(riscv_cpu *cpu)
     }
 }
 
+static void instr_csrli(riscv_cpu *cpu)
+{
+    uint32_t instr = cpu->instr.instr;
+    // shamt[5|4:0] = inst[12|6:2]
+    uint8_t shamt = ((instr >> 7) & 0x20) | ((instr >> 2) & 0x1f);
+    cpu->xreg[cpu->instr.rd] = cpu->xreg[cpu->instr.rd] >> shamt;
+}
+
+static void instr_csrai(riscv_cpu *cpu) {}
+
 static void instr_sdsp(riscv_cpu *cpu)
 {
     uint32_t instr = cpu->instr.instr;
@@ -1228,11 +1245,18 @@ static riscv_instr_entry instr_c0_type[] = {
 };
 INIT_RISCV_INSTR_LIST(FUNC3, instr_c0_type);
 
+static riscv_instr_entry instr_ca_type[] = {
+    [0x0] = {NULL, instr_csrli, NULL},
+    [0x1] = {NULL, instr_csrai, NULL},
+};
+INIT_RISCV_INSTR_LIST(FUNC2, instr_ca_type);
+
 static riscv_instr_entry instr_c1_type[] = {
     [0x0] = {CI_decode, instr_caddi, NULL},
     [0x1] = {CI_decode, instr_caddiw, NULL},
     [0x2] = {CI_decode, instr_cli, NULL},
     [0x3] = {CI_decode, instr_clui_addi16sp, NULL},
+    [0x4] = {CA_decode, NULL, &instr_ca_type_list},
 };
 INIT_RISCV_INSTR_LIST(FUNC3, instr_c1_type);
 
@@ -1240,7 +1264,6 @@ static riscv_instr_entry instr_c2_type[] = {
     [0x7] = {CSS_decode, instr_sdsp, NULL},
 };
 INIT_RISCV_INSTR_LIST(FUNC3, instr_c2_type);
-
 
 static riscv_instr_entry opcode_type[] = {
     [0x00] = {Cx_decode, NULL, &instr_c0_type_list},
@@ -1271,6 +1294,9 @@ static bool __decode(riscv_cpu *cpu, riscv_instr_desc *instr_desc)
     switch (instr_desc->type.type) {
     case OPCODE:
         index = cpu->instr.opcode;
+        break;
+    case FUNC2:
+        index = cpu->instr.funct2;
         break;
     case FUNC3:
         index = cpu->instr.funct3;

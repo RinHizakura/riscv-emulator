@@ -21,6 +21,7 @@ typedef struct {
     uint8_t rs1;
     uint8_t rs2;
     uint64_t imm;
+    uint8_t funct2;
     uint8_t funct3;
     uint8_t funct7;
 } riscv_instr;
@@ -42,6 +43,7 @@ typedef struct CPU {
 typedef struct {
     enum {
         OPCODE,
+        FUNC2,
         FUNC3,
         FUNC5,
         FUNC7,
