@@ -8,9 +8,9 @@
 #include "exception.h"
 #include "memmap.h"
 
-// Receive holding register (write mode)
+// Receive holding register (read mode)
 #define UART_RHR UART_BASE + 0
-// Transmit holding register (read_mode)
+// Transmit holding register (write mode)
 #define UART_THR UART_BASE + 0
 // Interrupt enable register
 #define UART_IER UART_BASE + 1
@@ -18,7 +18,7 @@
 #define UART_ISR UART_BASE + 2
 // FIFO control register (write mode)
 #define UART_FCR UART_BASE + 2
-// Line status register
+// Line control register
 #define UART_LCR UART_BASE + 3
 
 // Line status register
