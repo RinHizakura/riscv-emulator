@@ -23,6 +23,7 @@ typedef struct {
     uint64_t imm;
     uint8_t funct2;
     uint8_t funct3;
+    uint8_t funct6;
     uint8_t funct7;
 } riscv_instr;
 
@@ -40,12 +41,15 @@ typedef struct CPU {
     void (*exec_func)(riscv_cpu *cpu);
 } riscv_cpu;
 
+/* the *_S type means a special form of index to map the instruction. You can
+ * take a look at function __decode for more detail */
 typedef struct {
     enum {
         OPCODE,
-        FUNC2,
+        FUNC2_S,
         FUNC3,
         FUNC5,
+        FUNC6_S,
         FUNC7,
         FUNC7_S,
         RS2,

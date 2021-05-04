@@ -147,14 +147,7 @@ static void Cx_decode(riscv_cpu *cpu)
     cpu->instr.funct3 = (instr >> 13) & 0x7;
 }
 
-static void CL_decode(riscv_cpu *cpu)
-{
-    uint16_t instr = cpu->instr.instr & 0xffff;
-    cpu->instr.rd = ((instr >> 2) & 0x7) + 8;
-    cpu->instr.rs1 = ((instr >> 7) & 0x7) + 8;
-}
-
-static void CS_decode(riscv_cpu *cpu)
+static void CS_CL_decode(riscv_cpu *cpu)
 {
     uint16_t instr = cpu->instr.instr & 0xffff;
     cpu->instr.rs2 = ((instr >> 2) & 0x7) + 8;
@@ -174,11 +167,15 @@ static void CSS_decode(riscv_cpu *cpu)
     cpu->instr.rs2 = (instr >> 2) & 0x1f;
 }
 
-static void CA_decode(riscv_cpu *cpu)
+/* Note that for the compressed integer register-immediate operations, rd can be
+ * decoded to different value according to the actual instruction */
+static void CI_CA_decode(riscv_cpu *cpu)
 {
     uint16_t instr = cpu->instr.instr & 0xffff;
     cpu->instr.rd = ((instr >> 7) & 0x7) + 8;
-    cpu->instr.funct2 = (instr >> 10) & 0x3;
+    cpu->instr.rs2 = ((instr >> 2) & 0x7) + 8;
+    cpu->instr.funct6 = (instr >> 10) & 0x3f;
+    cpu->instr.funct2 = (instr >> 5) & 0x3;
 }
 
 static void instr_lb(riscv_cpu *cpu)
@@ -1011,6 +1008,51 @@ static void instr_csrai(riscv_cpu *cpu)
     cpu->xreg[cpu->instr.rd] = (int64_t) cpu->xreg[cpu->instr.rd] >> shamt;
 }
 
+static void instr_candi(riscv_cpu *cpu)
+{
+    uint32_t instr = cpu->instr.instr;
+    // shamt[5|4:0] = inst[12|6:2]
+    uint64_t imm = ((instr >> 7) & 0x20) | ((instr >> 2) & 0x1f);
+    imm |= ((imm & 0x20) ? 0xFFFFFFFFFFFFFFC0 : 0);
+    cpu->xreg[cpu->instr.rd] = cpu->xreg[cpu->instr.rd] & imm;
+}
+
+static void instr_csub(riscv_cpu *cpu)
+{
+    cpu->xreg[cpu->instr.rd] =
+        cpu->xreg[cpu->instr.rd] - cpu->xreg[cpu->instr.rs2];
+}
+
+static void instr_cxor(riscv_cpu *cpu)
+{
+    cpu->xreg[cpu->instr.rd] =
+        cpu->xreg[cpu->instr.rd] ^ cpu->xreg[cpu->instr.rs2];
+}
+
+static void instr_cor(riscv_cpu *cpu)
+{
+    cpu->xreg[cpu->instr.rd] =
+        cpu->xreg[cpu->instr.rd] | cpu->xreg[cpu->instr.rs2];
+}
+
+static void instr_cand(riscv_cpu *cpu)
+{
+    cpu->xreg[cpu->instr.rd] =
+        cpu->xreg[cpu->instr.rd] & cpu->xreg[cpu->instr.rs2];
+}
+
+static void instr_csubw(riscv_cpu *cpu)
+{
+    cpu->xreg[cpu->instr.rd] = (int32_t)((uint32_t) cpu->xreg[cpu->instr.rd] -
+                                         (uint32_t) cpu->xreg[cpu->instr.rs2]);
+}
+
+static void instr_caddw(riscv_cpu *cpu)
+{
+    cpu->xreg[cpu->instr.rd] = (int32_t)((uint32_t) cpu->xreg[cpu->instr.rd] +
+                                         (uint32_t) cpu->xreg[cpu->instr.rs2]);
+}
+
 static void instr_sdsp(riscv_cpu *cpu)
 {
     uint32_t instr = cpu->instr.instr;
@@ -1244,25 +1286,37 @@ static riscv_instr_entry instr_atomic_type[] = {
 INIT_RISCV_INSTR_LIST(FUNC3, instr_atomic_type);
 
 static riscv_instr_entry instr_c0_type[] = {
-    [0x2] = {CL_decode, instr_clw, NULL},
-    [0x3] = {CL_decode, instr_cld, NULL},
-    [0x6] = {CS_decode, instr_csw, NULL},
-    [0x7] = {CS_decode, instr_csd, NULL}
+    [0x2] = {CS_CL_decode, instr_clw, NULL},
+    [0x3] = {CS_CL_decode, instr_cld, NULL},
+    [0x6] = {CS_CL_decode, instr_csw, NULL},
+    [0x7] = {CS_CL_decode, instr_csd, NULL}
 };
 INIT_RISCV_INSTR_LIST(FUNC3, instr_c0_type);
 
 static riscv_instr_entry instr_ca_type[] = {
+    [0x0] = {NULL, instr_csub, NULL},
+    [0x1] = {NULL, instr_cxor, NULL},
+    [0x2] = {NULL, instr_cor, NULL},
+    [0x3] = {NULL, instr_cand, NULL},
+    [0x4] = {NULL, instr_csubw, NULL},
+    [0x5] = {NULL, instr_caddw, NULL},
+};
+INIT_RISCV_INSTR_LIST(FUNC2_S, instr_ca_type);
+
+static riscv_instr_entry instr_ci_ca_type[] = {
     [0x0] = {NULL, instr_csrli, NULL},
     [0x1] = {NULL, instr_csrai, NULL},
+    [0x2] = {NULL, instr_candi, NULL},
+    [0x3] = {NULL, NULL, &instr_ca_type_list},
 };
-INIT_RISCV_INSTR_LIST(FUNC2, instr_ca_type);
+INIT_RISCV_INSTR_LIST(FUNC6_S, instr_ci_ca_type);
 
 static riscv_instr_entry instr_c1_type[] = {
     [0x0] = {CI_decode, instr_caddi, NULL},
     [0x1] = {CI_decode, instr_caddiw, NULL},
     [0x2] = {CI_decode, instr_cli, NULL},
     [0x3] = {CI_decode, instr_clui_addi16sp, NULL},
-    [0x4] = {CA_decode, NULL, &instr_ca_type_list},
+    [0x4] = {CI_CA_decode, NULL, &instr_ci_ca_type_list},
 };
 INIT_RISCV_INSTR_LIST(FUNC3, instr_c1_type);
 
@@ -1301,14 +1355,17 @@ static bool __decode(riscv_cpu *cpu, riscv_instr_desc *instr_desc)
     case OPCODE:
         index = cpu->instr.opcode;
         break;
-    case FUNC2:
-        index = cpu->instr.funct2;
+    case FUNC2_S:
+        index = (cpu->instr.funct6 & 0x4) | cpu->instr.funct2;
         break;
     case FUNC3:
         index = cpu->instr.funct3;
         break;
     case FUNC5:
         index = (cpu->instr.funct7 & 0b1111100) >> 2;
+        break;
+    case FUNC6_S:
+        index = cpu->instr.funct6 & 0x3;
         break;
     case FUNC7_S:
         index = cpu->instr.funct7 >> 1;
