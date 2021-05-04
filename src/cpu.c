@@ -1003,7 +1003,13 @@ static void instr_csrli(riscv_cpu *cpu)
     cpu->xreg[cpu->instr.rd] = cpu->xreg[cpu->instr.rd] >> shamt;
 }
 
-static void instr_csrai(riscv_cpu *cpu) {}
+static void instr_csrai(riscv_cpu *cpu)
+{
+    uint32_t instr = cpu->instr.instr;
+    // shamt[5|4:0] = inst[12|6:2]
+    uint8_t shamt = ((instr >> 7) & 0x20) | ((instr >> 2) & 0x1f);
+    cpu->xreg[cpu->instr.rd] = (int64_t) cpu->xreg[cpu->instr.rd] >> shamt;
+}
 
 static void instr_sdsp(riscv_cpu *cpu)
 {
