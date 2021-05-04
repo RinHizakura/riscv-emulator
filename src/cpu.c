@@ -147,7 +147,20 @@ static void Cx_decode(riscv_cpu *cpu)
     cpu->instr.funct3 = (instr >> 13) & 0x7;
 }
 
-static void CS_CL_decode(riscv_cpu *cpu)
+static void CIW_decode(riscv_cpu *cpu)
+{
+    uint16_t instr = cpu->instr.instr & 0xffff;
+    cpu->instr.rd = ((instr >> 2) & 0x7) + 8;
+}
+
+static void CL_decode(riscv_cpu *cpu)
+{
+    uint16_t instr = cpu->instr.instr & 0xffff;
+    cpu->instr.rd = ((instr >> 2) & 0x7) + 8;
+    cpu->instr.rs1 = ((instr >> 7) & 0x7) + 8;
+}
+
+static void CS_decode(riscv_cpu *cpu)
 {
     uint16_t instr = cpu->instr.instr & 0xffff;
     cpu->instr.rs2 = ((instr >> 2) & 0x7) + 8;
@@ -870,6 +883,23 @@ static void instr_amoswapd(riscv_cpu *cpu)
     cpu->xreg[cpu->instr.rd] = tmp;
 }
 
+static void instr_caddi4spn(riscv_cpu *cpu)
+{
+    uint32_t instr = cpu->instr.instr;
+    // nzuimm[5:4|9:6|2|3] = inst[12:11|10:7|6|5]
+    uint64_t nzuimm = ((instr >> 1) & 0x3c0) | ((instr >> 7) & 0x30) |
+                      ((instr >> 2) & 0x8) | ((instr >> 4) & 0x4);
+    // C.ADDI4SPN is only valid when nzuimm !=0
+    if (nzuimm != 0) {
+        cpu->xreg[cpu->instr.rd] = cpu->xreg[2] + nzuimm;
+    } else {
+        cpu->exc.exception = IllegalInstruction;
+        return;
+    }
+}
+
+static void instr_cfld(riscv_cpu *cpu) {}
+
 static void instr_clw(riscv_cpu *cpu)
 {
     uint32_t instr = cpu->instr.instr;
@@ -901,6 +931,8 @@ static void instr_cld(riscv_cpu *cpu)
     cpu->xreg[cpu->instr.rd] = value;
 }
 
+static void instr_cfsd(riscv_cpu *cpu) {}
+
 static void instr_csw(riscv_cpu *cpu)
 {
     uint32_t instr = cpu->instr.instr;
@@ -930,8 +962,12 @@ static void instr_caddi(riscv_cpu *cpu)
 
     nzimm |= ((nzimm & 0x20) ? 0xFFFFFFFFFFFFFFC0 : 0);
     // C.ADDI is only valid when rd != x0 and nzimm != 0
-    if (cpu->instr.rd != 0 && nzimm != 0)
+    if (cpu->instr.rd != 0 && nzimm != 0) {
         cpu->xreg[cpu->instr.rd] = cpu->xreg[cpu->instr.rd] + nzimm;
+    } else {
+        cpu->exc.exception = IllegalInstruction;
+        return;
+    }
 }
 
 static void instr_caddiw(riscv_cpu *cpu)
@@ -943,9 +979,13 @@ static void instr_caddiw(riscv_cpu *cpu)
     imm |= ((imm & 0x20) ? 0xFFFFFFC0 : 0);
 
     // C.ADDIW is only valid when rd != x0
-    if (cpu->instr.rd != 0)
+    if (cpu->instr.rd != 0) {
         cpu->xreg[cpu->instr.rd] =
             (int32_t)((uint32_t) cpu->xreg[cpu->instr.rd] + imm);
+    } else {
+        cpu->exc.exception = IllegalInstruction;
+        return;
+    }
 }
 
 static void instr_cli(riscv_cpu *cpu)
@@ -956,8 +996,12 @@ static void instr_cli(riscv_cpu *cpu)
 
     imm |= ((imm & 0x20) ? 0xFFFFFFFFFFFFFFC0 : 0);
 
-    if (cpu->instr.rd)
+    if (cpu->instr.rd) {
         cpu->xreg[cpu->instr.rd] = imm;
+    } else {
+        cpu->exc.exception = IllegalInstruction;
+        return;
+    }
 }
 
 static void instr_clui_addi16sp(riscv_cpu *cpu)
@@ -989,6 +1033,9 @@ static void instr_clui_addi16sp(riscv_cpu *cpu)
         nzimm |= ((nzimm & 0x200) ? 0xFFFFFFFFFFFFFC00 : 0);
         if (nzimm != 0)
             cpu->xreg[2] = cpu->xreg[2] + nzimm;
+    } else {
+        cpu->exc.exception = IllegalInstruction;
+        return;
     }
 }
 
@@ -1286,10 +1333,13 @@ static riscv_instr_entry instr_atomic_type[] = {
 INIT_RISCV_INSTR_LIST(FUNC3, instr_atomic_type);
 
 static riscv_instr_entry instr_c0_type[] = {
-    [0x2] = {CS_CL_decode, instr_clw, NULL},
-    [0x3] = {CS_CL_decode, instr_cld, NULL},
-    [0x6] = {CS_CL_decode, instr_csw, NULL},
-    [0x7] = {CS_CL_decode, instr_csd, NULL}
+    [0x0] = {CIW_decode, instr_caddi4spn, NULL},
+    [0x1] = {CL_decode, instr_cfld, NULL},
+    [0x2] = {CL_decode, instr_clw, NULL},
+    [0x3] = {CL_decode, instr_cld, NULL},
+    [0x5] = {CL_decode, instr_cfsd, NULL},
+    [0x6] = {CS_decode, instr_csw, NULL},
+    [0x7] = {CS_decode, instr_csd, NULL}
 };
 INIT_RISCV_INSTR_LIST(FUNC3, instr_c0_type);
 
