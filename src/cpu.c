@@ -138,8 +138,8 @@ static void J_decode(riscv_cpu *cpu)
 /* For C extension instruction decoding:
  * 1. Same opcode can relate to different type of instructions, so only funct3
  * is calculated first.
- * 2. Since immediate has distinct format on different instrutions, decoding
- * value will be delayed for actual instrution.
+ * 2. Since some immediate has distinct format on different instrutions,
+ * decoding value will be delayed for actual instrution.
  */
 static void Cx_decode(riscv_cpu *cpu)
 {
@@ -178,6 +178,26 @@ static void CSS_decode(riscv_cpu *cpu)
 {
     uint16_t instr = cpu->instr.instr & 0xffff;
     cpu->instr.rs2 = (instr >> 2) & 0x1f;
+}
+
+static void CJ_decode(riscv_cpu *cpu)
+{
+    // offset[11|4|9:8|10|6|7|3:1|5] = inst[12|11|10:9|8|7|6|5:3|2]
+    uint16_t instr = cpu->instr.instr & 0xffff;
+    cpu->instr.imm = ((instr >> 1) & 0x800) | ((instr << 2) & 0x400) |
+                     ((instr >> 1) & 0x300) | ((instr << 1) & 0x80) |
+                     ((instr >> 1) & 0x40) | ((instr << 3) & 0x20) |
+                     ((instr >> 7) & 0x10) | ((instr >> 2) & 0xe);
+}
+
+static void CB_decode(riscv_cpu *cpu)
+{
+    uint16_t instr = cpu->instr.instr & 0xffff;
+    cpu->instr.rs1 = ((instr >> 7) & 0x7) + 8;
+    // imm[8|4:3|7:6|2:1|5] = inst[12|11:10|6:5|4:3|2]
+    cpu->instr.imm = ((instr >> 4) & 0x100) | ((instr << 1) & 0xc0) |
+                     ((instr << 3) & 0x20) | ((instr >> 7) & 0x18) |
+                     ((instr >> 2) & 0x6);
 }
 
 /* Note that for the compressed integer register-immediate operations, rd can be
@@ -1098,17 +1118,25 @@ static void instr_caddw(riscv_cpu *cpu)
 
 static void instr_cj(riscv_cpu *cpu)
 {
-    // offset[11|4|9:8|10|6|7|3:1|5] = inst[12|11|10:9|8|7|6|5:3|2]
-    uint32_t instr = cpu->instr.instr;
-    uint64_t imm = ((instr >> 1) & 0x800) | ((instr << 2) & 0x400) |
-                   ((instr >> 1) & 0x300) | ((instr << 1) & 0x80) |
-                   ((instr >> 1) & 0x40) | ((instr << 3) & 0x20) |
-                   ((instr >> 7) & 0x10) | ((instr >> 2) & 0xe);
-    imm |= ((imm & 0x800) ? 0xFFFFFFFFFFFFF000 : 0);
-    cpu->pc = cpu->pc + imm - 2;
+    cpu->instr.imm |= ((cpu->instr.imm & 0x800) ? 0xFFFFFFFFFFFFF000 : 0);
+    cpu->pc = cpu->pc + cpu->instr.imm - 2;
 }
 
-static void instr_sdsp(riscv_cpu *cpu)
+static void instr_cbeqz(riscv_cpu *cpu)
+{
+    cpu->instr.imm |= (cpu->instr.imm & 0x100) ? 0xFFFFFFFFFFFFFE00 : 0;
+    if (cpu->xreg[cpu->instr.rs1] == 0)
+        cpu->pc = cpu->pc + cpu->instr.imm - 2;
+}
+
+static void instr_cbnez(riscv_cpu *cpu)
+{
+    cpu->instr.imm |= (cpu->instr.imm & 0x100) ? 0xFFFFFFFFFFFFFE00 : 0;
+    if (cpu->xreg[cpu->instr.rs1] != 0)
+        cpu->pc = cpu->pc + cpu->instr.imm - 2;
+}
+
+static void instr_csdsp(riscv_cpu *cpu)
 {
     uint32_t instr = cpu->instr.instr;
     // offset[5:3|8:6] = inst[12:10|9:7]
@@ -1373,12 +1401,14 @@ static riscv_instr_entry instr_c1_type[] = {
     [0x2] = {CI_decode, instr_cli, NULL},
     [0x3] = {CI_decode, instr_clui_addi16sp, NULL},
     [0x4] = {CI_CA_decode, NULL, &instr_ci_ca_type_list},
-    [0x5] = {NULL, instr_cj, NULL},
+    [0x5] = {CJ_decode, instr_cj, NULL},
+    [0x6] = {CB_decode, instr_cbeqz, NULL},
+    [0x7] = {CB_decode, instr_cbnez, NULL},
 };
 INIT_RISCV_INSTR_LIST(FUNC3, instr_c1_type);
 
 static riscv_instr_entry instr_c2_type[] = {
-    [0x7] = {CSS_decode, instr_sdsp, NULL},
+    [0x7] = {CSS_decode, instr_csdsp, NULL},
 };
 INIT_RISCV_INSTR_LIST(FUNC3, instr_c2_type);
 
