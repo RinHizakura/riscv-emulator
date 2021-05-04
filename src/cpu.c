@@ -898,8 +898,6 @@ static void instr_caddi4spn(riscv_cpu *cpu)
     }
 }
 
-static void instr_cfld(riscv_cpu *cpu) {}
-
 static void instr_clw(riscv_cpu *cpu)
 {
     uint32_t instr = cpu->instr.instr;
@@ -930,8 +928,6 @@ static void instr_cld(riscv_cpu *cpu)
     }
     cpu->xreg[cpu->instr.rd] = value;
 }
-
-static void instr_cfsd(riscv_cpu *cpu) {}
 
 static void instr_csw(riscv_cpu *cpu)
 {
@@ -1098,6 +1094,18 @@ static void instr_caddw(riscv_cpu *cpu)
 {
     cpu->xreg[cpu->instr.rd] = (int32_t)((uint32_t) cpu->xreg[cpu->instr.rd] +
                                          (uint32_t) cpu->xreg[cpu->instr.rs2]);
+}
+
+static void instr_cj(riscv_cpu *cpu)
+{
+    // offset[11|4|9:8|10|6|7|3:1|5] = inst[12|11|10:9|8|7|6|5:3|2]
+    uint32_t instr = cpu->instr.instr;
+    uint64_t imm = ((instr >> 1) & 0x800) | ((instr << 2) & 0x400) |
+                   ((instr >> 1) & 0x300) | ((instr << 1) & 0x80) |
+                   ((instr >> 1) & 0x40) | ((instr << 3) & 0x20) |
+                   ((instr >> 7) & 0x10) | ((instr >> 2) & 0xe);
+    imm |= ((imm & 0x800) ? 0xFFFFFFFFFFFFF000 : 0);
+    cpu->pc = cpu->pc + imm - 2;
 }
 
 static void instr_sdsp(riscv_cpu *cpu)
@@ -1334,10 +1342,8 @@ INIT_RISCV_INSTR_LIST(FUNC3, instr_atomic_type);
 
 static riscv_instr_entry instr_c0_type[] = {
     [0x0] = {CIW_decode, instr_caddi4spn, NULL},
-    [0x1] = {CL_decode, instr_cfld, NULL},
     [0x2] = {CL_decode, instr_clw, NULL},
     [0x3] = {CL_decode, instr_cld, NULL},
-    [0x5] = {CL_decode, instr_cfsd, NULL},
     [0x6] = {CS_decode, instr_csw, NULL},
     [0x7] = {CS_decode, instr_csd, NULL}
 };
@@ -1367,6 +1373,7 @@ static riscv_instr_entry instr_c1_type[] = {
     [0x2] = {CI_decode, instr_cli, NULL},
     [0x3] = {CI_decode, instr_clui_addi16sp, NULL},
     [0x4] = {CI_CA_decode, NULL, &instr_ci_ca_type_list},
+    [0x5] = {NULL, instr_cj, NULL},
 };
 INIT_RISCV_INSTR_LIST(FUNC3, instr_c1_type);
 
