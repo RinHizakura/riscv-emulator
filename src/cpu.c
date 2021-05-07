@@ -136,8 +136,8 @@ static void J_decode(riscv_cpu *cpu)
 }
 
 /* For C extension instruction decoding:
- * 1. Same opcode can relate to different type of instructions, so only funct3
- * is calculated first.
+ * 1. Same opcode can relate to different type of instructions, so only funct*
+ * is calculated first in Cx_decode.
  * 2. Since some immediate has distinct format on different instrutions,
  * decoding value will be delayed for actual instrution.
  */
@@ -145,6 +145,13 @@ static void Cx_decode(riscv_cpu *cpu)
 {
     uint16_t instr = cpu->instr.instr & 0xffff;
     cpu->instr.funct3 = (instr >> 13) & 0x7;
+}
+
+static void Cxx_decode(riscv_cpu *cpu)
+{
+    uint16_t instr = cpu->instr.instr & 0xffff;
+    cpu->instr.funct6 = (instr >> 10) & 0x3f;
+    cpu->instr.funct2 = (instr >> 5) & 0x3;
 }
 
 static void CIW_decode(riscv_cpu *cpu)
@@ -194,21 +201,14 @@ static void CB_decode(riscv_cpu *cpu)
 {
     uint16_t instr = cpu->instr.instr & 0xffff;
     cpu->instr.rs1 = ((instr >> 7) & 0x7) + 8;
-    // imm[8|4:3|7:6|2:1|5] = inst[12|11:10|6:5|4:3|2]
-    cpu->instr.imm = ((instr >> 4) & 0x100) | ((instr << 1) & 0xc0) |
-                     ((instr << 3) & 0x20) | ((instr >> 7) & 0x18) |
-                     ((instr >> 2) & 0x6);
+    cpu->instr.rd = cpu->instr.rs1;
 }
 
-/* Note that for the compressed integer register-immediate operations, rd can be
- * decoded to different value according to the actual instruction */
-static void CI_CA_decode(riscv_cpu *cpu)
+static void CA_decode(riscv_cpu *cpu)
 {
     uint16_t instr = cpu->instr.instr & 0xffff;
     cpu->instr.rd = ((instr >> 7) & 0x7) + 8;
     cpu->instr.rs2 = ((instr >> 2) & 0x7) + 8;
-    cpu->instr.funct6 = (instr >> 10) & 0x3f;
-    cpu->instr.funct2 = (instr >> 5) & 0x3;
 }
 
 static void instr_lb(riscv_cpu *cpu)
@@ -1124,16 +1124,30 @@ static void instr_cj(riscv_cpu *cpu)
 
 static void instr_cbeqz(riscv_cpu *cpu)
 {
-    cpu->instr.imm |= (cpu->instr.imm & 0x100) ? 0xFFFFFFFFFFFFFE00 : 0;
+    uint32_t instr = cpu->instr.instr;
+    // imm[8|4:3|7:6|2:1|5] = inst[12|11:10|6:5|4:3|2]
+    uint64_t imm = ((instr >> 4) & 0x100) | ((instr << 1) & 0xc0) |
+                   ((instr << 3) & 0x20) | ((instr >> 7) & 0x18) |
+                   ((instr >> 2) & 0x6);
+
+    imm |= (imm & 0x100) ? 0xFFFFFFFFFFFFFE00 : 0;
+
     if (cpu->xreg[cpu->instr.rs1] == 0)
-        cpu->pc = cpu->pc + cpu->instr.imm - 2;
+        cpu->pc = cpu->pc + imm - 2;
 }
 
 static void instr_cbnez(riscv_cpu *cpu)
 {
-    cpu->instr.imm |= (cpu->instr.imm & 0x100) ? 0xFFFFFFFFFFFFFE00 : 0;
+    uint32_t instr = cpu->instr.instr;
+    // imm[8|4:3|7:6|2:1|5] = inst[12|11:10|6:5|4:3|2]
+    uint64_t imm = ((instr >> 4) & 0x100) | ((instr << 1) & 0xc0) |
+                   ((instr << 3) & 0x20) | ((instr >> 7) & 0x18) |
+                   ((instr >> 2) & 0x6);
+
+    imm |= (imm & 0x100) ? 0xFFFFFFFFFFFFFE00 : 0;
+
     if (cpu->xreg[cpu->instr.rs1] != 0)
-        cpu->pc = cpu->pc + cpu->instr.imm - 2;
+        cpu->pc = cpu->pc + imm - 2;
 }
 
 static void instr_csdsp(riscv_cpu *cpu)
@@ -1387,20 +1401,20 @@ static riscv_instr_entry instr_ca_type[] = {
 };
 INIT_RISCV_INSTR_LIST(FUNC2_S, instr_ca_type);
 
-static riscv_instr_entry instr_ci_ca_type[] = {
-    [0x0] = {NULL, instr_csrli, NULL},
-    [0x1] = {NULL, instr_csrai, NULL},
-    [0x2] = {NULL, instr_candi, NULL},
-    [0x3] = {NULL, NULL, &instr_ca_type_list},
+static riscv_instr_entry instr_cb_ca_type[] = {
+    [0x0] = {CB_decode, instr_csrli, NULL},
+    [0x1] = {CB_decode, instr_csrai, NULL},
+    [0x2] = {CB_decode, instr_candi, NULL},
+    [0x3] = {CA_decode, NULL, &instr_ca_type_list},
 };
-INIT_RISCV_INSTR_LIST(FUNC6_S, instr_ci_ca_type);
+INIT_RISCV_INSTR_LIST(FUNC6_S, instr_cb_ca_type);
 
 static riscv_instr_entry instr_c1_type[] = {
     [0x0] = {CI_decode, instr_caddi, NULL},
     [0x1] = {CI_decode, instr_caddiw, NULL},
     [0x2] = {CI_decode, instr_cli, NULL},
     [0x3] = {CI_decode, instr_clui_addi16sp, NULL},
-    [0x4] = {CI_CA_decode, NULL, &instr_ci_ca_type_list},
+    [0x4] = {Cxx_decode, NULL, &instr_cb_ca_type_list},
     [0x5] = {CJ_decode, instr_cj, NULL},
     [0x6] = {CB_decode, instr_cbeqz, NULL},
     [0x7] = {CB_decode, instr_cbnez, NULL},
