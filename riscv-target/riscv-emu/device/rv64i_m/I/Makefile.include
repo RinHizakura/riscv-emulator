@@ -9,7 +9,7 @@ RUN_TARGET = $(TARGET_SIM) $(TARGET_FLAGS) \
         --compliance $(*).signature.output 
 
 RISCV_GCC_OPTS ?= \
-    -march=rv64gc \
+    -march=rv64g \
     -mabi=lp64 \
     -g \
     -static \
