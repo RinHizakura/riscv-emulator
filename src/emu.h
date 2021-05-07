@@ -8,10 +8,7 @@ typedef struct Emu {
     riscv_cpu cpu;
 } riscv_emu;
 
-bool init_emu(riscv_emu *emu,
-              const char *filename,
-              const char *rfs_name,
-              bool is_elf);
+bool init_emu(riscv_emu *emu, const char *filename, const char *rfs_name);
 void free_emu(riscv_emu *emu);
 
 #endif

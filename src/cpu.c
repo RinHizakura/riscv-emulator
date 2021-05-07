@@ -1738,12 +1738,9 @@ static bool write_cpu(riscv_cpu *cpu,
     return write_bus(&cpu->bus, addr, size, value, &cpu->exc);
 }
 
-bool init_cpu(riscv_cpu *cpu,
-              const char *filename,
-              const char *rfs_name,
-              bool is_elf)
+bool init_cpu(riscv_cpu *cpu, const char *filename, const char *rfs_name)
 {
-    if (!init_bus(&cpu->bus, filename, rfs_name, is_elf))
+    if (!init_bus(&cpu->bus, filename, rfs_name))
         return false;
 
     if (!init_csr(&cpu->csr))

@@ -4,7 +4,7 @@ void echo();
 
 int main()
 {
-    echo();
+    // echo();
     uart();
     return fib(10);
 }

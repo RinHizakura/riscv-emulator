@@ -72,19 +72,28 @@ typedef struct {
 #define MAX_PROGRAM_HEADER 2
 
 typedef struct {
-    int header_num;
-    uint64_t start[MAX_PROGRAM_HEADER];
-    uint64_t size[MAX_PROGRAM_HEADER];
-    uint64_t offset[MAX_PROGRAM_HEADER];
-
     uint64_t sig_start;
     uint64_t sig_end;
-
-    uint8_t *elf_file;
 } riscv_elf;
 
-bool elf_parser(riscv_elf *elf, const char *binary_file);
-uint64_t elf_start();
-size_t elf_size();
+static inline Elf64_Ehdr *get_elf_header(uint8_t *elf_file)
+{
+    return (Elf64_Ehdr *) elf_file;
+}
 
+static inline Elf64_Shdr *get_section_header(uint8_t *elf_file,
+                                             Elf64_Ehdr *elf_header,
+                                             int offset)
+{
+    return (Elf64_Shdr *) (elf_file + elf_header->e_shoff +
+                           elf_header->e_shentsize * offset);
+}
+
+static inline Elf64_Phdr *get_program_header(uint8_t *elf_file,
+                                             Elf64_Ehdr *elf_header,
+                                             int offset)
+{
+    return (Elf64_Phdr *) (elf_file + elf_header->e_phoff +
+                           elf_header->e_phentsize * offset);
+}
 #endif

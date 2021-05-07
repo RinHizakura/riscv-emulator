@@ -3,12 +3,9 @@
 #include "elf.h"
 #include "emu.h"
 
-bool init_emu(riscv_emu *emu,
-              const char *filename,
-              const char *rfs_name,
-              bool is_elf)
+bool init_emu(riscv_emu *emu, const char *filename, const char *rfs_name)
 {
-    if (!init_cpu(&emu->cpu, filename, rfs_name, is_elf))
+    if (!init_cpu(&emu->cpu, filename, rfs_name))
         return false;
 
     while (1) {

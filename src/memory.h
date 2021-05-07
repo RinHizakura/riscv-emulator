@@ -12,7 +12,7 @@ typedef struct {
     uint8_t *mem;
 } riscv_mem;
 
-bool init_mem(riscv_mem *mem, const char *filename, bool is_elf);
+bool init_mem(riscv_mem *mem, const char *filename);
 uint64_t read_mem(riscv_mem *mem,
                   uint64_t addr,
                   uint64_t size,

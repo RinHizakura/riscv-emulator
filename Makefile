@@ -53,10 +53,10 @@ check: $(BIN)
 		 -march=rv64g \
 		 -mabi=lp64 \
 		 -o c_test.obj ./c_test.s
-	 $(BIN) --elf ./c_test.obj
+	 $(BIN) --binary ./c_test.obj
 
 os: $(BIN)
-	$(BIN) --elf xv6/kernel.img --rfsimg xv6/fs.img
+	$(BIN) --binary xv6/kernel.img --rfsimg xv6/fs.img
 
 # variables for compliance
 COMPLIANCE_DIR ?= ./riscv-arch-test

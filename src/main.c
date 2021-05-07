@@ -7,11 +7,11 @@
 #define MAX_FILE_LEN 256
 
 static char input_file[MAX_FILE_LEN];
-static bool opt_binary = false;
-static bool opt_elf = false;
-static char rootfs_img[MAX_FILE_LEN];
-static char opt_rfsimg = false;
+static char rfsimg_file[MAX_FILE_LEN];
 static char signature_out_file[MAX_FILE_LEN];
+
+static char opt_input = false;
+static char opt_rfsimg = false;
 static bool opt_compliance = false;
 
 int main(int argc, char *argv[])
@@ -19,37 +19,22 @@ int main(int argc, char *argv[])
     int option_index = 0;
     struct option opts[] = {
         {"binary", 1, NULL, 'B'},
-        {"elf", 1, NULL, 'E'},
         {"rfsimg", 1, NULL, 'R'},
         {"compliance", 1, NULL, 'C'},
     };
 
     int c;
-    while ((c = getopt_long(argc, argv, "B:E:R:C:", opts, &option_index)) !=
-           -1) {
+    while ((c = getopt_long(argc, argv, "B:R:C:", opts, &option_index)) != -1) {
         switch (c) {
         case 'B':
-            if (opt_elf == true) {
-                printf("Can only choose one in --binary and --elf !\n");
-                return -1;
-            }
-            opt_binary = true;
-            strncpy(input_file, optarg, MAX_FILE_LEN - 1);
-            input_file[MAX_FILE_LEN - 1] = '\0';
-            break;
-        case 'E':
-            if (opt_binary == true) {
-                printf("Can only choose one in --binary and --elf !\n");
-                return -1;
-            }
-            opt_elf = true;
+            opt_input = true;
             strncpy(input_file, optarg, MAX_FILE_LEN - 1);
             input_file[MAX_FILE_LEN - 1] = '\0';
             break;
         case 'R':
             opt_rfsimg = true;
-            strncpy(rootfs_img, optarg, MAX_FILE_LEN - 1);
-            rootfs_img[MAX_FILE_LEN - 1] = '\0';
+            strncpy(rfsimg_file, optarg, MAX_FILE_LEN - 1);
+            rfsimg_file[MAX_FILE_LEN - 1] = '\0';
             break;
         case 'C':
             opt_compliance = true;
@@ -61,23 +46,18 @@ int main(int argc, char *argv[])
         }
     }
 
-    if ((!opt_binary && !opt_elf) || (opt_binary && opt_elf)) {
-        LOG_ERROR("Need one and only input file for memory!\n");
-        return -1;
-    }
-
-    if (opt_compliance && !opt_elf) {
-        LOG_ERROR("Compliance test should use elf format as input!\n");
+    if (!opt_input) {
+        LOG_ERROR("An input image is needed!\n");
         return -1;
     }
 
     // if no specific root file system, then passing the null string
     if (!opt_rfsimg)
-        rootfs_img[0] = '\0';
+        rfsimg_file[0] = '\0';
 
     riscv_emu *emu = malloc(sizeof(riscv_emu));
 
-    if (!init_emu(emu, input_file, rootfs_img, opt_elf)) {
+    if (!init_emu(emu, input_file, rfsimg_file)) {
         /* FIXME: should properly cleanup first */
         exit(1);
     }

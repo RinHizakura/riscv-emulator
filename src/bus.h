@@ -15,10 +15,7 @@ typedef struct {
     riscv_virtio_blk virtio_blk;
 } riscv_bus;
 
-bool init_bus(riscv_bus *bus,
-              const char *filename,
-              const char *rfs_name,
-              bool is_elf);
+bool init_bus(riscv_bus *bus, const char *filename, const char *rfs_name);
 uint64_t read_bus(riscv_bus *bus,
                   uint64_t addr,
                   uint8_t size,

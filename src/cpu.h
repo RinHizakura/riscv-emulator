@@ -68,10 +68,7 @@ typedef struct INSTR_ENTRY {
     riscv_instr_desc *next;
 } riscv_instr_entry;
 
-bool init_cpu(riscv_cpu *cpu,
-              const char *filename,
-              const char *rfs_name,
-              bool is_elf);
+bool init_cpu(riscv_cpu *cpu, const char *filename, const char *rfs_name);
 bool fetch(riscv_cpu *cpu);
 bool decode(riscv_cpu *cpu);
 bool exec(riscv_cpu *cpu);
