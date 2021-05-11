@@ -986,6 +986,11 @@ static void instr_caddi(riscv_cpu *cpu)
     // C.ADDI is only valid when rd != x0 and nzimm != 0
     if (cpu->instr.rd != 0 && nzimm != 0) {
         cpu->xreg[cpu->instr.rd] = cpu->xreg[cpu->instr.rd] + nzimm;
+    }
+    // rd=x0 encode the C.NOP instruction, otherwise become an illegal
+    // instruction
+    else if (cpu->instr.rd == 0) {
+        return;
     } else {
         cpu->exc.exception = IllegalInstruction;
         return;
@@ -1181,7 +1186,23 @@ static void instr_cslli(riscv_cpu *cpu)
         return;
     }
 }
-static void instr_clwsp(riscv_cpu *cpu) {}
+
+static void instr_clwsp(riscv_cpu *cpu)
+{
+    uint32_t instr = cpu->instr.instr;
+    // offset[5|4:2|7:6] = inst[12|6:4|3:2]
+    uint16_t offset =
+        ((instr << 4) & 0xc0) | ((instr >> 7) & 0x20) | ((instr >> 2) & 0x1c);
+    uint32_t val = read_cpu(cpu, cpu->xreg[2] + offset, 32);
+    // C.LWSP is only valid when rd != x0;
+    if (cpu->instr.rd != 0) {
+        cpu->xreg[cpu->instr.rd] = (int64_t)((int32_t) val);
+    } else {
+        cpu->exc.exception = IllegalInstruction;
+        return;
+    }
+}
+
 static void instr_cldsp(riscv_cpu *cpu) {}
 static void instr_cjr_cmv(riscv_cpu *cpu) {}
 static void instr_cebreak_cjalr_cadd(riscv_cpu *cpu) {}
@@ -1465,8 +1486,8 @@ INIT_RISCV_INSTR_LIST(FUNC4, instr_cr_type);
 
 static riscv_instr_entry instr_c2_type[] = {
     [0x0] = {CI_decode, instr_cslli, NULL},
-    [0x2] = {CSS_decode, instr_clwsp, NULL},
-    [0x3] = {CSS_decode, instr_cldsp, NULL},
+    [0x2] = {CI_decode, instr_clwsp, NULL},
+    [0x3] = {CI_decode, instr_cldsp, NULL},
     [0x4] = {CR_decode, NULL, &instr_cr_type_list},
     [0x7] = {CSS_decode, instr_csdsp, NULL},
 };
