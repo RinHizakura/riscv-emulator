@@ -74,12 +74,12 @@ static void I_decode(riscv_cpu *cpu)
     cpu->instr.funct7 = (instr >> 25) & 0x7f;
 }
 
-/* This function is used for csr-related instruction. It is
+/* This function is used for priviledge instruction. It is
  * similar to I-type decoding and the only different is:
  * 1. the sign extension of right shift on fied imm
  * 2. the parsing of field rs2
  */
-static void CSR_decode(riscv_cpu *cpu)
+static void P_decode(riscv_cpu *cpu)
 {
     uint32_t instr = cpu->instr.instr;
     cpu->instr.rd = (instr >> 7) & 0x1f;
@@ -209,6 +209,12 @@ static void CA_decode(riscv_cpu *cpu)
     uint16_t instr = cpu->instr.instr & 0xffff;
     cpu->instr.rd = ((instr >> 7) & 0x7) + 8;
     cpu->instr.rs2 = ((instr >> 2) & 0x7) + 8;
+}
+
+static void CR_decode(riscv_cpu *cpu)
+{
+    uint16_t instr = cpu->instr.instr & 0xffff;
+    cpu->instr.funct4 = (instr >> 12) & 0xf;
 }
 
 static void instr_lb(riscv_cpu *cpu)
@@ -1020,7 +1026,7 @@ static void instr_cli(riscv_cpu *cpu)
     }
 }
 
-static void instr_clui_addi16sp(riscv_cpu *cpu)
+static void instr_clui_caddi16sp(riscv_cpu *cpu)
 {
     uint32_t instr = cpu->instr.instr;
     uint64_t rd = cpu->instr.rd;
@@ -1060,7 +1066,13 @@ static void instr_csrli(riscv_cpu *cpu)
     uint32_t instr = cpu->instr.instr;
     // shamt[5|4:0] = inst[12|6:2]
     uint8_t shamt = ((instr >> 7) & 0x20) | ((instr >> 2) & 0x1f);
-    cpu->xreg[cpu->instr.rd] = cpu->xreg[cpu->instr.rd] >> shamt;
+    // the shift amount must be non-zero for RV64C
+    if (shamt != 0) {
+        cpu->xreg[cpu->instr.rd] = cpu->xreg[cpu->instr.rd] >> shamt;
+    } else {
+        cpu->exc.exception = IllegalInstruction;
+        return;
+    }
 }
 
 static void instr_csrai(riscv_cpu *cpu)
@@ -1068,7 +1080,13 @@ static void instr_csrai(riscv_cpu *cpu)
     uint32_t instr = cpu->instr.instr;
     // shamt[5|4:0] = inst[12|6:2]
     uint8_t shamt = ((instr >> 7) & 0x20) | ((instr >> 2) & 0x1f);
-    cpu->xreg[cpu->instr.rd] = (int64_t) cpu->xreg[cpu->instr.rd] >> shamt;
+    // the shift amount must be non-zero for RV64C
+    if (shamt != 0) {
+        cpu->xreg[cpu->instr.rd] = (int64_t) cpu->xreg[cpu->instr.rd] >> shamt;
+    } else {
+        cpu->exc.exception = IllegalInstruction;
+        return;
+    }
 }
 
 static void instr_candi(riscv_cpu *cpu)
@@ -1149,6 +1167,24 @@ static void instr_cbnez(riscv_cpu *cpu)
     if (cpu->xreg[cpu->instr.rs1] != 0)
         cpu->pc = cpu->pc + imm - 2;
 }
+
+static void instr_cslli(riscv_cpu *cpu)
+{
+    uint32_t instr = cpu->instr.instr;
+    // shamt[5|4:0] = inst[12|6:2]
+    uint8_t shamt = ((instr >> 7) & 0x20) | ((instr >> 2) & 0x1f);
+
+    if (shamt != 0) {
+        cpu->xreg[cpu->instr.rd] = cpu->xreg[cpu->instr.rd] << shamt;
+    } else {
+        cpu->exc.exception = IllegalInstruction;
+        return;
+    }
+}
+static void instr_clwsp(riscv_cpu *cpu) {}
+static void instr_cldsp(riscv_cpu *cpu) {}
+static void instr_cjr_cmv(riscv_cpu *cpu) {}
+static void instr_cebreak_cjalr_cadd(riscv_cpu *cpu) {}
 
 static void instr_csdsp(riscv_cpu *cpu)
 {
@@ -1413,7 +1449,7 @@ static riscv_instr_entry instr_c1_type[] = {
     [0x0] = {CI_decode, instr_caddi, NULL},
     [0x1] = {CI_decode, instr_caddiw, NULL},
     [0x2] = {CI_decode, instr_cli, NULL},
-    [0x3] = {CI_decode, instr_clui_addi16sp, NULL},
+    [0x3] = {CI_decode, instr_clui_caddi16sp, NULL},
     [0x4] = {Cxx_decode, NULL, &instr_cb_ca_type_list},
     [0x5] = {CJ_decode, instr_cj, NULL},
     [0x6] = {CB_decode, instr_cbeqz, NULL},
@@ -1421,7 +1457,17 @@ static riscv_instr_entry instr_c1_type[] = {
 };
 INIT_RISCV_INSTR_LIST(FUNC3, instr_c1_type);
 
+static riscv_instr_entry instr_cr_type[] = {
+    [0x0] = {NULL, instr_cjr_cmv, NULL},
+    [0x1] = {NULL, instr_cebreak_cjalr_cadd, NULL},
+};
+INIT_RISCV_INSTR_LIST(FUNC4, instr_cr_type);
+
 static riscv_instr_entry instr_c2_type[] = {
+    [0x0] = {CI_decode, instr_cslli, NULL},
+    [0x2] = {CSS_decode, instr_clwsp, NULL},
+    [0x3] = {CSS_decode, instr_cldsp, NULL},
+    [0x4] = {CR_decode, NULL, &instr_cr_type_list},
     [0x7] = {CSS_decode, instr_csdsp, NULL},
 };
 INIT_RISCV_INSTR_LIST(FUNC3, instr_c2_type);
@@ -1443,7 +1489,7 @@ static riscv_instr_entry opcode_type[] = {
     [0x63] = {B_decode, NULL, &instr_branch_type_list},
     [0x67] = {I_decode, instr_jalr, NULL},
     [0x6f] = {J_decode, instr_jal, NULL},
-    [0x73] = {CSR_decode, NULL, &instr_csr_type_list},
+    [0x73] = {P_decode, NULL, &instr_csr_type_list},
 };
 INIT_RISCV_INSTR_LIST(OPCODE, opcode_type);
 /* clang-format on */

@@ -13,7 +13,9 @@ typedef struct {
     enum { USER = 0x0, SUPERVISOR = 0x1, MACHINE = 0x3 } mode;
 } riscv_mode;
 
-/* FIXME: we are able to consider space complexity here */
+/* FIXME: we are able to consider space complexity here:
+ *  1. save more space by bit field
+ *  2. we don't need that many funct* for each bits length */
 typedef struct {
     uint32_t instr;
     uint8_t opcode;
@@ -23,6 +25,7 @@ typedef struct {
     uint64_t imm;
     uint8_t funct2;
     uint8_t funct3;
+    uint8_t funct4;
     uint8_t funct6;
     uint8_t funct7;
 } riscv_instr;
@@ -48,6 +51,7 @@ typedef struct {
         OPCODE,
         FUNC2_S,
         FUNC3,
+        FUNC4,
         FUNC5,
         FUNC6_S,
         FUNC7,
