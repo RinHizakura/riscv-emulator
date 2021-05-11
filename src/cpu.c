@@ -1196,14 +1196,29 @@ static void instr_clwsp(riscv_cpu *cpu)
     uint32_t val = read_cpu(cpu, cpu->xreg[2] + offset, 32);
     // C.LWSP is only valid when rd != x0;
     if (cpu->instr.rd != 0) {
-        cpu->xreg[cpu->instr.rd] = (int64_t)((int32_t) val);
+        cpu->xreg[cpu->instr.rd] = (int32_t) val;
     } else {
         cpu->exc.exception = IllegalInstruction;
         return;
     }
 }
 
-static void instr_cldsp(riscv_cpu *cpu) {}
+static void instr_cldsp(riscv_cpu *cpu)
+{
+    uint32_t instr = cpu->instr.instr;
+    // offset[5|4:3|8:6] = inst[12|6:5|4:2]
+    uint16_t offset =
+        ((instr << 4) & 0x1c0) | ((instr >> 7) & 0x20) | ((instr >> 2) & 0x18);
+    uint64_t val = read_cpu(cpu, cpu->xreg[2] + offset, 64);
+    // C.LDSP is only valid when rd != x0;
+    if (cpu->instr.rd != 0) {
+        cpu->xreg[cpu->instr.rd] = val;
+    } else {
+        cpu->exc.exception = IllegalInstruction;
+        return;
+    }
+}
+
 static void instr_cjr_cmv(riscv_cpu *cpu) {}
 static void instr_cebreak_cjalr_cadd(riscv_cpu *cpu) {}
 
