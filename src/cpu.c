@@ -215,6 +215,9 @@ static void CR_decode(riscv_cpu *cpu)
 {
     uint16_t instr = cpu->instr.instr & 0xffff;
     cpu->instr.funct4 = (instr >> 12) & 0xf;
+    cpu->instr.rs1 = (instr >> 7) & 0x1f;
+    cpu->instr.rd = cpu->instr.rs1;
+    cpu->instr.rs2 = (instr >> 2) & 0x1f;
 }
 
 static void instr_lb(riscv_cpu *cpu)
@@ -1219,7 +1222,21 @@ static void instr_cldsp(riscv_cpu *cpu)
     }
 }
 
-static void instr_cjr_cmv(riscv_cpu *cpu) {}
+static void instr_cjr_cmv(riscv_cpu *cpu)
+{
+    // C.JR
+    if (cpu->instr.rs2 == 0) {
+        // C.JR is only valid when rs1 != x0
+        if (cpu->instr.rs1 != 0) {
+            cpu->pc = cpu->xreg[cpu->instr.rs1];
+        } else {
+            cpu->exc.exception = IllegalInstruction;
+            return;
+        }
+    }
+    // C.MV
+}
+
 static void instr_cebreak_cjalr_cadd(riscv_cpu *cpu) {}
 
 static void instr_csdsp(riscv_cpu *cpu)
@@ -1497,7 +1514,7 @@ static riscv_instr_entry instr_cr_type[] = {
     [0x0] = {NULL, instr_cjr_cmv, NULL},
     [0x1] = {NULL, instr_cebreak_cjalr_cadd, NULL},
 };
-INIT_RISCV_INSTR_LIST(FUNC4, instr_cr_type);
+INIT_RISCV_INSTR_LIST(FUNC4_S, instr_cr_type);
 
 static riscv_instr_entry instr_c2_type[] = {
     [0x0] = {CI_decode, instr_cslli, NULL},
@@ -1543,6 +1560,9 @@ static bool __decode(riscv_cpu *cpu, riscv_instr_desc *instr_desc)
         break;
     case FUNC3:
         index = cpu->instr.funct3;
+        break;
+    case FUNC4_S:
+        index = cpu->instr.funct4 & 0x1;
         break;
     case FUNC5:
         index = (cpu->instr.funct7 & 0b1111100) >> 2;

@@ -51,7 +51,7 @@ typedef struct {
         OPCODE,
         FUNC2_S,
         FUNC3,
-        FUNC4,
+        FUNC4_S,
         FUNC5,
         FUNC6_S,
         FUNC7,
