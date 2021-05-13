@@ -1235,9 +1235,37 @@ static void instr_cjr_cmv(riscv_cpu *cpu)
         }
     }
     // C.MV
+    else {
+        cpu->xreg[cpu->instr.rd] = cpu->xreg[cpu->instr.rs2];
+    }
 }
 
-static void instr_cebreak_cjalr_cadd(riscv_cpu *cpu) {}
+static void instr_cebreak_cjalr_cadd(riscv_cpu *cpu)
+{
+    if (cpu->instr.rs2 == 0) {
+        // C.EBREAK
+        if (cpu->instr.rs1 == 0) {
+            /* Because 'exception_take_trap' always assume the instruction
+             * should be 32 bits, but C.EBREAK is a 16 bits instruction. We have
+             * to trickly add 2 to correct this. */
+            cpu->pc += 2;
+            cpu->exc.exception = Breakpoint;
+        }
+        // C.JALR
+        else {
+            // C.JALR is only valid when rs1 != x0
+            // we don't need to add 2 because the pc already moved on.
+            uint64_t prev_pc = cpu->pc;
+            cpu->pc = cpu->xreg[cpu->instr.rs1];
+            cpu->xreg[1] = prev_pc;
+        }
+    }
+    // C.ADD
+    else {
+        cpu->xreg[cpu->instr.rd] =
+            cpu->xreg[cpu->instr.rd] + cpu->xreg[cpu->instr.rs2];
+    }
+}
 
 static void instr_csdsp(riscv_cpu *cpu)
 {
@@ -1927,7 +1955,20 @@ bool exec(riscv_cpu *cpu)
 
 Trap exception_take_trap(riscv_cpu *cpu)
 {
-    uint64_t exc_pc = cpu->pc - 4;
+    uint64_t exc_pc = cpu->pc;
+    switch (cpu->exc.exception) {
+    /* ECALL and EBREAK cause the receiving privilege mode’s epc register to be
+     * set to the address of the ECALL or EBREAK instruction itself, not the
+     * address of the following instruction. */
+    case Breakpoint:
+    case EnvironmentCallFromUMode:
+    case EnvironmentCallFromSMode:
+    case EnvironmentCallFromMMode:
+        exc_pc = cpu->pc - 4;
+        break;
+    default:
+        exc_pc = cpu->pc;
+    }
     riscv_mode prev_mode = cpu->mode;
 
     uint8_t cause = cpu->exc.exception;
