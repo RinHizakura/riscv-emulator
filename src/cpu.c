@@ -921,9 +921,6 @@ static void instr_caddi4spn(riscv_cpu *cpu)
     // C.ADDI4SPN is only valid when nzuimm !=0
     if (nzuimm != 0) {
         cpu->xreg[cpu->instr.rd] = cpu->xreg[2] + nzuimm;
-    } else {
-        cpu->exc.exception = IllegalInstruction;
-        return;
     }
 }
 
@@ -990,14 +987,6 @@ static void instr_caddi(riscv_cpu *cpu)
     if (cpu->instr.rd != 0 && nzimm != 0) {
         cpu->xreg[cpu->instr.rd] = cpu->xreg[cpu->instr.rd] + nzimm;
     }
-    // rd=x0 encode the C.NOP instruction, otherwise become an illegal
-    // instruction
-    else if (cpu->instr.rd == 0) {
-        return;
-    } else {
-        cpu->exc.exception = IllegalInstruction;
-        return;
-    }
 }
 
 static void instr_caddiw(riscv_cpu *cpu)
@@ -1012,9 +1001,6 @@ static void instr_caddiw(riscv_cpu *cpu)
     if (cpu->instr.rd != 0) {
         cpu->xreg[cpu->instr.rd] =
             (int32_t)((uint32_t) cpu->xreg[cpu->instr.rd] + imm);
-    } else {
-        cpu->exc.exception = IllegalInstruction;
-        return;
     }
 }
 
@@ -1028,9 +1014,6 @@ static void instr_cli(riscv_cpu *cpu)
 
     if (cpu->instr.rd) {
         cpu->xreg[cpu->instr.rd] = imm;
-    } else {
-        cpu->exc.exception = IllegalInstruction;
-        return;
     }
 }
 
@@ -1063,9 +1046,6 @@ static void instr_clui_caddi16sp(riscv_cpu *cpu)
         nzimm |= ((nzimm & 0x200) ? 0xFFFFFFFFFFFFFC00 : 0);
         if (nzimm != 0)
             cpu->xreg[2] = cpu->xreg[2] + nzimm;
-    } else {
-        cpu->exc.exception = IllegalInstruction;
-        return;
     }
 }
 
@@ -1077,9 +1057,6 @@ static void instr_csrli(riscv_cpu *cpu)
     // the shift amount must be non-zero for RV64C
     if (shamt != 0) {
         cpu->xreg[cpu->instr.rd] = cpu->xreg[cpu->instr.rd] >> shamt;
-    } else {
-        cpu->exc.exception = IllegalInstruction;
-        return;
     }
 }
 
@@ -1091,9 +1068,6 @@ static void instr_csrai(riscv_cpu *cpu)
     // the shift amount must be non-zero for RV64C
     if (shamt != 0) {
         cpu->xreg[cpu->instr.rd] = (int64_t) cpu->xreg[cpu->instr.rd] >> shamt;
-    } else {
-        cpu->exc.exception = IllegalInstruction;
-        return;
     }
 }
 
@@ -1184,9 +1158,6 @@ static void instr_cslli(riscv_cpu *cpu)
 
     if (shamt != 0) {
         cpu->xreg[cpu->instr.rd] = cpu->xreg[cpu->instr.rd] << shamt;
-    } else {
-        cpu->exc.exception = IllegalInstruction;
-        return;
     }
 }
 
@@ -1200,9 +1171,6 @@ static void instr_clwsp(riscv_cpu *cpu)
     // C.LWSP is only valid when rd != x0;
     if (cpu->instr.rd != 0) {
         cpu->xreg[cpu->instr.rd] = (int32_t) val;
-    } else {
-        cpu->exc.exception = IllegalInstruction;
-        return;
     }
 }
 
@@ -1216,9 +1184,6 @@ static void instr_cldsp(riscv_cpu *cpu)
     // C.LDSP is only valid when rd != x0;
     if (cpu->instr.rd != 0) {
         cpu->xreg[cpu->instr.rd] = val;
-    } else {
-        cpu->exc.exception = IllegalInstruction;
-        return;
     }
 }
 
@@ -1265,6 +1230,16 @@ static void instr_cebreak_cjalr_cadd(riscv_cpu *cpu)
         cpu->xreg[cpu->instr.rd] =
             cpu->xreg[cpu->instr.rd] + cpu->xreg[cpu->instr.rs2];
     }
+}
+
+static void instr_cswsp(riscv_cpu *cpu)
+{
+    uint32_t instr = cpu->instr.instr;
+    // offset[5:2|7:6] = inst[12:9|8:7]
+    uint16_t offset = ((instr >> 1) & 0xc0) | ((instr >> 7) & 0x3c);
+
+    uint64_t addr = cpu->xreg[2] + offset;
+    write_cpu(cpu, addr, 32, cpu->xreg[cpu->instr.rs2]);
 }
 
 static void instr_csdsp(riscv_cpu *cpu)
@@ -1549,6 +1524,7 @@ static riscv_instr_entry instr_c2_type[] = {
     [0x2] = {CI_decode, instr_clwsp, NULL},
     [0x3] = {CI_decode, instr_cldsp, NULL},
     [0x4] = {CR_decode, NULL, &instr_cr_type_list},
+    [0x6] = {CSS_decode, instr_cswsp, NULL},
     [0x7] = {CSS_decode, instr_csdsp, NULL},
 };
 INIT_RISCV_INSTR_LIST(FUNC3, instr_c2_type);
