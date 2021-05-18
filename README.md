@@ -7,8 +7,8 @@ from [rvemu](https://github.com/d0iasm/rvemu), which is a RISC-V emulator with
 Rust implementation. Also, some of the idea of CPU implementation is borrowed from 
 [riscv_em](https://github.com/franzflasch/riscv_em).
 
-The emulator now supports fully RV64I, M, Zicsr, and Zifencei instructions. Some RV64A 
-instructions are also supported.
+The emulator now supports fully RV64I, M, Zicsr, and Zifencei instructions. Most of the RV64C
+and some RV64A instructions are also supported.
 
 ## Build and Run
 
@@ -26,8 +26,7 @@ $ ./build/emu --binary <binary name>
 
 The emulator is also validated to run [xv6-riscv](https://github.com/mit-pdos/xv6-riscv),
 which is a simple UNIX operating system. You are welcome to play with the provided binary with
-the following command. Note that I compile it with `-march=rv64g` flag since we don't support 
-fully RV64C now.
+the following command.
 
 You'll find that it takes times from booting to execute a shell, and that's because no 
 optimization is applied now and may be added in the future.
@@ -38,7 +37,7 @@ $ ./build/emu --binary xv6/kernel.img --rfsimg xv6/fs.img
 ## Compliance Test
 
 The [riscv-arch-test](https://github.com/riscv/riscv-arch-test) is applied to check if 
-implementing the specifications correctly. We can pass RV64I and RV64M now. You can run the 
+implementing the specifications correctly. We can pass RV64I, M, and C now. You can run the 
 compliance test by the following command.
 ```
 $ git submodule update --init
