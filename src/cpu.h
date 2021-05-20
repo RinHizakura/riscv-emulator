@@ -4,6 +4,7 @@
 #include "bus.h"
 #include "csr.h"
 #include "exception.h"
+#include "instr.h"
 #include "irq.h"
 
 typedef enum access Access;
@@ -12,23 +13,6 @@ enum access { Access_Instr, Access_Load, Access_Store };
 typedef struct {
     enum { USER = 0x0, SUPERVISOR = 0x1, MACHINE = 0x3 } mode;
 } riscv_mode;
-
-/* FIXME: we are able to consider space complexity here:
- *  1. save more space by bit field
- *  2. we don't need that many funct* for each bits length */
-typedef struct {
-    uint32_t instr;
-    uint8_t opcode;
-    uint8_t rd;
-    uint8_t rs1;
-    uint8_t rs2;
-    uint64_t imm;
-    uint8_t funct2;
-    uint8_t funct3;
-    uint8_t funct4;
-    uint8_t funct6;
-    uint8_t funct7;
-} riscv_instr;
 
 typedef struct CPU riscv_cpu;
 typedef struct CPU {
@@ -67,7 +51,7 @@ typedef struct {
 } riscv_instr_desc;
 
 typedef struct INSTR_ENTRY {
-    void (*decode_func)(riscv_cpu *cpu);
+    void (*decode_func)(riscv_instr *instr);
     void (*exec_func)(riscv_cpu *cpu);
     riscv_instr_desc *next;
 } riscv_instr_entry;
