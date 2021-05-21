@@ -4,7 +4,7 @@
 #include "bus.h"
 #include "csr.h"
 #include "exception.h"
-#include "instr.h"
+#include "icache.h"
 #include "irq.h"
 
 typedef enum access Access;
@@ -22,6 +22,7 @@ typedef struct CPU {
     riscv_instr instr;
     riscv_bus bus;
     riscv_csr csr;
+    riscv_icache icache;
 
     uint64_t xreg[32];
     uint64_t pc;

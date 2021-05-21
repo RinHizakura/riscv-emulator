@@ -1686,6 +1686,9 @@ bool init_cpu(riscv_cpu *cpu, const char *filename, const char *rfs_name)
     if (!init_csr(&cpu->csr))
         return false;
 
+    if (!init_icache(&cpu->icache))
+        return false;
+
     cpu->mode.mode = MACHINE;
     cpu->exc.exception = NoException;
     cpu->irq.irq = NoInterrupt;
@@ -2060,4 +2063,5 @@ void free_cpu(riscv_cpu *cpu)
 {
     free_bus(&cpu->bus);
     free_csr(&cpu->csr);
+    free_icache(&cpu->icache);
 }
