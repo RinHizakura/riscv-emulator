@@ -111,8 +111,10 @@ bool init_mem(riscv_mem *mem, const char *filename)
         return false;
     }
 
-    if (!parse_elf(mem, buf))
+    if (!parse_elf(mem, buf)) {
+        printf("CC\n");
         memcpy(mem->mem, buf, sz);
+    }
 
     free(buf);
     return true;

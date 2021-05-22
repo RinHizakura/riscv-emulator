@@ -1702,8 +1702,27 @@ bool init_cpu(riscv_cpu *cpu, const char *filename, const char *rfs_name)
     return true;
 }
 
-bool fetch(riscv_cpu *cpu)
+bool fetch(riscv_cpu *cpu, bool *is_cache)
 {
+    riscv_instr *icache_instr = read_icache(&cpu->icache, cpu->pc);
+
+    if (icache_instr != NULL) {
+        *is_cache = true;
+
+        memcpy(&cpu->instr, icache_instr, sizeof(riscv_instr));
+        cpu->pc += (cpu->instr.instr & 0x3) == 0x3 ? 4 : 2;
+
+        LOG_DEBUG("[DEBUG] cache hit \n");
+
+        LOG_DEBUG(
+            "[DEBUG] instr: 0x%x\n"
+            "opcode = 0x%x funct3 = 0x%x funct7 = 0x%x rs2 = 0x%x\n",
+            cpu->instr.instr, cpu->instr.opcode, cpu->instr.funct3,
+            cpu->instr.funct7, cpu->instr.rs2);
+
+        return true;
+    }
+
     uint64_t pc = addr_translate(cpu, cpu->pc, Access_Instr);
 
     if (cpu->exc.exception != NoException)
@@ -1743,7 +1762,17 @@ bool fetch(riscv_cpu *cpu)
 
 bool decode(riscv_cpu *cpu)
 {
-    return __decode(cpu, &opcode_type_list);
+    bool ret = __decode(cpu, &opcode_type_list);
+
+    // cache the decoding result
+    if (ret) {
+        if ((cpu->instr.instr & 0x3) != 0x3)
+            write_icache(&cpu->icache, cpu->pc - 2, cpu->instr);
+        else
+            write_icache(&cpu->icache, cpu->pc - 4, cpu->instr);
+    }
+
+    return ret;
 }
 
 bool exec(riscv_cpu *cpu)

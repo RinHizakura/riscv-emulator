@@ -28,8 +28,8 @@ typedef struct {
 
 bool init_icache(riscv_icache *icache);
 riscv_instr *read_icache(riscv_icache *icache, uint64_t addr);
-void write_cache(riscv_icache *icache, uint64_t addr, riscv_instr instr);
-void flush_cache(riscv_icache *icache);
+void write_icache(riscv_icache *icache, uint64_t addr, riscv_instr instr);
+void flush_icache(riscv_icache *icache);
 void free_icache(riscv_icache *icache);
 
 #endif

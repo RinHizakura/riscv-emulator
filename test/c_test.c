@@ -1,12 +1,22 @@
 int fib(int n);
-void uart();
+void uart_hex(int d);
 void echo();
+void uart_send(char c);
+void uart_send_string(char *str);
 
 int main()
 {
     // echo();
-    uart();
-    return fib(10);
+    int ans = fib(20);
+    uart_send('a');
+    uart_send('n');
+    uart_send('s');
+    uart_send(':');
+
+    uart_hex(ans);
+    uart_send('\n');
+
+    return 0;
 }
 
 int fib(int n)
@@ -18,23 +28,32 @@ int fib(int n)
     return (fib(n - 1) + fib(n - 2));
 }
 
-void uart()
+void uart_hex(int d)
 {
     volatile char *uart = (volatile char *) 0x10000000;
-    uart[0] = 'H';
-    uart[0] = 'e';
-    uart[0] = 'l';
-    uart[0] = 'l';
-    uart[0] = 'o';
-    uart[0] = ',';
-    uart[0] = ' ';
-    uart[0] = 'w';
-    uart[0] = 'o';
-    uart[0] = 'r';
-    uart[0] = 'l';
-    uart[0] = 'd';
-    uart[0] = '!';
-    uart[0] = '\n';
+    unsigned int n;
+    int c;
+    for (c = 28; c >= 0; c -= 4) {
+        // get highest tetrad
+        n = (d >> c) & 0xF;
+        // 0-9 => '0'-'9', 10-15 => 'A'-'F'
+        n += n > 9 ? 0x37 : 0x30;
+        uart[0] = n;
+    }
+}
+
+void uart_send(char c)
+{
+    volatile char *uart = (volatile char *) 0x10000000;
+    uart[0] = c;
+}
+
+void uart_send_string(char *str)
+{
+    volatile char *uart = (volatile char *) 0x10000000;
+    for (int i = 0; str[i] != '\0'; i++) {
+        uart[0] = str[i];
+    }
 }
 
 void echo()

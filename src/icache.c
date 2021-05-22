@@ -55,7 +55,7 @@ riscv_instr *read_icache(riscv_icache *icache, uint64_t addr)
     return NULL;
 }
 
-void write_cache(riscv_icache *icache, uint64_t addr, riscv_instr instr)
+void write_icache(riscv_icache *icache, uint64_t addr, riscv_instr instr)
 {
     /* According to our policy, the last node in linked list should be the least
      * recently used, so it is the candidate to be replaced. The 'tail' pointer
@@ -95,7 +95,7 @@ update_cache:
     icache->set[index].head = entry;
 }
 
-void flush_cache(riscv_icache *icache)
+void flush_icache(riscv_icache *icache)
 {
     for (int way = 0; way < CACHE_WAY; way++) {
         riscv_icache_entry *entry = icache->set[way].head;

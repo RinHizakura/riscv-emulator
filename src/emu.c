@@ -15,7 +15,12 @@ bool init_emu(riscv_emu *emu, const char *filename, const char *rfs_name)
         }
 
         bool ret = true;
-        ret = fetch(&emu->cpu);
+        bool is_cache = false;
+
+        ret = fetch(&emu->cpu, &is_cache);
+
+        if (is_cache)
+            goto exec_stage;
         if (!ret)
             goto get_trap;
 
@@ -23,12 +28,14 @@ bool init_emu(riscv_emu *emu, const char *filename, const char *rfs_name)
         if (!ret)
             goto get_trap;
 
+    exec_stage:
         ret = exec(&emu->cpu);
     get_trap:
         if (!ret) {
+            uint64_t next_pc = emu->cpu.pc;
             Trap trap = exception_take_trap(&emu->cpu);
             if (trap == Trap_Fatal) {
-                LOG_ERROR("Trap %x happen when pc %lx\n", trap, emu->cpu.pc);
+                LOG_ERROR("Trap %x happen before pc %lx\n", trap, next_pc);
                 break;
             }
             // reset exception flag if recovery from trap

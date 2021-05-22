@@ -46,12 +46,13 @@ $(OUT)/src/%.o: src/%.c
 check: CFLAGS += -O3
 check: LDFLAGS += -O3
 check: $(BIN)
-	 riscv64-unknown-elf-gcc -S ./test/c_test.c
+	 riscv64-unknown-elf-gcc -S -nostdlib ./test/c_test.c
 	 riscv64-unknown-elf-gcc \
-		 -Wl,-Ttext=0x0 \
+		 -T ./test/linker.ld \
 		 -nostdlib \
 		 -march=rv64g \
 		 -mabi=lp64 \
+		 -mcmodel=medany \
 		 -o c_test.obj ./c_test.s
 	 $(BIN) --binary ./c_test.obj
 
@@ -63,8 +64,8 @@ COMPLIANCE_DIR ?= ./riscv-arch-test
 export TARGETDIR ?= $(shell pwd)/riscv-target
 export RISCV_TARGET ?= riscv-emu
 export XLEN ?= 64
-export RISCV_DEVICE ?= C
-#export RISCV_TEST = cli-01
+export RISCV_DEVICE ?= I
+export RISCV_TEST = lbu-align-01
 export RISCV_TARGET_FLAGS ?=
 export RISCV_ASSERT ?= 0
 export JOBS = -j1
