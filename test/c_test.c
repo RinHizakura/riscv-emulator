@@ -8,10 +8,7 @@ int main()
 {
     // echo();
     int ans = fib(20);
-    uart_send('a');
-    uart_send('n');
-    uart_send('s');
-    uart_send(':');
+    uart_send_string("ans:");
 
     uart_hex(ans);
     uart_send('\n');

@@ -46,7 +46,7 @@ $(OUT)/src/%.o: src/%.c
 check: CFLAGS += -O3
 check: LDFLAGS += -O3
 check: $(BIN)
-	 riscv64-unknown-elf-gcc -S -nostdlib ./test/c_test.c
+	 riscv64-unknown-elf-gcc -S -nostdlib -mcmodel=medany ./test/c_test.c
 	 riscv64-unknown-elf-gcc \
 		 -T ./test/linker.ld \
 		 -nostdlib \
