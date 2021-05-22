@@ -1686,8 +1686,10 @@ bool init_cpu(riscv_cpu *cpu, const char *filename, const char *rfs_name)
     if (!init_csr(&cpu->csr))
         return false;
 
+#ifdef ICACHE_CONFIG
     if (!init_icache(&cpu->icache))
         return false;
+#endif
 
     cpu->mode.mode = MACHINE;
     cpu->exc.exception = NoException;
@@ -1704,6 +1706,7 @@ bool init_cpu(riscv_cpu *cpu, const char *filename, const char *rfs_name)
 
 bool fetch(riscv_cpu *cpu, bool *is_cache)
 {
+#ifdef ICACHE_CONFIG
     riscv_instr *icache_instr = read_icache(&cpu->icache, cpu->pc);
 
     if (icache_instr != NULL) {
@@ -1722,6 +1725,7 @@ bool fetch(riscv_cpu *cpu, bool *is_cache)
 
         return true;
     }
+#endif
 
     uint64_t pc = addr_translate(cpu, cpu->pc, Access_Instr);
 
@@ -1764,6 +1768,7 @@ bool decode(riscv_cpu *cpu)
 {
     bool ret = __decode(cpu, &opcode_type_list);
 
+#ifdef ICACHE_CONFIG
     // cache the decoding result
     if (ret) {
         if ((cpu->instr.instr & 0x3) != 0x3)
@@ -1771,6 +1776,7 @@ bool decode(riscv_cpu *cpu)
         else
             write_icache(&cpu->icache, cpu->pc - 4, cpu->instr);
     }
+#endif
 
     return ret;
 }
@@ -2092,5 +2098,7 @@ void free_cpu(riscv_cpu *cpu)
 {
     free_bus(&cpu->bus);
     free_csr(&cpu->csr);
+#ifdef ICACHE_CONFIG
     free_icache(&cpu->icache);
+#endif
 }

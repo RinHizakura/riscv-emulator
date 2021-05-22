@@ -18,9 +18,10 @@ bool init_emu(riscv_emu *emu, const char *filename, const char *rfs_name)
         bool is_cache = false;
 
         ret = fetch(&emu->cpu, &is_cache);
-
+#ifdef ICACHE_CONFIG
         if (is_cache)
             goto exec_stage;
+#endif
         if (!ret)
             goto get_trap;
 

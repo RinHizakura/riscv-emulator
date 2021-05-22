@@ -1,3 +1,5 @@
+#ifdef ICACHE_CONFIG
+
 #include <stdlib.h>
 #include <string.h>
 
@@ -119,3 +121,5 @@ void free_icache(riscv_icache *icache)
         }
     }
 }
+
+#endif

@@ -21,7 +21,9 @@ typedef struct CPU {
     riscv_instr instr;
     riscv_bus bus;
     riscv_csr csr;
+#ifdef ICACHE_CONFIG
     riscv_icache icache;
+#endif
 
     uint64_t xreg[32];
     uint64_t pc;

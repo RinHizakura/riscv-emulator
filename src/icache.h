@@ -1,13 +1,15 @@
 #ifndef RISCV_ICACHE
 #define RISCV_ICACHE
 
+#include "instr.h"
+
+#ifdef ICACHE_CONFIG
+
 #define CACHE_WAY 8
 #define CACHE_INDEX_BIT 3
 #define SET_CACHELINE_CNT 4
 
 #include <stdbool.h>
-
-#include "instr.h"
 
 struct ICACHE_ENTRY {
     riscv_instr instr;
@@ -32,4 +34,5 @@ void write_icache(riscv_icache *icache, uint64_t addr, riscv_instr instr);
 void flush_icache(riscv_icache *icache);
 void free_icache(riscv_icache *icache);
 
-#endif
+#endif /* ICACHE_CONFIG */
+#endif /* RISCV_ICACHE */

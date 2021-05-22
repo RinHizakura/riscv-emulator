@@ -24,6 +24,11 @@ ifeq ("$(TSAN)", "1")
     CFLAGS +=  -fsanitize=thread
     LDFLAGS += -fsanitize=thread
 endif
+
+ifeq ("$(ICACHE)", "1")
+    CFLAGS +=  -DICACHE_CONFIG
+endif
+
 all: CFLAGS += -O3
 all: LDFLAGS += -O3
 all: $(BIN) $(GIT_HOOKS)
