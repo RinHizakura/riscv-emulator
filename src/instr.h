@@ -3,6 +3,8 @@
 
 #include <stdint.h>
 
+typedef struct CPU riscv_cpu;
+
 /* FIXME: we are able to consider space complexity here:
  *  1. save more space by bit field
  *  2. we don't need that many funct* for each bits length */
@@ -18,6 +20,8 @@ typedef struct {
     uint8_t funct4;
     uint8_t funct6;
     uint8_t funct7;
+
+    void (*exec_func)(riscv_cpu *cpu);
 } riscv_instr;
 
 void R_decode(riscv_instr *instr);

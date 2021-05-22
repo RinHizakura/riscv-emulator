@@ -14,7 +14,6 @@ typedef struct {
     enum { USER = 0x0, SUPERVISOR = 0x1, MACHINE = 0x3 } mode;
 } riscv_mode;
 
-typedef struct CPU riscv_cpu;
 typedef struct CPU {
     riscv_mode mode;
     riscv_exception exc;
@@ -26,7 +25,6 @@ typedef struct CPU {
 
     uint64_t xreg[32];
     uint64_t pc;
-    void (*exec_func)(riscv_cpu *cpu);
 } riscv_cpu;
 
 /* the *_S type means a special form of index to map the instruction. You can

@@ -1453,7 +1453,7 @@ static bool __decode(riscv_cpu *cpu, riscv_instr_desc *instr_desc)
     if (entry.next != NULL)
         return __decode(cpu, entry.next);
     else
-        cpu->exec_func = entry.exec_func;
+        cpu->instr.exec_func = entry.exec_func;
 
     return true;
 }
@@ -1698,7 +1698,7 @@ bool init_cpu(riscv_cpu *cpu, const char *filename, const char *rfs_name)
 
     cpu->pc = DRAM_BASE;
     cpu->xreg[2] = DRAM_BASE + DRAM_SIZE;
-    cpu->exec_func = NULL;
+    cpu->instr.exec_func = NULL;
     return true;
 }
 
@@ -1748,7 +1748,7 @@ bool decode(riscv_cpu *cpu)
 
 bool exec(riscv_cpu *cpu)
 {
-    cpu->exec_func(cpu);
+    cpu->instr.exec_func(cpu);
 
     // Emulate register x0 to 0
     cpu->xreg[0] = 0;
@@ -1761,7 +1761,7 @@ bool exec(riscv_cpu *cpu)
          * reset all of the instruction-relatd structure now. */
 #ifdef DEBUG
     memset(&cpu->instr, 0, sizeof(riscv_instr));
-    cpu->exec_func = NULL;
+    cpu->instr.exec_func = NULL;
 #endif
     return true;
 }
