@@ -97,7 +97,7 @@ update_cache:
     icache->set[index].head = entry;
 }
 
-void flush_icache(riscv_icache *icache)
+void invalid_icache(riscv_icache *icache)
 {
     for (int way = 0; way < CACHE_WAY; way++) {
         riscv_icache_entry *entry = icache->set[way].head;

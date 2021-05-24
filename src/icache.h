@@ -31,7 +31,7 @@ typedef struct {
 bool init_icache(riscv_icache *icache);
 riscv_instr *read_icache(riscv_icache *icache, uint64_t addr);
 void write_icache(riscv_icache *icache, uint64_t addr, riscv_instr instr);
-void flush_icache(riscv_icache *icache);
+void invalid_icache(riscv_icache *icache);
 void free_icache(riscv_icache *icache);
 
 #endif /* ICACHE_CONFIG */

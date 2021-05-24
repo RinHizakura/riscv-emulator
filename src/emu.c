@@ -12,6 +12,10 @@ bool init_emu(riscv_emu *emu, const char *filename, const char *rfs_name)
         if (check_pending_irq(&emu->cpu)) {
             // if any interrupt is pending
             interrput_take_trap(&emu->cpu);
+#ifdef ICACHE_CONFIG
+            // flush cache when jumping in trap handler
+            invalid_icache(&emu->cpu.icache);
+#endif
         }
 
         bool ret = true;
@@ -41,6 +45,10 @@ bool init_emu(riscv_emu *emu, const char *filename, const char *rfs_name)
             }
             // reset exception flag if recovery from trap
             emu->cpu.exc.exception = NoException;
+#ifdef ICACHE_CONFIG
+            // flush cache when jumping in trap handler
+            invalid_icache(&emu->cpu.icache);
+#endif
         }
 #ifdef DEBUG
         dump_reg(&emu->cpu);

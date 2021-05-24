@@ -137,6 +137,17 @@ static void instr_fence(__attribute__((unused)) riscv_cpu *cpu)
      * So nothing will do for fence instruction */
 }
 
+static void instr_fencei(riscv_cpu *cpu)
+{
+    /* A FENCE.I instruction ensures that a subsequent instruction fetch on a
+     * RISC-V
+     * hart will see any previous data stores already visible to the same RISC-V
+     * hart. */
+#ifdef ICACHE_CONFIG
+    invalid_icache(&cpu->icache);
+#endif
+}
+
 static void instr_addi(riscv_cpu *cpu)
 {
     cpu->xreg[cpu->instr.rd] = cpu->xreg[cpu->instr.rs1] + cpu->instr.imm;
@@ -627,6 +638,11 @@ static void instr_sret(riscv_cpu *cpu)
     set_csr_bits(&cpu->csr, SSTATUS, SSTATUS_SPIE);
     /* SPP is set to 0 */
     clear_csr_bits(&cpu->csr, SSTATUS, SSTATUS_SPP);
+
+#ifdef ICACHE_CONFIG
+    // flush cache when returning from supervisor mode
+    invalid_icache(&cpu->icache);
+#endif
 }
 
 static void instr_mret(riscv_cpu *cpu)
@@ -639,6 +655,11 @@ static void instr_mret(riscv_cpu *cpu)
               (mstatus & ~MSTATUS_MIE) | ((mstatus & MSTATUS_MPIE) >> 4));
     set_csr_bits(&cpu->csr, MSTATUS, MSTATUS_MPIE);
     clear_csr_bits(&cpu->csr, MSTATUS, MSTATUS_MPP);
+
+#ifdef ICACHE_CONFIG
+    // flush cache when returning from machine mode
+    invalid_icache(&cpu->icache);
+#endif
 }
 
 static void instr_wfi(__attribute__((unused)) riscv_cpu *cpu) {}
@@ -1102,6 +1123,13 @@ static riscv_instr_entry instr_load_type[] = {
 };
 INIT_RISCV_INSTR_LIST(FUNC3, instr_load_type);
 
+static riscv_instr_entry instr_fence_type[] = {
+    [0x0] = {NULL, instr_fence, NULL},
+    [0x1] = {NULL, instr_fencei, NULL}
+};
+INIT_RISCV_INSTR_LIST(FUNC3, instr_fence_type);
+
+
 static riscv_instr_entry instr_srli_srai_type[] = {
     [0x0] =  {NULL, instr_srli, NULL},
     [0x10] = {NULL, instr_srai, NULL}
@@ -1368,7 +1396,7 @@ static riscv_instr_entry opcode_type[] = {
     [0x01] = {Cx_decode, NULL, &instr_c1_type_list}, 
     [0x02] = {Cx_decode, NULL, &instr_c2_type_list}, 
     [0x03] = {I_decode, NULL, &instr_load_type_list},
-    [0x0f] = {I_decode, instr_fence, NULL},
+    [0x0f] = {I_decode, NULL, &instr_fence_type_list},
     [0x13] = {I_decode, NULL, &instr_imm_type_list},
     [0x17] = {U_decode, instr_auipc, NULL},
     [0x1b] = {I_decode, NULL, &instr_immw_type_list},
