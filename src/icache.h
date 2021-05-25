@@ -32,6 +32,7 @@ bool init_icache(riscv_icache *icache);
 riscv_instr *read_icache(riscv_icache *icache, uint64_t addr);
 void write_icache(riscv_icache *icache, uint64_t addr, riscv_instr instr);
 void invalid_icache(riscv_icache *icache);
+void invalid_icache_by_vaddr(riscv_icache *icache, uint64_t vaddr);
 void free_icache(riscv_icache *icache);
 
 #endif /* ICACHE_CONFIG */

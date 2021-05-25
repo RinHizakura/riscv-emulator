@@ -109,6 +109,24 @@ void invalid_icache(riscv_icache *icache)
     }
 }
 
+void invalid_icache_by_vaddr(riscv_icache *icache, uint64_t vaddr)
+{
+    uint64_t vpn = vaddr >> 12;
+
+    for (int way = 0; way < CACHE_WAY; way++) {
+        riscv_icache_entry *entry = icache->set[way].head;
+
+        for (int i = 0; i < SET_CACHELINE_CNT; i++) {
+            // reconstruct the vaadr by index and tag
+            uint64_t cur_vaddr =
+                (entry->tag << (1 + CACHE_INDEX_BIT)) | (way << 1);
+            if (cur_vaddr >> 12 == vpn)
+                entry->valid = false;
+            entry = entry->next;
+        }
+    }
+}
+
 void free_icache(riscv_icache *icache)
 {
     for (int way = 0; way < CACHE_WAY; way++) {

@@ -664,7 +664,23 @@ static void instr_mret(riscv_cpu *cpu)
 
 static void instr_wfi(__attribute__((unused)) riscv_cpu *cpu) {}
 
-static void instr_sfencevma(__attribute__((unused)) riscv_cpu *cpu) {}
+static void instr_sfencevma(__attribute__((unused)) riscv_cpu *cpu)
+{
+#ifdef ICACHE_CONFIG
+    /* FIXME: What is ASID? How should we support this? */
+
+    /* If rs1 = x0, the fence orders all reads and writes made to any level
+     * of the page tables */
+    if (cpu->instr.rs1 == 0) {
+        invalid_icache(&cpu->icache);
+    }
+    /* If rs1 != x0, the fence orders only reads and writes made to
+     * the leaf page table entry corresponding to the virtual address in rs1 */
+    else {
+        invalid_icache_by_vaddr(&cpu->icache, cpu->xreg[cpu->instr.rs1]);
+    }
+#endif
+}
 
 static void instr_hfencebvma(__attribute__((unused)) riscv_cpu *cpu) {}
 
