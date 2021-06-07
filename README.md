@@ -12,9 +12,17 @@ and some RV64A instructions are also supported.
 
 ## Build and Run
 
-To build the emulator.
+To build the emulator:
 ```
 $ make
+```
+
+Although the instruction cache isn't an esstential component for our emulator, but it could
+help to speed up our emulator with the fast path to decode an instruction! To build the
+emulator with I-cache(the best config for the number of cache set and cache way requires some
+extra experiment, now they just set to 8 and 4):
+```
+$ make ICACHE=1
 ```
 
 Binary file in raw or ELF format are both supported. The emulator will check which format is 
