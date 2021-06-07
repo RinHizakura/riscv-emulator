@@ -5,9 +5,9 @@
 
 #ifdef ICACHE_CONFIG
 
-#define CACHE_WAY 8
 #define CACHE_INDEX_BIT 3
-#define SET_CACHELINE_CNT 4
+#define CACHE_SET_CNT (1 << CACHE_INDEX_BIT)
+#define CACHE_WAY_CNT 4
 
 #include <stdbool.h>
 
@@ -25,7 +25,7 @@ typedef struct {
 } riscv_icache_set;
 
 typedef struct {
-    riscv_icache_set set[CACHE_WAY];
+    riscv_icache_set set[CACHE_SET_CNT];
 } riscv_icache;
 
 bool init_icache(riscv_icache *icache);
