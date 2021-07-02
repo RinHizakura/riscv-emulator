@@ -6,6 +6,7 @@
 #include "exception.h"
 #include "icache.h"
 #include "irq.h"
+#include "pte.h"
 
 typedef enum access Access;
 enum access { Access_Instr, Access_Load, Access_Store };
