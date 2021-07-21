@@ -1,11 +1,13 @@
-#include <endian.h>
 #include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include "exception.h"
+#include "macros.h"
 #include "memmap.h"
 #include "memory.h"
+
+static uint64_t entry_addr;
 
 static bool parse_elf(riscv_mem *mem, uint8_t *elf_file)
 {
@@ -50,6 +52,8 @@ static bool parse_elf(riscv_mem *mem, uint8_t *elf_file)
         }
     }
 
+    entry_addr = elf_header->e_entry;
+
     printf("\nEntry point 0x%lx\n", elf_header->e_entry);
     printf("There are %d program headers, starting at offset %ld\n\n",
            elf_header->e_phnum, elf_header->e_phoff);
@@ -75,6 +79,11 @@ static bool parse_elf(riscv_mem *mem, uint8_t *elf_file)
     }
 
     return true;
+}
+
+uint64_t get_entry_addr()
+{
+    return entry_addr;
 }
 
 bool init_mem(riscv_mem *mem, const char *filename)
@@ -112,20 +121,12 @@ bool init_mem(riscv_mem *mem, const char *filename)
     }
 
     if (!parse_elf(mem, buf)) {
-        printf("CC\n");
         memcpy(mem->mem, buf, sz);
     }
 
     free(buf);
     return true;
 }
-
-#if __BYTE_ORDER == __LITTLE_ENDIAN
-#define read_len(bit, ptr, value) value = (*(uint##bit##_t *) (ptr))
-#else
-#define read_len(bit, ptr, value) \
-    value = __builtin_bswap##bit(*(uint##bit##_t *) (ptr))
-#endif
 
 uint64_t read_mem(riscv_mem *mem,
                   uint64_t addr,
@@ -155,23 +156,6 @@ uint64_t read_mem(riscv_mem *mem,
     }
     return value;
 }
-
-/* In our emulator, the memory is little endian, so we can just casting
- * memory to target pointer type if our host architecture is also the case.
- * If our architecture is big endian, then we should revise the order first
- *
- * Note:
- * I don't sure if the index of memory would overflow. If it will, the
- * implementation now will get error.
- */
-
-#if __BYTE_ORDER == __LITTLE_ENDIAN
-#define write_len(bit, ptr, value) \
-    *(uint##bit##_t *) (ptr) = (uint##bit##_t)(value)
-#else
-#define write_len(bit, ptr, value) \
-    *(uint##bit##_t *) (ptr) = __builtin_bswap##bit((uint##bit##_t)(value))
-#endif
 
 bool write_mem(riscv_mem *mem,
                uint64_t addr,

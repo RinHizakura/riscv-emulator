@@ -18,6 +18,9 @@ bool init_bus(riscv_bus *bus, const char *filename, const char *rfs_name)
     if (!init_virtio_blk(&bus->virtio_blk, rfs_name))
         return false;
 
+    if (!init_boot(&bus->boot, get_entry_addr()))
+        return false;
+
     return true;
 }
 
@@ -40,6 +43,10 @@ uint64_t read_bus(riscv_bus *bus,
 
     if (addr >= DRAM_BASE && addr < DRAM_END)
         return read_mem(&bus->memory, addr, size, exc);
+
+    if ((addr >= BOOT_ROM_BASE) &&
+        (addr < (BOOT_ROM_BASE + bus->boot.boot_mem_size)))
+        return read_boot(&bus->boot, addr, size, exc);
 
     LOG_ERROR("Invalid read memory address 0x%lx\n", addr);
     exc->exception = LoadAccessFault;

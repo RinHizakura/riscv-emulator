@@ -7,15 +7,14 @@
 #define PTESIZE 8
 
 typedef struct {
-    unsigned int v : 1;
-    unsigned int r : 1;
-    unsigned int w : 1;
-    unsigned int x : 1;
-    unsigned int u : 1;
-    unsigned int g : 1;
-    unsigned int a : 1;
-    unsigned int d : 1;
-
+    uint8_t v : 1;
+    uint8_t r : 1;
+    uint8_t w : 1;
+    uint8_t x : 1;
+    uint8_t u : 1;
+    uint8_t g : 1;
+    uint8_t a : 1;
+    uint8_t d : 1;
     uint64_t ppn;
 } sv39_pte_t;
 

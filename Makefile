@@ -61,8 +61,10 @@ check: $(BIN)
 		 -o c_test.obj ./c_test.s
 	 $(BIN) --binary ./c_test.obj
 
-os: $(BIN)
+xv6: $(BIN)
 	$(BIN) --binary xv6/kernel.img --rfsimg xv6/fs.img
+linux: $(BIN)
+	$(BIN) --binary linux/br-5-4.disk --rfsimg linux/rootfs.ext4
 
 # variables for compliance
 COMPLIANCE_DIR ?= ./riscv-arch-test

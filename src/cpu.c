@@ -1739,7 +1739,7 @@ bool init_cpu(riscv_cpu *cpu, const char *filename, const char *rfs_name)
     memset(&cpu->instr, 0, sizeof(riscv_instr));
     memset(&cpu->xreg[0], 0, sizeof(uint64_t) * 32);
 
-    cpu->pc = DRAM_BASE;
+    cpu->pc = BOOT_ROM_BASE;
     cpu->xreg[2] = DRAM_BASE + DRAM_SIZE;
     cpu->instr.exec_func = NULL;
     return true;
