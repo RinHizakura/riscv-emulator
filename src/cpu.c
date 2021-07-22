@@ -1777,8 +1777,10 @@ bool fetch(riscv_cpu *cpu, bool *is_cache)
     if (cpu->exc.exception != NoException)
         return false;
 
+    int pc_shift = 0;
+
     if ((instr & 0x3) != 0x3) {
-        cpu->pc += 2;
+        pc_shift = 2;
 
         instr &= 0xffff;
 
@@ -1790,17 +1792,19 @@ bool fetch(riscv_cpu *cpu, bool *is_cache)
         cpu->instr.instr = instr;
         cpu->instr.opcode = instr & 0x3;
     } else {
-        cpu->pc += 4;
+        pc_shift = 4;
 
         cpu->instr.instr = instr;
         cpu->instr.opcode = instr & 0x7f;
     }
 
     LOG_DEBUG(
-        "[DEBUG] instr: 0x%x\n"
+        "[DEBUG] pc: %lx instr: 0x%x\n"
         "opcode = 0x%x funct3 = 0x%x funct7 = 0x%x rs2 = 0x%x\n",
-        cpu->instr.instr, cpu->instr.opcode, cpu->instr.funct3,
+        cpu->pc, cpu->instr.instr, cpu->instr.opcode, cpu->instr.funct3,
         cpu->instr.funct7, cpu->instr.rs2);
+
+    cpu->pc += pc_shift;
 
     return true;
 }

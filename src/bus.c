@@ -85,4 +85,5 @@ void free_bus(riscv_bus *bus)
     free_memory(&bus->memory);
     free_uart(&bus->uart);
     free_virtio_blk(&bus->virtio_blk);
+    free_boot(&bus->boot);
 }

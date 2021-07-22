@@ -55,11 +55,16 @@ int main(int argc, char *argv[])
     if (!opt_rfsimg)
         rfsimg_file[0] = '\0';
 
-    riscv_emu *emu = malloc(sizeof(riscv_emu));
+    int ret = 0;
+    riscv_emu *emu = calloc(1, sizeof(riscv_emu));
+    if (!emu) {
+        ret = -1;
+        goto clean_up;
+    }
 
     if (!init_emu(emu, input_file, rfsimg_file)) {
-        /* FIXME: should properly cleanup first */
-        exit(1);
+        ret = -1;
+        goto clean_up;
     }
 
     // FIXME: Refactor to prettier code
@@ -83,7 +88,8 @@ int main(int argc, char *argv[])
         fclose(f);
     }
 
+clean_up:
     free_emu(emu);
     free(emu);
-    return 0;
+    return ret;
 }

@@ -29,7 +29,7 @@ ifeq ("$(ICACHE)", "1")
     CFLAGS +=  -DICACHE_CONFIG
 endif
 
-all: CFLAGS += -O3
+all: CFLAGS += -O3 -g
 all: LDFLAGS += -O3
 all: $(BIN) $(GIT_HOOKS)
 
