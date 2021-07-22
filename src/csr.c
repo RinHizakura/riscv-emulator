@@ -38,6 +38,15 @@ bool init_csr(riscv_csr *csr)
         return false;
     }
     memcpy(csr->list, tmp_csr_entry, sizeof(tmp_csr_entry));
+
+    uint64_t misa_val = (2UL << 62) |  // XLEN = 64
+                        (1 << 20) |    // User mode implemented
+                        (1 << 18) |    // Supervisor mode implemented
+                        (1 << 12) |    // Integer Multiply/Divide extension
+                        (1 << 8) |     // RV32I/64I/128I base ISA
+                        (1 << 2) |     // Compressed extension)
+                        1;             // Atomic extension
+    write_csr(csr, MISA, misa_val);
     return true;
 }
 

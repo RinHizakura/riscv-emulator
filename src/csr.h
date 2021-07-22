@@ -14,6 +14,8 @@
 #define SIE 0x104
 // Supervisor trap handler base address.
 #define STVEC 0x105
+// Counter-Enable register.
+#define SCOUNTEREN 0x106
 /// Scratch register for supervisor trap handlers.
 #define SSCRATCH 0x140
 /// Supervisor exception program counter.
@@ -27,7 +29,7 @@
 // Supervisor address translation and protection.
 #define SATP 0x180
 
-// Machine status register
+// Machine status register.
 #define MSTATUS 0x300
 /// Machine exception delefation register.
 #define MEDELEG 0x302
@@ -37,6 +39,8 @@
 #define MIE 0x304
 // Machine trap-handler base address.
 #define MTVEC 0x305
+// Machine ISA Register.
+#define MISA 0x301
 // Machine counter enable.
 #define MCOUNTEREN 0x306
 // Scratch register for machine trap handlers.
@@ -51,6 +55,11 @@
 #define MIP 0x344
 // Hardware thread ID.
 #define MHARTID 0xf14
+
+// Physical memory protection configuration.
+#define PMPCFG0 0x3a0
+// Physical memory protection address register.
+#define PMPADDR0 0x3b0
 
 // SSTATUS fields
 #define SSTATUS_UIE 0x1UL
@@ -105,6 +114,7 @@
          [SEDELEG] =   {ALL_VALID,       ALL_VALID,       0},           \
          [SIE]     =   {ALL_VALID,       ALL_VALID,       0},           \
          [STVEC] =     {ALL_VALID,       ALL_VALID,       0},           \
+         [SCOUNTEREN]= {ALL_VALID,       ALL_VALID,       0},           \
          [SSCRATCH]    {ALL_VALID,       ALL_VALID,       0},           \
          [SEPC] =      {ALL_VALID,       ALL_VALID,       0},           \
          [SCAUSE] =    {ALL_VALID,       ALL_VALID,       0},           \
@@ -116,6 +126,7 @@
          [MIDELEG] =   {ALL_VALID,       ALL_VALID,       0},           \
          [MIE] =       {ALL_VALID,       ALL_VALID,       0},           \
          [MTVEC] =     {ALL_VALID,       ALL_VALID,       0},           \
+         [MISA] =      {ALL_VALID,       ALL_VALID,       0},           \
          [MCOUNTEREN]= {ALL_VALID,       ALL_VALID,       0},           \
          [MSCRATCH]=   {ALL_VALID,       ALL_VALID,       0},           \
          [MEPC] =      {ALL_VALID,       ALL_VALID,       0},           \
@@ -123,6 +134,8 @@
          [MTVAL] =     {ALL_VALID,       ALL_VALID,       0},           \
          [MIP] =       {ALL_VALID,       ALL_VALID,       0},           \
          [MHARTID] =   {ALL_VALID,       ALL_VALID,       0},           \
+         [PMPCFG0] =   {ALL_VALID,       ALL_VALID,       0},           \
+         [PMPADDR0] =  {ALL_VALID,       ALL_VALID,       0},           \
     }
 /* clang-format on */
 
