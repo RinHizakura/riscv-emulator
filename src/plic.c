@@ -40,41 +40,53 @@ read_plic_fail:
     return -1;
 }
 
+
+/* TODO: some registers allow double-word access to run linux,
+ * but they required more check for correctness */
 bool write_plic(riscv_plic *plic,
                 uint64_t addr,
                 uint8_t size,
                 uint64_t value,
                 riscv_exception *exc)
 {
-    // support only word-aligned and word size access now
-    if ((size != 32) || (addr & 0x3))
+    if (((size != 32) && (size != 64)) || (addr & 0x3))
         goto write_plic_fail;
 
-    value &= 0xffffffff;
+    uint32_t lo = value & 0xffffffff;
+    uint32_t hi = (value >> 32);
 
     if (addr >= PLIC_PRIORITY && addr < PLIC_PRIORITY_END) {
-        plic->priority[(addr - PLIC_PRIORITY) / 4] = value;
+        plic->priority[(addr - PLIC_PRIORITY) / 4] = lo;
+        if (size == 64)
+            plic->priority[((addr - PLIC_PRIORITY) / 4) + 1] = hi;
     }
 
     else if (addr >= PLIC_PENDING && addr < PLIC_PENDING_END) {
-        plic->pending[(addr - PLIC_PENDING) / 4] = value;
+        plic->pending[(addr - PLIC_PENDING) / 4] = lo;
+        if (size == 64)
+            plic->pending[((addr - PLIC_PENDING) / 4) + 1] = hi;
     }
 
     else if (addr >= PLIC_ENABLE && addr < PLIC_ENABLE_END) {
-        plic->enable[(addr - PLIC_ENABLE) / 4] = value;
+        plic->enable[(addr - PLIC_ENABLE) / 4] = lo;
+        if (size == 64)
+            plic->enable[((addr - PLIC_ENABLE) / 4) + 1] = hi;
     } else {
+        if (size == 64)
+            goto write_plic_fail;
+
         switch (addr) {
         case PLIC_THRESHOLD_0:
-            plic->threshold[0] = value;
+            plic->threshold[0] = lo;
             break;
         case PLIC_CLAIM_0:
-            plic->claim[0] = value;
+            plic->claim[0] = lo;
             break;
         case PLIC_THRESHOLD_1:
-            plic->threshold[1] = value;
+            plic->threshold[1] = lo;
             break;
         case PLIC_CLAIM_1:
-            plic->claim[1] = value;
+            plic->claim[1] = lo;
             break;
         default:
             goto write_plic_fail;
