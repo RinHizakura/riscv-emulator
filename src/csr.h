@@ -64,6 +64,12 @@
 #define PMPADDR2 0x3b2
 #define PMPADDR3 0x3b3
 
+/* FIXME:
+ * 1. timer should be simulated for this register
+ * 2. should we invalid write for this register? */
+// Timer for RDTIME instruction.
+#define TIME 0xc01
+
 // SSTATUS fields
 #define SSTATUS_UIE 0x1UL
 #define SSTATUS_SIE 0x2UL
@@ -142,6 +148,7 @@
          [PMPADDR1] =  {ALL_VALID,       ALL_VALID,       0},           \
          [PMPADDR2] =  {ALL_VALID,       ALL_VALID,       0},           \
          [PMPADDR3] =  {ALL_VALID,       ALL_VALID,       0},           \
+         [TIME] =      {ALL_VALID,       ALL_VALID,       0},           \
     }
 /* clang-format on */
 

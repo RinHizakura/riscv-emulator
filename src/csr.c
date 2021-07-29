@@ -53,7 +53,7 @@ bool init_csr(riscv_csr *csr)
 uint64_t read_csr(riscv_csr *csr, uint16_t addr)
 {
     if (addr >= csr->size) {
-        LOG_ERROR("Not implemented or invalid CSR register 0x%x\n", addr);
+        LOG_ERROR("Not implemented CSR register 0x%x\n", addr);
         return -1;
     }
 
@@ -78,7 +78,7 @@ uint64_t read_csr(riscv_csr *csr, uint16_t addr)
 void write_csr(riscv_csr *csr, uint16_t addr, uint64_t value)
 {
     if (addr >= csr->size) {
-        LOG_ERROR("Not implemented or invalid CSR register 0x%x\n", addr);
+        LOG_ERROR("Not implemented CSR register 0x%x\n", addr);
         return;
     }
 
