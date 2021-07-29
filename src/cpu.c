@@ -741,7 +741,8 @@ static void instr_amoaddw(riscv_cpu *cpu)
     if (!write_cpu(cpu, cpu->xreg[cpu->instr.rs1], 32,
                    tmp + cpu->xreg[cpu->instr.rs2]))
         return;
-    cpu->xreg[cpu->instr.rd] = tmp;
+    // For RV64, 32-bit AMOs always sign-extend the value placed in rd.
+    cpu->xreg[cpu->instr.rd] = (int32_t)(tmp & 0xffffffff);
 }
 
 static void instr_amoswapw(riscv_cpu *cpu)
@@ -754,25 +755,67 @@ static void instr_amoswapw(riscv_cpu *cpu)
     if (!write_cpu(cpu, cpu->xreg[cpu->instr.rs1], 32,
                    cpu->xreg[cpu->instr.rs2]))
         return;
-    cpu->xreg[cpu->instr.rd] = tmp;
+    cpu->xreg[cpu->instr.rd] = (int32_t)(tmp & 0xffffffff);
 }
 
 static void instr_lrw(riscv_cpu *cpu)
 {
-    uint64_t tmp = read_cpu(cpu, cpu->xreg[cpu->instr.rs1], 32);
+    uint64_t addr = cpu->xreg[cpu->instr.rs1];
+    uint64_t tmp = read_cpu(cpu, addr, 32);
     if (cpu->exc.exception != NoException) {
         assert(tmp == (uint64_t) -1);
         return;
     }
-    cpu->xreg[cpu->instr.rd] = tmp;
+    cpu->xreg[cpu->instr.rd] = (int32_t)(tmp & 0xffffffff);
 
-    // TODO: Considering reservation set of atomic operation
+    if (cpu->reservation != 0)
+        LOG_ERROR(
+            "The bad reservation set implementation could cause error!\n");
+
+    cpu->reservation = addr;
+}
+
+static void instr_scw(riscv_cpu *cpu)
+{
+    uint64_t addr = cpu->xreg[cpu->instr.rs1];
+
+    if (cpu->reservation == addr) {
+        if (!write_cpu(cpu, addr, 32, cpu->xreg[cpu->instr.rs2]))
+            return;
+        cpu->xreg[cpu->instr.rd] = 0;
+    } else {
+        cpu->xreg[cpu->instr.rd] = 1;
+    }
+
+    // invalidate the reservation by 0
+    cpu->reservation = 0;
+}
+
+static void instr_amoxorw(riscv_cpu *cpu)
+{
+    uint64_t addr = cpu->xreg[cpu->instr.rs1];
+    uint64_t tmp = read_cpu(cpu, addr, 32);
+
+    uint64_t value = (int32_t)((tmp ^ cpu->xreg[cpu->instr.rd]) & 0xffffffff);
+    if (!write_cpu(cpu, addr, 32, value))
+        return;
+
+    cpu->xreg[cpu->instr.rd] = (int32_t)(tmp & 0xffffffff);
+}
+
+static void instr_amoorw(riscv_cpu *cpu)
+{
+    uint64_t addr = cpu->xreg[cpu->instr.rs1];
+    uint64_t tmp = read_cpu(cpu, addr, 32);
+
+    uint64_t value = (int32_t)((tmp | cpu->xreg[cpu->instr.rd]) & 0xffffffff);
+    if (!write_cpu(cpu, addr, 32, value))
+        return;
+
+    cpu->xreg[cpu->instr.rd] = (int32_t)(tmp & 0xffffffff);
 }
 
 /*
-static void instr_scw(riscv_cpu *cpu){}
-static void instr_amoxorw(riscv_cpu *cpu){}
-static void instr_amoorw(riscv_cpu *cpu){}
 static void instr_amoandw(riscv_cpu *cpu){}
 static void instr_amominw(riscv_cpu *cpu){}
 static void instr_amomaxw(riscv_cpu *cpu){}
@@ -804,11 +847,67 @@ static void instr_amoswapd(riscv_cpu *cpu)
     cpu->xreg[cpu->instr.rd] = tmp;
 }
 
+
+static void instr_lrd(riscv_cpu *cpu)
+{
+    uint64_t addr = cpu->xreg[cpu->instr.rs1];
+    uint64_t tmp = read_cpu(cpu, addr, 64);
+    if (cpu->exc.exception != NoException) {
+        assert(tmp == (uint64_t) -1);
+        return;
+    }
+    cpu->xreg[cpu->instr.rd] = tmp;
+
+    if (cpu->reservation != 0)
+        LOG_ERROR(
+            "The bad reservation set implementation could cause error!\n");
+
+    cpu->reservation = addr;
+}
+
+
+static void instr_scd(riscv_cpu *cpu)
+{
+    uint64_t addr = cpu->xreg[cpu->instr.rs1];
+
+    if (cpu->reservation == addr) {
+        if (!write_cpu(cpu, addr, 64, cpu->xreg[cpu->instr.rs2]))
+            return;
+        cpu->xreg[cpu->instr.rd] = 0;
+    } else {
+        cpu->xreg[cpu->instr.rd] = 1;
+    }
+
+    // invalidate the reservation by 0
+    cpu->reservation = 0;
+}
+
+
+static void instr_amoxord(riscv_cpu *cpu)
+{
+    uint64_t addr = cpu->xreg[cpu->instr.rs1];
+    uint64_t tmp = read_cpu(cpu, addr, 64);
+
+    uint64_t value = tmp ^ cpu->xreg[cpu->instr.rd];
+    if (!write_cpu(cpu, addr, 64, value))
+        return;
+
+    cpu->xreg[cpu->instr.rd] = tmp;
+}
+
+static void instr_amoord(riscv_cpu *cpu)
+{
+    uint64_t addr = cpu->xreg[cpu->instr.rs1];
+    uint64_t tmp = read_cpu(cpu, addr, 64);
+
+    uint64_t value = tmp | cpu->xreg[cpu->instr.rd];
+    if (!write_cpu(cpu, addr, 64, value))
+        return;
+
+    cpu->xreg[cpu->instr.rd] = tmp;
+}
+
 /*
-static void instr_lrd(riscv_cpu *cpu){}
-static void instr_scd(riscv_cpu *cpu){}
-static void instr_amoxord(riscv_cpu *cpu){}
-static void instr_amoord(riscv_cpu *cpu){}
 static void instr_amoandd(riscv_cpu *cpu){}
 static void instr_amomind(riscv_cpu *cpu){}
 static void instr_amomaxd(riscv_cpu *cpu){}
@@ -1369,9 +1468,9 @@ static riscv_instr_entry instr_amow_type[] = {
     [0x00] = {NULL, instr_amoaddw, NULL}, 
     [0x01] = {NULL, instr_amoswapw, NULL},
     [0x02] = {NULL, instr_lrw, NULL},
-    //[0x03] = {NULL, instr_scw, NULL},
-    //[0x04] = {NULL, instr_amoxorw, NULL},
-    //[0x08] = {NULL, instr_amoorw, NULL},
+    [0x03] = {NULL, instr_scw, NULL},
+    [0x04] = {NULL, instr_amoxorw, NULL},
+    [0x08] = {NULL, instr_amoorw, NULL},
     //[0x0c] = {NULL, instr_amoandw, NULL},
     //[0x10] = {NULL, instr_amominw, NULL},
     //[0x14] = {NULL, instr_amomaxw, NULL},
@@ -1381,10 +1480,10 @@ INIT_RISCV_INSTR_LIST(FUNC5, instr_amow_type);
 static riscv_instr_entry instr_amod_type[] = {
     [0x00] = {NULL, instr_amoaddd, NULL}, 
     [0x01] = {NULL, instr_amoswapd, NULL},
-    //[0x02] = {NULL, instr_lrd, NULL},
-    //[0x03] = {NULL, instr_scd, NULL},
-    //[0x04] = {NULL, instr_amoxord, NULL},
-    //[0x08] = {NULL, instr_amoord, NULL},
+    [0x02] = {NULL, instr_lrd, NULL},
+    [0x03] = {NULL, instr_scd, NULL},
+    [0x04] = {NULL, instr_amoxord, NULL},
+    [0x08] = {NULL, instr_amoord, NULL},
     //[0x0c] = {NULL, instr_amoandd, NULL},
     //[0x10] = {NULL, instr_amomind, NULL},
     //[0x14] = {NULL, instr_amomaxd, NULL},

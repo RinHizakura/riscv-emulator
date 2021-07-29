@@ -28,6 +28,8 @@ typedef struct CPU {
 
     uint64_t xreg[32];
     uint64_t pc;
+    // FIXME: we should maintain a reservation set but not a single u64
+    uint64_t reservation;
 } riscv_cpu;
 
 /* the *_S type means a special form of index to map the instruction. You can
