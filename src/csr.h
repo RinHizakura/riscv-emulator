@@ -60,6 +60,9 @@
 #define PMPCFG0 0x3a0
 // Physical memory protection address register.
 #define PMPADDR0 0x3b0
+#define PMPADDR1 0x3b1
+#define PMPADDR2 0x3b2
+#define PMPADDR3 0x3b3
 
 // SSTATUS fields
 #define SSTATUS_UIE 0x1UL
@@ -136,6 +139,9 @@
          [MHARTID] =   {ALL_VALID,       ALL_VALID,       0},           \
          [PMPCFG0] =   {ALL_VALID,       ALL_VALID,       0},           \
          [PMPADDR0] =  {ALL_VALID,       ALL_VALID,       0},           \
+         [PMPADDR1] =  {ALL_VALID,       ALL_VALID,       0},           \
+         [PMPADDR2] =  {ALL_VALID,       ALL_VALID,       0},           \
+         [PMPADDR3] =  {ALL_VALID,       ALL_VALID,       0},           \
     }
 /* clang-format on */
 

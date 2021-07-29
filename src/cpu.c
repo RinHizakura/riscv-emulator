@@ -1658,7 +1658,7 @@ static uint64_t addr_translate(riscv_cpu *cpu, uint64_t addr, Access access)
                        (pte.ppn >> 18) & 0x3ffffff};
 
     if (i > 0) {
-        for (int idx = i - 1; i > 0; i--) {
+        for (int idx = i - 1; idx > 0; idx--) {
             if (ppn[idx] != 0)
                 goto translate_fail;
         }
@@ -1801,7 +1801,7 @@ bool fetch(riscv_cpu *cpu, bool *is_cache)
     LOG_DEBUG(
         "[DEBUG] pc: %lx instr: 0x%x\n"
         "opcode = 0x%x funct3 = 0x%x funct7 = 0x%x rs2 = 0x%x\n",
-        cpu->pc, cpu->instr.instr, cpu->instr.opcode, cpu->instr.funct3,
+        pc, cpu->instr.instr, cpu->instr.opcode, cpu->instr.funct3,
         cpu->instr.funct7, cpu->instr.rs2);
 
     cpu->pc += pc_shift;
@@ -1929,7 +1929,7 @@ Trap exception_take_trap(riscv_cpu *cpu)
     case InstructionAccessFault:
         return Trap_Fatal;
     case IllegalInstruction:
-        return Trap_Invisible;
+        return Trap_Fatal;  // stop the emulator if overcome illegal instruction
     case Breakpoint:
         return Trap_Requested;
     case LoadAddressMisaligned:
