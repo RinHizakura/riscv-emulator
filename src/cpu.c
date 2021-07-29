@@ -757,6 +757,27 @@ static void instr_amoswapw(riscv_cpu *cpu)
     cpu->xreg[cpu->instr.rd] = tmp;
 }
 
+static void instr_lrw(riscv_cpu *cpu)
+{
+    uint64_t tmp = read_cpu(cpu, cpu->xreg[cpu->instr.rs1], 32);
+    if (cpu->exc.exception != NoException) {
+        assert(tmp == (uint64_t) -1);
+        return;
+    }
+    cpu->xreg[cpu->instr.rd] = tmp;
+
+    // TODO: Considering reservation set of atomic operation
+}
+
+/*
+static void instr_scw(riscv_cpu *cpu){}
+static void instr_amoxorw(riscv_cpu *cpu){}
+static void instr_amoorw(riscv_cpu *cpu){}
+static void instr_amoandw(riscv_cpu *cpu){}
+static void instr_amominw(riscv_cpu *cpu){}
+static void instr_amomaxw(riscv_cpu *cpu){}
+*/
+
 static void instr_amoaddd(riscv_cpu *cpu)
 {
     uint64_t tmp = read_cpu(cpu, cpu->xreg[cpu->instr.rs1], 64);
@@ -782,6 +803,16 @@ static void instr_amoswapd(riscv_cpu *cpu)
         return;
     cpu->xreg[cpu->instr.rd] = tmp;
 }
+
+/*
+static void instr_lrd(riscv_cpu *cpu){}
+static void instr_scd(riscv_cpu *cpu){}
+static void instr_amoxord(riscv_cpu *cpu){}
+static void instr_amoord(riscv_cpu *cpu){}
+static void instr_amoandd(riscv_cpu *cpu){}
+static void instr_amomind(riscv_cpu *cpu){}
+static void instr_amomaxd(riscv_cpu *cpu){}
+*/
 
 static void instr_caddi4spn(riscv_cpu *cpu)
 {
@@ -1334,21 +1365,35 @@ static riscv_instr_entry instr_csr_type[] = {
 };
 INIT_RISCV_INSTR_LIST(FUNC3, instr_csr_type);
 
-static riscv_instr_entry instr_amoaddw_amoswapw_type[] = {
+static riscv_instr_entry instr_amow_type[] = {
     [0x00] = {NULL, instr_amoaddw, NULL}, 
-    [0x01] = {NULL, instr_amoswapw, NULL}
+    [0x01] = {NULL, instr_amoswapw, NULL},
+    [0x02] = {NULL, instr_lrw, NULL},
+    //[0x03] = {NULL, instr_scw, NULL},
+    //[0x04] = {NULL, instr_amoxorw, NULL},
+    //[0x08] = {NULL, instr_amoorw, NULL},
+    //[0x0c] = {NULL, instr_amoandw, NULL},
+    //[0x10] = {NULL, instr_amominw, NULL},
+    //[0x14] = {NULL, instr_amomaxw, NULL},
 };
-INIT_RISCV_INSTR_LIST(FUNC5, instr_amoaddw_amoswapw_type);
+INIT_RISCV_INSTR_LIST(FUNC5, instr_amow_type);
 
-static riscv_instr_entry instr_amoaddd_amoswapd_type[] = {
+static riscv_instr_entry instr_amod_type[] = {
     [0x00] = {NULL, instr_amoaddd, NULL}, 
-    [0x01] = {NULL, instr_amoswapd, NULL}
+    [0x01] = {NULL, instr_amoswapd, NULL},
+    //[0x02] = {NULL, instr_lrd, NULL},
+    //[0x03] = {NULL, instr_scd, NULL},
+    //[0x04] = {NULL, instr_amoxord, NULL},
+    //[0x08] = {NULL, instr_amoord, NULL},
+    //[0x0c] = {NULL, instr_amoandd, NULL},
+    //[0x10] = {NULL, instr_amomind, NULL},
+    //[0x14] = {NULL, instr_amomaxd, NULL},
 };
-INIT_RISCV_INSTR_LIST(FUNC5, instr_amoaddd_amoswapd_type);
+INIT_RISCV_INSTR_LIST(FUNC5, instr_amod_type);
 
 static riscv_instr_entry instr_atomic_type[] = {
-    [0x2] = {NULL, NULL, &instr_amoaddw_amoswapw_type_list},
-    [0x3] = {NULL, NULL, &instr_amoaddd_amoswapd_type_list},
+    [0x2] = {NULL, NULL, &instr_amow_type_list},
+    [0x3] = {NULL, NULL, &instr_amod_type_list},
 };
 INIT_RISCV_INSTR_LIST(FUNC3, instr_atomic_type);
 
