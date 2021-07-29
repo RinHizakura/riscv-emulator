@@ -796,7 +796,7 @@ static void instr_amoxorw(riscv_cpu *cpu)
     uint64_t addr = cpu->xreg[cpu->instr.rs1];
     uint64_t tmp = read_cpu(cpu, addr, 32);
 
-    uint64_t value = (int32_t)((tmp ^ cpu->xreg[cpu->instr.rd]) & 0xffffffff);
+    uint64_t value = (int32_t)((tmp ^ cpu->xreg[cpu->instr.rs2]) & 0xffffffff);
     if (!write_cpu(cpu, addr, 32, value))
         return;
 
@@ -808,7 +808,7 @@ static void instr_amoorw(riscv_cpu *cpu)
     uint64_t addr = cpu->xreg[cpu->instr.rs1];
     uint64_t tmp = read_cpu(cpu, addr, 32);
 
-    uint64_t value = (int32_t)((tmp | cpu->xreg[cpu->instr.rd]) & 0xffffffff);
+    uint64_t value = (int32_t)((tmp | cpu->xreg[cpu->instr.rs2]) & 0xffffffff);
     if (!write_cpu(cpu, addr, 32, value))
         return;
 
@@ -888,7 +888,7 @@ static void instr_amoxord(riscv_cpu *cpu)
     uint64_t addr = cpu->xreg[cpu->instr.rs1];
     uint64_t tmp = read_cpu(cpu, addr, 64);
 
-    uint64_t value = tmp ^ cpu->xreg[cpu->instr.rd];
+    uint64_t value = tmp ^ cpu->xreg[cpu->instr.rs2];
     if (!write_cpu(cpu, addr, 64, value))
         return;
 
@@ -900,7 +900,7 @@ static void instr_amoord(riscv_cpu *cpu)
     uint64_t addr = cpu->xreg[cpu->instr.rs1];
     uint64_t tmp = read_cpu(cpu, addr, 64);
 
-    uint64_t value = tmp | cpu->xreg[cpu->instr.rd];
+    uint64_t value = tmp | cpu->xreg[cpu->instr.rs2];
     if (!write_cpu(cpu, addr, 64, value))
         return;
 
