@@ -182,7 +182,7 @@ bool init_boot(riscv_boot *boot, uint64_t entry_addr)
     }
     boot->boot_mem_size = boot_mem_size;
     // copy boot rom instruction to specific address
-    memcpy(boot->boot_mem, reset_vec, boot_mem_size);
+    memcpy(boot->boot_mem, reset_vec, sizeof(reset_vec));
     // copy dtb to specific address
     size_t read_size =
         fread(boot->boot_mem + sizeof(reset_vec), sizeof(uint8_t), sz, fp);
