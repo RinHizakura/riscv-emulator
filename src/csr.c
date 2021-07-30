@@ -85,7 +85,8 @@ void write_csr(riscv_csr *csr, uint16_t addr, uint64_t value)
     riscv_csr_entry *csr_reg = &csr->list[addr];
 
     if (csr_reg->write_mask == ALL_INVALID) {
-        LOG_ERROR("Not implemented or invalid CSR register 0x%x\n", addr);
+        if (addr != TIME && addr != MHARTID)
+            LOG_ERROR("Not implemented or invalid CSR register 0x%x\n", addr);
         return;
     }
 

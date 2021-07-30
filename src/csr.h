@@ -142,13 +142,13 @@
          [MCAUSE] =    {ALL_VALID,       ALL_VALID,       0},           \
          [MTVAL] =     {ALL_VALID,       ALL_VALID,       0},           \
          [MIP] =       {ALL_VALID,       ALL_VALID,       0},           \
-         [MHARTID] =   {ALL_VALID,       ALL_VALID,       0},           \
+         [MHARTID] =   {ALL_VALID,       ALL_INVALID,     0},           \
          [PMPCFG0] =   {ALL_VALID,       ALL_VALID,       0},           \
          [PMPADDR0] =  {ALL_VALID,       ALL_VALID,       0},           \
          [PMPADDR1] =  {ALL_VALID,       ALL_VALID,       0},           \
          [PMPADDR2] =  {ALL_VALID,       ALL_VALID,       0},           \
          [PMPADDR3] =  {ALL_VALID,       ALL_VALID,       0},           \
-         [TIME] =      {ALL_VALID,       ALL_VALID,       0},           \
+         [TIME] =      {ALL_VALID,       ALL_INVALID,     0},           \
     }
 /* clang-format on */
 
