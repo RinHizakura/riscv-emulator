@@ -1,10 +1,11 @@
 #include "boot.h"
+#include "macros.h"
+#include "memmap.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include "macros.h"
-#include "memmap.h"
 
 static char dtb_filename[] = "./emu.dtb";
 
