@@ -119,12 +119,12 @@ static bool make_dtb()
         }
         close(dts_pipe[1]);
 
-        /* FIXME: Will it be too inefficient to fork a process which already
+        /* FIXME:
+         * 1. The allocated memory is implicitly free by OS.
+         * 2. Will it be too inefficient to fork a process which already
          * allocated huge amount of memory? Considering to generate dtb before
-         * initialize DRAM */
-
-        // return false to free allocated memory on child process
-        return false;
+         * initialize DRAM? */
+        exit(0);
     }
 
     pid_t dtb_pid;
@@ -146,6 +146,19 @@ static bool make_dtb()
 
     close(dts_pipe[1]);
     close(dts_pipe[0]);
+
+    // Reap children
+    int status;
+    waitpid(dts_pid, &status, 0);
+    if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
+        printf("Child dts process failed\n");
+        exit(1);
+    }
+    waitpid(dtb_pid, &status, 0);
+    if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
+        printf("Child dtb process failed\n");
+        exit(1);
+    }
 
     return true;
 }
