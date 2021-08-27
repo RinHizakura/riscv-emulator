@@ -88,4 +88,4 @@ compliance: $(BIN) $(COMPLIANCE_DIR)
 
 clean:
 	$(RM) -rf build
-	$(RM) -rf *.obj *.bin *.s
+	$(RM) -rf *.obj *.bin *.s *.dtb
