@@ -1915,6 +1915,53 @@ bool init_cpu(riscv_cpu *cpu, const char *filename, const char *rfs_name)
     return true;
 }
 
+bool tick(riscv_cpu *cpu)
+{
+    if (check_pending_irq(cpu)) {
+        // if any interrupt is pending
+        interrput_take_trap(cpu);
+#ifdef ICACHE_CONFIG
+        // flush cache when jumping in trap handler
+        invalid_icache(&cpu->icache);
+#endif
+    }
+
+    bool ret = true;
+    bool is_cache = false;
+
+    ret = fetch(cpu, &is_cache);
+#ifdef ICACHE_CONFIG
+    if (is_cache)
+        goto exec_stage;
+#endif
+    if (!ret)
+        goto get_trap;
+
+    ret = decode(cpu);
+    if (!ret)
+        goto get_trap;
+
+exec_stage:
+    ret = exec(cpu);
+get_trap:
+    if (!ret) {
+        uint64_t next_pc = cpu->pc;
+        Trap trap = exception_take_trap(cpu);
+        if (trap == Trap_Fatal) {
+            LOG_ERROR("Trap %x happen before pc %lx\n", trap, next_pc);
+            return false;
+        }
+        // reset exception flag if recovery from trap
+        cpu->exc.exception = NoException;
+#ifdef ICACHE_CONFIG
+        // flush cache when jumping in trap handler
+        invalid_icache(&cpu->icache);
+#endif
+    }
+
+    return true;
+}
+
 bool fetch(riscv_cpu *cpu, bool *is_cache)
 {
 #ifdef ICACHE_CONFIG

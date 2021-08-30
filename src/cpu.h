@@ -60,6 +60,7 @@ typedef struct INSTR_ENTRY {
     riscv_instr_desc *next;
 } riscv_instr_entry;
 
+bool tick(riscv_cpu *cpu);
 bool init_cpu(riscv_cpu *cpu, const char *filename, const char *rfs_name);
 bool fetch(riscv_cpu *cpu, bool *is_cache);
 bool decode(riscv_cpu *cpu);
