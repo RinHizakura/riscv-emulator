@@ -2262,7 +2262,6 @@ bool fetch(riscv_cpu *cpu, bool *is_cache)
 #endif
 
     uint64_t pc = addr_translate(cpu, cpu->pc, Access_Instr);
-
     if (cpu->exc.exception != NoException)
         return false;
 
@@ -2291,20 +2290,21 @@ bool fetch(riscv_cpu *cpu, bool *is_cache)
         cpu->instr.opcode = instr & 0x7f;
     }
 
-    LOG_DEBUG(
-        "[DEBUG] pc: %lx instr: 0x%x\n"
-        "opcode = 0x%x funct3 = 0x%x funct7 = 0x%x rs2 = 0x%x\n",
-        pc, cpu->instr.instr, cpu->instr.opcode, cpu->instr.funct3,
-        cpu->instr.funct7, cpu->instr.rs2);
+    LOG_DEBUG("[DEBUG] pc: %lx instr: 0x%x\n", pc, cpu->instr.instr);
 
     cpu->pc += pc_shift;
-
     return true;
 }
 
 bool decode(riscv_cpu *cpu)
 {
     bool ret = __decode(cpu, &opcode_type_list);
+
+    LOG_DEBUG(
+        "[DEBUG] instr: 0x%x opcode = 0x%x funct3 = 0x%x funct7 = 0x%x\n"
+        "        rs1 = 0x%x rs2 = 0x%x rd = 0x%x\n",
+        cpu->instr.instr, cpu->instr.opcode, cpu->instr.funct3,
+        cpu->instr.funct7, cpu->instr.rs1, cpu->instr.rs2, cpu->instr.rd);
 
 #ifdef ICACHE_CONFIG
     // cache the decoding result

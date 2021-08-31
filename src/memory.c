@@ -7,7 +7,7 @@
 #include "memmap.h"
 #include "memory.h"
 
-static uint64_t entry_addr;
+static uint64_t entry_addr = DRAM_BASE;
 
 static bool parse_elf(riscv_mem *mem, uint8_t *elf_file)
 {
