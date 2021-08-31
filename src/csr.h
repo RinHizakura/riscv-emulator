@@ -4,6 +4,8 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#define CSR_CAPACITY 0x1000
+
 // Supervisor status register.
 #define SSTATUS 0x100
 // Supervisor exception delegation register.
@@ -83,9 +85,9 @@
 #define SSTATUS_SUM 0x40000UL
 #define SSTATUS_MXR 0x80000UL
 #define SSTATUS_UXL 0x300000000UL
-#define SSTATUS_VISIBLE                                                  \
-    SSTATUS_SIE | SSTATUS_SPIE | SSTATUS_SPP | SSTATUS_FS | SSTATUS_XS | \
-        SSTATUS_SUM | SSTATUS_MXR | SSTATUS_UXL
+#define SSTATUS_VISIBLE                                                   \
+    (SSTATUS_SIE | SSTATUS_SPIE | SSTATUS_SPP | SSTATUS_FS | SSTATUS_XS | \
+     SSTATUS_SUM | SSTATUS_MXR | SSTATUS_UXL)
 
 // MSTATUS fields
 #define MSTATUS_MIE 0x8UL
@@ -108,7 +110,7 @@
 #define SIP_UEIP 0x100UL
 #define SIP_SEIP 0x200UL
 // All bits besides SSIP, USIP, and UEIP in the sip register are read-only
-#define SIP_WRITABLE SIP_SSIP | SIP_USIP | SIP_UEIP
+#define SIP_WRITABLE (SIP_SSIP | SIP_USIP | SIP_UEIP)
 
 // SATP fields
 #define SATP_PPN 0xfffffffffffUL
@@ -121,43 +123,6 @@
 #define ALL_VALID 0xffffffffffffffffUL
 #define ALL_INVALID 0x0
 
-/* FIXME: we don't perfectly deal with the read write permission now! */
-/* clang-format off */
-#define DECLARE_CSR_ENTRY(_name)                                        \
-    riscv_csr_entry  _name [] = {                                       \
-         [SSTATUS] =   {SSTATUS_VISIBLE, SSTATUS_VISIBLE,  0},           \
-         [SEDELEG] =   {ALL_VALID,       ALL_VALID,        0},           \
-         [SIE]     =   {ALL_VALID,       ALL_VALID,        0},           \
-         [STVEC] =     {ALL_VALID,       ALL_VALID,        0},           \
-         [SCOUNTEREN]= {ALL_VALID,       ALL_VALID,        0},           \
-         [SSCRATCH]    {ALL_VALID,       ALL_VALID,        0},           \
-         [SEPC] =      {ALL_VALID,       ALL_VALID,        0},           \
-         [SCAUSE] =    {ALL_VALID,       ALL_VALID,        0},           \
-         [STVAL] =     {ALL_VALID,       ALL_VALID,        0},           \
-         [SIP] =       {ALL_VALID,       SIP_WRITABLE,     0},           \
-         [SATP] =      {ALL_VALID,       ALL_VALID,        0},           \
-         [MSTATUS]=    {ALL_VALID,       ALL_VALID,        0},           \
-         [MEDELEG]=    {ALL_VALID,       ALL_VALID,        0},           \
-         [MIDELEG] =   {ALL_VALID,       MIDELEG_WRITABLE, 0},           \
-         [MIE] =       {ALL_VALID,       ALL_VALID,        0},           \
-         [MTVEC] =     {ALL_VALID,       ALL_VALID,        0},           \
-         [MISA] =      {ALL_VALID,       ALL_VALID,        0},           \
-         [MCOUNTEREN]= {ALL_VALID,       ALL_VALID,        0},           \
-         [MSCRATCH]=   {ALL_VALID,       ALL_VALID,        0},           \
-         [MEPC] =      {ALL_VALID,       ALL_VALID,        0},           \
-         [MCAUSE] =    {ALL_VALID,       ALL_VALID,        0},           \
-         [MTVAL] =     {ALL_VALID,       ALL_VALID,        0},           \
-         [MIP] =       {ALL_VALID,       ALL_VALID,        0},           \
-         [MHARTID] =   {ALL_VALID,       ALL_INVALID,      0},           \
-         [PMPCFG0] =   {ALL_VALID,       ALL_VALID,        0},           \
-         [PMPADDR0] =  {ALL_VALID,       ALL_VALID,        0},           \
-         [PMPADDR1] =  {ALL_VALID,       ALL_VALID,        0},           \
-         [PMPADDR2] =  {ALL_VALID,       ALL_VALID,        0},           \
-         [PMPADDR3] =  {ALL_VALID,       ALL_VALID,        0},           \
-         [TIME] =      {ALL_VALID,       ALL_INVALID,      0},           \
-    }
-/* clang-format on */
-
 /* macro for setting and clearing csr bits */
 #define set_csr_bits(csr, reg, mask) \
     write_csr(csr, reg, read_csr(csr, reg) | mask)
@@ -169,21 +134,12 @@
 #define check_csr_bit(csr, reg, mask) (!!((read_csr(csr, reg) & mask)))
 
 typedef struct {
-    uint64_t read_mask;
-    uint64_t write_mask;
-
-    uint64_t value;
-} riscv_csr_entry;
-
-typedef struct {
-    uint64_t size;
-    riscv_csr_entry *list;
+    uint64_t reg[CSR_CAPACITY];
 } riscv_csr;
 
 bool init_csr(riscv_csr *csr);
 uint64_t read_csr(riscv_csr *csr, uint16_t addr);
 void write_csr(riscv_csr *csr, uint16_t addr, uint64_t value);
 void tick_csr(riscv_csr *csr);
-void free_csr(riscv_csr *csr);
 
 #endif

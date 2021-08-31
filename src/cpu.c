@@ -2371,7 +2371,6 @@ void dump_csr(riscv_cpu *cpu)
 void free_cpu(riscv_cpu *cpu)
 {
     free_bus(&cpu->bus);
-    free_csr(&cpu->csr);
 #ifdef ICACHE_CONFIG
     free_icache(&cpu->icache);
 #endif

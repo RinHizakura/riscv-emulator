@@ -29,15 +29,7 @@
 
 bool init_csr(riscv_csr *csr)
 {
-    DECLARE_CSR_ENTRY(tmp_csr_entry);
-
-    csr->size = sizeof(tmp_csr_entry) / sizeof(riscv_csr_entry);
-    csr->list = malloc(sizeof(tmp_csr_entry));
-    if (csr->list == NULL) {
-        LOG_ERROR("Error when allocating space through malloc for csr map.\n");
-        return false;
-    }
-    memcpy(csr->list, tmp_csr_entry, sizeof(tmp_csr_entry));
+    memset(&csr->reg, 0, sizeof(uint64_t) * CSR_CAPACITY);
 
     uint64_t misa_val = (2UL << 62) |  // XLEN = 64
                         (1 << 20) |    // User mode implemented
@@ -52,90 +44,63 @@ bool init_csr(riscv_csr *csr)
 
 uint64_t read_csr(riscv_csr *csr, uint16_t addr)
 {
-    if (addr >= csr->size) {
-        LOG_ERROR("Not implemented CSR register 0x%x\n", addr);
-        return -1;
-    }
-
-    riscv_csr_entry *csr_reg = &csr->list[addr];
-
-    if (csr_reg->read_mask == ALL_INVALID) {
-        LOG_ERROR("Not implemented or invalid CSR register 0x%x\n", addr);
+    if (addr >= CSR_CAPACITY) {
+        LOG_ERROR("Invalid CSR addr 0x%x\n", addr);
         return -1;
     }
 
     switch (addr) {
+    case SSTATUS:
+        return (csr->reg[MSTATUS] & SSTATUS_VISIBLE);
     case SIE:
-    case SIP: {
-        riscv_csr_entry *mideleg = &csr->list[MIDELEG];
-        return csr_reg->value & csr_reg->read_mask & mideleg->value;
-    }
+        return (csr->reg[MIE] & csr->reg[MIDELEG]);
+    case SIP:
+        return (csr->reg[MIP] & csr->reg[MIDELEG]);
     default:
-        return csr_reg->value & csr_reg->read_mask;
+        return csr->reg[addr];
     }
 }
 
 void write_csr(riscv_csr *csr, uint16_t addr, uint64_t value)
 {
-    if (addr >= csr->size) {
-        LOG_ERROR("Not implemented CSR register 0x%x\n", addr);
-        return;
-    }
-
-    riscv_csr_entry *csr_reg = &csr->list[addr];
-
-    if (csr_reg->write_mask == ALL_INVALID) {
-        if (addr != TIME && addr != MHARTID)
-            LOG_ERROR("Not implemented or invalid CSR register 0x%x\n", addr);
+    if (addr >= CSR_CAPACITY) {
+        LOG_ERROR("Invalid CSR addr 0x%x\n", addr);
         return;
     }
 
     switch (addr) {
-    case MSTATUS:
     case SSTATUS: {
-        riscv_csr_entry *mstatus = &csr->list[MSTATUS];
-        riscv_csr_entry *sstatus = &csr->list[SSTATUS];
-        uint64_t mask = csr_reg->write_mask;
-        sstatus->value = (value & sstatus->write_mask);
-        mstatus->value = (mstatus->value & ~mask) | (value & mask);
-    } break;
-    case MIE: {
-        riscv_csr_entry *sie = &csr->list[SIE];
-        riscv_csr_entry *mideleg = &csr->list[MIDELEG];
-        csr_reg->value = value & csr_reg->write_mask;
-        sie->value = value & (sie->write_mask | mideleg->value);
-    } break;
+        uint64_t *mstatus = &csr->reg[MSTATUS];
+        *mstatus = (*mstatus & ~SSTATUS_VISIBLE) | (value & SSTATUS_VISIBLE);
+        break;
+    }
     case SIE: {
-        riscv_csr_entry *mie = &csr->list[MIE];
-        riscv_csr_entry *mideleg = &csr->list[MIDELEG];
-        uint64_t mask = csr_reg->write_mask | mideleg->value;
-        csr_reg->value = value & mask;
-        mie->value = (mie->value & ~mask) | (value & mask);
-    } break;
-    case MIP: {
-        riscv_csr_entry *sip = &csr->list[SIP];
-        riscv_csr_entry *mideleg = &csr->list[MIDELEG];
-        csr_reg->value = value & csr_reg->write_mask;
-        sip->value = value & (sip->write_mask | mideleg->value);
-    } break;
+        uint64_t *mie = &csr->reg[MIE];
+        uint64_t mask = csr->reg[MIDELEG];
+        *mie = (*mie & ~mask) | (value & mask);
+        break;
+    }
     case SIP: {
-        riscv_csr_entry *mip = &csr->list[MIP];
-        riscv_csr_entry *mideleg = &csr->list[MIDELEG];
-        uint64_t mask = csr_reg->write_mask | mideleg->value;
-        csr_reg->value = value & mask;
-        mip->value = (mip->value & ~mask) | (value & mask);
-    } break;
+        uint64_t *mip = &csr->reg[MIP];
+        uint64_t mask = csr->reg[MIDELEG] & SIP_WRITABLE;
+        *mip = (*mip & ~mask) | (value & mask);
+        break;
+    }
+    case MIDELEG: {
+        uint64_t *mideleg = &csr->reg[MIDELEG];
+        *mideleg = (*mideleg & ~MIDELEG_WRITABLE) | (value & MIDELEG_WRITABLE);
+        break;
+    }
+    // read only CSR
+    case MHARTID:
+    case TIME:
+        break;
     default:
-        csr_reg->value = value & csr_reg->write_mask;
+        csr->reg[addr] = value;
     }
 }
 
 void tick_csr(riscv_csr *csr)
 {
-    csr->list[TIME].value++;
-}
-
-void free_csr(riscv_csr *csr)
-{
-    free(csr->list);
+    csr->reg[TIME]++;
 }
