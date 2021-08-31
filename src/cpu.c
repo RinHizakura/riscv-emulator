@@ -1864,6 +1864,276 @@ translate_fail:
     return -1;
 }
 
+static Trap exception_take_trap(riscv_cpu *cpu)
+{
+    uint64_t exc_pc = cpu->pc;
+    switch (cpu->exc.exception) {
+    /* ECALL and EBREAK cause the receiving privilege mode’s epc register to be
+     * set to the address of the ECALL or EBREAK instruction itself, not the
+     * address of the following instruction. */
+    case Breakpoint:
+    case EnvironmentCallFromUMode:
+    case EnvironmentCallFromSMode:
+    case EnvironmentCallFromMMode:
+        exc_pc = cpu->pc - 4;
+        break;
+    default:
+        exc_pc = cpu->pc;
+    }
+    riscv_mode prev_mode = cpu->mode;
+
+    uint8_t cause = cpu->exc.exception;
+
+    /* certain exceptions and interrupts can be processed directly by a lower
+     * privilege level within medeleg or mideleg register */
+
+    /* For medeleg, the index of the bit position equal to the value returned in
+     * the mcause register */
+    uint64_t medeleg = read_csr(&cpu->csr, MEDELEG);
+    if ((cpu->mode.mode <= SUPERVISOR) && (((medeleg >> cause) & 1) != 0)) {
+        cpu->mode.mode = SUPERVISOR;
+
+        /* The last two bits of stvec indicate the vector mode, which make
+         * different for pc setting when interrupt. For (synchronous) exception,
+         * no matter what the mode is, always set pc to BASE by stvec when
+         * exception. */
+        cpu->pc = read_csr(&cpu->csr, STVEC) & ~0x3;
+        /* The low bit of sepc(sepc[0]) is always zero. When a trap is taken
+         * into S-mode, sepc is written with the virtual address of the
+         * instruction that was interrupted or that encountered the exception.
+         */
+        write_csr(&cpu->csr, SEPC, exc_pc & ~0x1);
+        /* When a trap is taken into S-mode, scause is written with a code
+         * indicating the event that caused the trap. */
+        write_csr(&cpu->csr, SCAUSE, cause);
+
+        /* FIXME: write stval with exception-specific information to assist
+         * software in handling the trap.*/
+        write_csr(&cpu->csr, STVAL, 0);
+
+        /* When a trap is taken into supervisor mode, SPIE is set to SIE */
+        uint64_t sstatus = read_csr(&cpu->csr, SSTATUS);
+        write_csr(&cpu->csr, SSTATUS,
+                  (sstatus & ~SSTATUS_SPIE) | ((sstatus & SSTATUS_SIE) << 4));
+        /* SIE is set to 0 */
+        clear_csr_bits(&cpu->csr, SSTATUS, SSTATUS_SIE);
+        /* When a trap is taken, SPP is set to 0 if the trap originated from
+         * user mode, or 1 otherwise. */
+        sstatus = read_csr(&cpu->csr, SSTATUS);
+        write_csr(&cpu->csr, SSTATUS,
+                  (sstatus & ~SSTATUS_SPP) | prev_mode.mode << 8);
+    } else {
+        /* Handle in machine mode. You can see that the process is similar to
+         * handle in supervisor mode. */
+        cpu->mode.mode = MACHINE;
+        cpu->pc = read_csr(&cpu->csr, MTVEC) & ~0x3;
+        write_csr(&cpu->csr, MEPC, exc_pc & ~0x1);
+        write_csr(&cpu->csr, MCAUSE, cause);
+        /* FIXME: write mtval with exception-specific information to assist
+         * software in handling the trap.*/
+        write_csr(&cpu->csr, MTVAL, 0);
+        uint64_t mstatus = read_csr(&cpu->csr, MSTATUS);
+        write_csr(&cpu->csr, MSTATUS,
+                  (mstatus & ~MSTATUS_MPIE) | ((mstatus & MSTATUS_MIE) << 4));
+        clear_csr_bits(&cpu->csr, MSTATUS, MSTATUS_MIE);
+        mstatus = read_csr(&cpu->csr, MSTATUS);
+        write_csr(&cpu->csr, MSTATUS,
+                  (mstatus & ~MSTATUS_MPP) | prev_mode.mode << 11);
+    }
+
+    // https://github.com/d0iasm/rvemu/blob/master/src/exception.rs
+    switch (cpu->exc.exception) {
+    case InstructionAddressMisaligned:
+    case InstructionAccessFault:
+        return Trap_Fatal;
+    case IllegalInstruction:
+        return Trap_Fatal;  // stop the emulator if overcome illegal instruction
+    case Breakpoint:
+        return Trap_Requested;
+    case LoadAddressMisaligned:
+    case LoadAccessFault:
+    case StoreAMOAddressMisaligned:
+    case StoreAMOAccessFault:
+        return Trap_Fatal;
+    case EnvironmentCallFromUMode:
+    case EnvironmentCallFromSMode:
+    case EnvironmentCallFromMMode:
+        return Trap_Requested;
+    case InstructionPageFault:
+    case LoadPageFault:
+    case StoreAMOPageFault:
+        return Trap_Invisible;
+    default:
+        LOG_ERROR("Not defined exception %d\n", cpu->exc.exception);
+        return Trap_Fatal;
+    }
+}
+
+static void interrput_take_trap(riscv_cpu *cpu)
+{
+    uint64_t irq_pc = cpu->pc;
+    riscv_mode prev_mode = cpu->mode;
+    uint8_t cause = cpu->irq.irq;
+    uint64_t mideleg = read_csr(&cpu->csr, MIDELEG);
+
+    if ((cpu->mode.mode <= SUPERVISOR) && (((mideleg >> cause) & 1) != 0)) {
+        cpu->mode.mode = SUPERVISOR;
+        uint64_t stvec = read_csr(&cpu->csr, STVEC);
+        if (stvec & 0x1)
+            cpu->pc = (stvec & ~0x3) + 4 * cause;
+        else
+            cpu->pc = stvec & ~0x3;
+
+        write_csr(&cpu->csr, SEPC, irq_pc & ~0x1);
+        /* The Interrupt bit in the scause register is set if the trap was
+         * caused by an interrupt */
+        write_csr(&cpu->csr, SCAUSE, 1UL << 63 | cause);
+
+        /* FIXME: write stval with exception-specific information to assist
+         * software in handling the trap.*/
+        write_csr(&cpu->csr, STVAL, 0);
+
+        uint64_t sstatus = read_csr(&cpu->csr, SSTATUS);
+        write_csr(&cpu->csr, SSTATUS,
+                  (sstatus & ~SSTATUS_SPIE) | ((sstatus & SSTATUS_SIE) << 4));
+        clear_csr_bits(&cpu->csr, SSTATUS, SSTATUS_SIE);
+        sstatus = read_csr(&cpu->csr, SSTATUS);
+        write_csr(&cpu->csr, SSTATUS,
+                  (sstatus & ~SSTATUS_SPP) | prev_mode.mode << 8);
+    } else {
+        cpu->mode.mode = MACHINE;
+
+        uint64_t mtvec = read_csr(&cpu->csr, MTVEC);
+        if (mtvec & 0x1)
+            cpu->pc = (mtvec & ~0x3) + 4 * cause;
+        else
+            cpu->pc = mtvec & ~0x3;
+
+        write_csr(&cpu->csr, MEPC, irq_pc & ~0x1);
+        write_csr(&cpu->csr, MCAUSE, 1UL << 63 | cause);
+        /* FIXME: write stval with exception-specific information to assist
+         * software in handling the trap.*/
+        write_csr(&cpu->csr, MTVAL, 0);
+        uint64_t mstatus = read_csr(&cpu->csr, MSTATUS);
+        write_csr(&cpu->csr, MSTATUS,
+                  (mstatus & ~MSTATUS_MPIE) | ((mstatus & MSTATUS_MIE) << 4));
+        clear_csr_bits(&cpu->csr, MSTATUS, MSTATUS_MIE);
+        mstatus = read_csr(&cpu->csr, MSTATUS);
+        write_csr(&cpu->csr, MSTATUS,
+                  (mstatus & ~MSTATUS_MPP) | prev_mode.mode << 11);
+    }
+}
+
+static bool irq_enable(riscv_cpu *cpu, uint8_t cause)
+{
+    uint64_t mideleg = read_csr(&cpu->csr, MIDELEG);
+    riscv_mode new_mode;
+
+    // TODO: support handling for user mode
+    if ((cpu->mode.mode <= SUPERVISOR) && (((mideleg >> cause) & 1) != 0))
+        new_mode.mode = SUPERVISOR;
+    else
+        new_mode.mode = MACHINE;
+
+    if (new_mode.mode < cpu->mode.mode)
+        return false;
+    else {
+        if (cpu->mode.mode == MACHINE) {
+            if (!check_csr_bit(&cpu->csr, MSTATUS, MSTATUS_MIE))
+                return false;
+        } else if (cpu->mode.mode == SUPERVISOR) {
+            if (!check_csr_bit(&cpu->csr, SSTATUS, SSTATUS_SIE)) {
+                return false;
+            }
+        }
+    }
+
+    return true;
+}
+
+static bool check_pending_irq(riscv_cpu *cpu)
+{
+    /* FIXME:
+     * 1. Priority of interrupt should be considered
+     * 2. The interactive between PLIC and interrput are not fully implement, I
+     * should dig in more to perform better emulation.
+     */
+
+    uint64_t pending = read_csr(&cpu->csr, MIE) & read_csr(&cpu->csr, MIP);
+
+    if (pending & MIP_MEIP) {
+        if (irq_enable(cpu, MachineExternalInterrupt)) {
+            cpu->irq.irq = MachineExternalInterrupt;
+            clear_csr_bits(&cpu->csr, MIP, MIP_MEIP);
+            return true;
+        }
+    }
+    if (pending & MIP_MSIP) {
+        if (irq_enable(cpu, MachineSoftwareInterrupt)) {
+            cpu->irq.irq = MachineSoftwareInterrupt;
+            clear_csr_bits(&cpu->csr, MIP, MIP_MSIP);
+            return true;
+        }
+    }
+    if (pending & MIP_MTIP) {
+        if (irq_enable(cpu, MachineTimerInterrupt)) {
+            cpu->irq.irq = MachineTimerInterrupt;
+            clear_csr_bits(&cpu->csr, MIP, MIP_MTIP);
+            return true;
+        }
+    }
+
+    /* FIXME: we should check the device interrupt from else where */
+    int irq = 0;
+    if (irq_enable(cpu, SupervisorExternalInterrupt)) {
+        if (uart_is_interrupt(&cpu->bus.uart)) {
+            irq = UART0_IRQ;
+        } else if (virtio_is_interrupt(&cpu->bus.virtio_blk)) {
+            access_disk(cpu);
+            irq = VIRTIO_IRQ;
+        }
+
+        if (irq) {
+            // pending the external interrput bit
+            set_csr_bits(&cpu->csr, MIP, MIP_SEIP);
+        }
+    }
+
+    /* FIXME: do we need to update this since SIP and SIE are subset of the
+     * equivalent machine-mode CSR? */
+    pending = read_csr(&cpu->csr, SIE) & read_csr(&cpu->csr, SIP);
+
+    if (pending & MIP_SEIP) {
+        if (irq_enable(cpu, SupervisorExternalInterrupt)) {
+            cpu->irq.irq = SupervisorExternalInterrupt;
+
+            /* perform an interrupt claim and atomically clear
+             * the corresponding pending bit */
+            write_bus(&cpu->bus, PLIC_CLAIM_1, 32, irq, &cpu->exc);
+            assert(cpu->exc.exception == NoException);
+            clear_csr_bits(&cpu->csr, MIP, MIP_SEIP);
+            return true;
+        }
+    }
+    if (pending & MIP_SSIP) {
+        if (irq_enable(cpu, SupervisorSoftwareInterrupt)) {
+            cpu->irq.irq = SupervisorSoftwareInterrupt;
+            clear_csr_bits(&cpu->csr, MIP, MIP_SSIP);
+            return true;
+        }
+    }
+    if (pending & MIP_STIP) {
+        if (irq_enable(cpu, SupervisorTimerInterrupt)) {
+            cpu->irq.irq = SupervisorTimerInterrupt;
+            clear_csr_bits(&cpu->csr, MIP, MIP_STIP);
+            return true;
+        }
+    }
+
+    cpu->irq.irq = NoInterrupt;
+    return false;
+}
+
 /* these two functions are the indirect layer of read / write bus from cpu,
  * which will do address translation before actually read / write the bus */
 static uint64_t read_cpu(riscv_cpu *cpu, uint64_t addr, uint8_t size)
@@ -1917,6 +2187,12 @@ bool init_cpu(riscv_cpu *cpu, const char *filename, const char *rfs_name)
 
 bool tick(riscv_cpu *cpu)
 {
+    // TODO: sync mtime in Clint and TIME in CSR
+    // Increment the value for Time in CSR
+    tick_csr(&cpu->csr);
+    // Increment the value for mtime in Clint
+    tick_bus(&cpu->bus, &cpu->csr);
+
     if (check_pending_irq(cpu)) {
         // if any interrupt is pending
         interrput_take_trap(cpu);
@@ -2061,270 +2337,6 @@ bool exec(riscv_cpu *cpu)
     cpu->instr.exec_func = NULL;
 #endif
     return true;
-}
-
-Trap exception_take_trap(riscv_cpu *cpu)
-{
-    uint64_t exc_pc = cpu->pc;
-    switch (cpu->exc.exception) {
-    /* ECALL and EBREAK cause the receiving privilege mode’s epc register to be
-     * set to the address of the ECALL or EBREAK instruction itself, not the
-     * address of the following instruction. */
-    case Breakpoint:
-    case EnvironmentCallFromUMode:
-    case EnvironmentCallFromSMode:
-    case EnvironmentCallFromMMode:
-        exc_pc = cpu->pc - 4;
-        break;
-    default:
-        exc_pc = cpu->pc;
-    }
-    riscv_mode prev_mode = cpu->mode;
-
-    uint8_t cause = cpu->exc.exception;
-
-    /* certain exceptions and interrupts can be processed directly by a lower
-     * privilege level within medeleg or mideleg register */
-
-    /* For medeleg, the index of the bit position equal to the value returned in
-     * the mcause register */
-    uint64_t medeleg = read_csr(&cpu->csr, MEDELEG);
-    if ((cpu->mode.mode <= SUPERVISOR) && (((medeleg >> cause) & 1) != 0)) {
-        cpu->mode.mode = SUPERVISOR;
-
-        /* The last two bits of stvec indicate the vector mode, which make
-         * different for pc setting when interrupt. For (synchronous) exception,
-         * no matter what the mode is, always set pc to BASE by stvec when
-         * exception. */
-        cpu->pc = read_csr(&cpu->csr, STVEC) & ~0x3;
-        /* The low bit of sepc(sepc[0]) is always zero. When a trap is taken
-         * into S-mode, sepc is written with the virtual address of the
-         * instruction that was interrupted or that encountered the exception.
-         */
-        write_csr(&cpu->csr, SEPC, exc_pc & ~0x1);
-        /* When a trap is taken into S-mode, scause is written with a code
-         * indicating the event that caused the trap. */
-        write_csr(&cpu->csr, SCAUSE, cause);
-
-        /* FIXME: write stval with exception-specific information to assist
-         * software in handling the trap.*/
-        write_csr(&cpu->csr, STVAL, 0);
-
-        /* When a trap is taken into supervisor mode, SPIE is set to SIE */
-        uint64_t sstatus = read_csr(&cpu->csr, SSTATUS);
-        write_csr(&cpu->csr, SSTATUS,
-                  (sstatus & ~SSTATUS_SPIE) | ((sstatus & SSTATUS_SIE) << 4));
-        /* SIE is set to 0 */
-        clear_csr_bits(&cpu->csr, SSTATUS, SSTATUS_SIE);
-        /* When a trap is taken, SPP is set to 0 if the trap originated from
-         * user mode, or 1 otherwise. */
-        sstatus = read_csr(&cpu->csr, SSTATUS);
-        write_csr(&cpu->csr, SSTATUS,
-                  (sstatus & ~SSTATUS_SPP) | prev_mode.mode << 8);
-    } else {
-        /* Handle in machine mode. You can see that the process is similar to
-         * handle in supervisor mode. */
-        cpu->mode.mode = MACHINE;
-        cpu->pc = read_csr(&cpu->csr, MTVEC) & ~0x3;
-        write_csr(&cpu->csr, MEPC, exc_pc & ~0x1);
-        write_csr(&cpu->csr, MCAUSE, cause);
-        /* FIXME: write mtval with exception-specific information to assist
-         * software in handling the trap.*/
-        write_csr(&cpu->csr, MTVAL, 0);
-        uint64_t mstatus = read_csr(&cpu->csr, MSTATUS);
-        write_csr(&cpu->csr, MSTATUS,
-                  (mstatus & ~MSTATUS_MPIE) | ((mstatus & MSTATUS_MIE) << 4));
-        clear_csr_bits(&cpu->csr, MSTATUS, MSTATUS_MIE);
-        mstatus = read_csr(&cpu->csr, MSTATUS);
-        write_csr(&cpu->csr, MSTATUS,
-                  (mstatus & ~MSTATUS_MPP) | prev_mode.mode << 11);
-    }
-
-    // https://github.com/d0iasm/rvemu/blob/master/src/exception.rs
-    switch (cpu->exc.exception) {
-    case InstructionAddressMisaligned:
-    case InstructionAccessFault:
-        return Trap_Fatal;
-    case IllegalInstruction:
-        return Trap_Fatal;  // stop the emulator if overcome illegal instruction
-    case Breakpoint:
-        return Trap_Requested;
-    case LoadAddressMisaligned:
-    case LoadAccessFault:
-    case StoreAMOAddressMisaligned:
-    case StoreAMOAccessFault:
-        return Trap_Fatal;
-    case EnvironmentCallFromUMode:
-    case EnvironmentCallFromSMode:
-    case EnvironmentCallFromMMode:
-        return Trap_Requested;
-    case InstructionPageFault:
-    case LoadPageFault:
-    case StoreAMOPageFault:
-        return Trap_Invisible;
-    default:
-        LOG_ERROR("Not defined exception %d\n", cpu->exc.exception);
-        return Trap_Fatal;
-    }
-}
-
-void interrput_take_trap(riscv_cpu *cpu)
-{
-    uint64_t irq_pc = cpu->pc;
-    riscv_mode prev_mode = cpu->mode;
-
-    uint8_t cause = cpu->irq.irq;
-
-    uint64_t mideleg = read_csr(&cpu->csr, MIDELEG);
-
-    if ((cpu->mode.mode <= SUPERVISOR) && (((mideleg >> cause) & 1) != 0)) {
-        cpu->mode.mode = SUPERVISOR;
-        uint64_t stvec = read_csr(&cpu->csr, STVEC);
-        if (stvec & 0x1)
-            cpu->pc = (stvec & ~0x3) + 4 * cause;
-        else
-            cpu->pc = stvec & ~0x3;
-
-        write_csr(&cpu->csr, SEPC, irq_pc & ~0x1);
-        /* The Interrupt bit in the scause register is set if the trap was
-         * caused by an interrupt */
-        write_csr(&cpu->csr, SCAUSE, 1UL << 63 | cause);
-
-        /* FIXME: write stval with exception-specific information to assist
-         * software in handling the trap.*/
-        write_csr(&cpu->csr, STVAL, 0);
-
-        uint64_t sstatus = read_csr(&cpu->csr, SSTATUS);
-        write_csr(&cpu->csr, SSTATUS,
-                  (sstatus & ~SSTATUS_SPIE) | ((sstatus & SSTATUS_SIE) << 4));
-        clear_csr_bits(&cpu->csr, SSTATUS, SSTATUS_SIE);
-        sstatus = read_csr(&cpu->csr, SSTATUS);
-        write_csr(&cpu->csr, SSTATUS,
-                  (sstatus & ~SSTATUS_SPP) | prev_mode.mode << 8);
-    } else {
-        cpu->mode.mode = MACHINE;
-
-        uint64_t mtvec = read_csr(&cpu->csr, MTVEC);
-        if (mtvec & 0x1)
-            cpu->pc = (mtvec & ~0x3) + 4 * cause;
-        else
-            cpu->pc = mtvec & ~0x3;
-
-        write_csr(&cpu->csr, MEPC, irq_pc & ~0x1);
-        write_csr(&cpu->csr, MCAUSE, 1UL << 63 | cause);
-        /* FIXME: write stval with exception-specific information to assist
-         * software in handling the trap.*/
-        write_csr(&cpu->csr, MTVAL, 0);
-        uint64_t mstatus = read_csr(&cpu->csr, MSTATUS);
-        write_csr(&cpu->csr, MSTATUS,
-                  (mstatus & ~MSTATUS_MPIE) | ((mstatus & MSTATUS_MIE) << 4));
-        clear_csr_bits(&cpu->csr, MSTATUS, MSTATUS_MIE);
-        mstatus = read_csr(&cpu->csr, MSTATUS);
-        write_csr(&cpu->csr, MSTATUS,
-                  (mstatus & ~MSTATUS_MPP) | prev_mode.mode << 11);
-    }
-}
-
-bool check_pending_irq(riscv_cpu *cpu)
-{
-    /* FIXME:
-     * 1. Priority of interrupt should be considered
-     * 2. The interactive between PLIC and interrput are not fully implement, I
-     * should dig in more to perform better emulation.
-     */
-
-    /* FIXME: I am coufusing for the MIDELEG mechanism. According to the
-     * document:
-     *
-     * > When a hart is executing in privilege mode x, interrupts are globally
-     * > enabled when x IE=1 and globally disabled when x IE=0. Interrupts for
-     * > lower-privilege modes, w<x, are always globally disabled regardless of
-     * > the setting of the lower-privilege mode’s global w IE bit. Interrupts
-     * > for higher-privilege modes, y>x, are always globally enabled regardless
-     * > of the setting of the higher-privilege mode’s global y IE bit.
-     *
-     * But the document also say that:
-     *
-     * > If bit i in MIDELEG is set, however, interrupts are considered to be
-     * > globally enabled if the hart’s current privilege mode equals the
-     * > delegated privilege mode (S or U) and that mode’s interrupt enable bit
-     * > (SIE or UIE in mstatus) is set, or if the current privilege mode is
-     * > less than the delegated privilege mode.
-     *
-     * Does this mean that when bit i in MIDELEG is set and SIE is not set, the
-     * MACHINE level interrput should not be taken ? I should make sure I
-     * cosider the delegated priviledge mode by MIDELEG correctly */
-
-    if (cpu->mode.mode == MACHINE) {
-        if (!check_csr_bit(&cpu->csr, MSTATUS, MSTATUS_MIE)) {
-            cpu->irq.irq = NoInterrupt;
-            return false;
-        }
-    }
-
-    uint64_t pending = read_csr(&cpu->csr, MIE) & read_csr(&cpu->csr, MIP);
-
-    if (pending & MIP_MEIP) {
-        clear_csr_bits(&cpu->csr, MIP, MIP_MEIP);
-        cpu->irq.irq = MachineExternalInterrupt;
-        return true;
-    }
-    if (pending & MIP_MSIP) {
-        clear_csr_bits(&cpu->csr, MIP, MIP_MSIP);
-        cpu->irq.irq = MachineSoftwareInterrupt;
-        return true;
-    }
-    if (pending & MIP_MTIP) {
-        clear_csr_bits(&cpu->csr, MIP, MIP_MTIP);
-        cpu->irq.irq = MachineTimerInterrupt;
-        return true;
-    }
-
-    if (cpu->mode.mode == SUPERVISOR) {
-        if (!check_csr_bit(&cpu->csr, SSTATUS, SSTATUS_SIE)) {
-            cpu->irq.irq = NoInterrupt;
-            return false;
-        }
-    }
-
-    int irq = 0;
-    if (uart_is_interrupt(&cpu->bus.uart)) {
-        irq = UART0_IRQ;
-    } else if (virtio_is_interrupt(&cpu->bus.virtio_blk)) {
-        access_disk(cpu);
-        irq = VIRTIO_IRQ;
-    }
-
-    if (irq) {
-        // pending the external interrput bit
-        set_csr_bits(&cpu->csr, MIP, MIP_SEIP);
-    }
-
-    // update pending for supervisor mode
-    pending = read_csr(&cpu->csr, SIE) & read_csr(&cpu->csr, SIP);
-
-    if (pending & MIP_SEIP) {
-        /* perform an interrupt claim and atomically clear
-         * the corresponding pending bit */
-        write_bus(&cpu->bus, PLIC_CLAIM_1, 32, irq, &cpu->exc);
-        assert(cpu->exc.exception == NoException);
-
-        clear_csr_bits(&cpu->csr, MIP, MIP_SEIP);
-        cpu->irq.irq = SupervisorExternalInterrupt;
-        return true;
-    }
-    if (pending & MIP_SSIP) {
-        clear_csr_bits(&cpu->csr, MIP, MIP_SSIP);
-        cpu->irq.irq = SupervisorSoftwareInterrupt;
-        return true;
-    }
-    if (pending & MIP_STIP) {
-        clear_csr_bits(&cpu->csr, MIP, MIP_STIP);
-        cpu->irq.irq = SupervisorTimerInterrupt;
-        return true;
-    }
-
-    return false;
 }
 
 void dump_reg(riscv_cpu *cpu)

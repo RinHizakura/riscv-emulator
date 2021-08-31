@@ -90,3 +90,20 @@ write_clint_fail:
     exc->exception = StoreAMOAccessFault;
     return false;
 }
+
+void tick_clint(riscv_clint *clint, riscv_csr *csr)
+{
+    clint->mtime++;
+
+    if (clint->msip & 1)
+        set_csr_bits(csr, MIP, MIP_MSIP);
+
+    /* A timer interrupt is posted when the mtime register contains a value
+     * greater than or equal to the value in the mtimecmp register. The
+     * interrupt remains posted until it is cleared by writing the mtimecmp
+     * register. */
+
+    if ((clint->mtimecmp > 0) & (clint->mtime >= clint->mtimecmp)) {
+        set_csr_bits(csr, MIP, MIP_MTIP);
+    }
+}

@@ -27,5 +27,6 @@ bool write_bus(riscv_bus *bus,
                uint8_t size,
                uint64_t value,
                riscv_exception *exc);
+void tick_bus(riscv_bus *bus, riscv_csr *csr);
 void free_bus(riscv_bus *bus);
 #endif

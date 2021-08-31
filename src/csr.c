@@ -130,6 +130,11 @@ void write_csr(riscv_csr *csr, uint16_t addr, uint64_t value)
     }
 }
 
+void tick_csr(riscv_csr *csr)
+{
+    csr->list[TIME].value++;
+}
+
 void free_csr(riscv_csr *csr)
 {
     free(csr->list);

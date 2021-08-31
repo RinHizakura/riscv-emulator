@@ -13,6 +13,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#include "csr.h"
 #include "exception.h"
 #include "memmap.h"
 
@@ -35,5 +36,5 @@ bool write_clint(riscv_clint *clint,
                  uint8_t size,
                  uint64_t value,
                  riscv_exception *exc);
-
+void tick_clint(riscv_clint *clint, riscv_csr *csr);
 #endif

@@ -80,6 +80,11 @@ bool write_bus(riscv_bus *bus,
     return false;
 }
 
+void tick_bus(riscv_bus *bus, riscv_csr *csr)
+{
+    tick_clint(&bus->clint, csr);
+}
+
 void free_bus(riscv_bus *bus)
 {
     free_memory(&bus->memory);

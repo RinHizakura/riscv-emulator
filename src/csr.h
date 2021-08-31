@@ -64,6 +64,8 @@
 #define PMPADDR2 0x3b2
 #define PMPADDR3 0x3b3
 
+// Cycle counter for RDCYCLE instruction.
+#define CYCLE 0xc00
 /* FIXME:
  * 1. timer should be simulated for this register
  * 2. should we invalid write for this register? */
@@ -111,6 +113,10 @@
 // SATP fields
 #define SATP_PPN 0xfffffffffffUL
 
+// mask for csr delegable interrupt:
+// - https://github.com/qemu/qemu/blob/master/target/riscv/csr.c
+#define MIDELEG_WRITABLE (MIP_SSIP | MIP_STIP | MIP_SEIP)
+
 // mask for naive usage
 #define ALL_VALID 0xffffffffffffffffUL
 #define ALL_INVALID 0x0
@@ -119,36 +125,36 @@
 /* clang-format off */
 #define DECLARE_CSR_ENTRY(_name)                                        \
     riscv_csr_entry  _name [] = {                                       \
-         [SSTATUS] =   {SSTATUS_VISIBLE, SSTATUS_VISIBLE, 0},           \
-         [SEDELEG] =   {ALL_VALID,       ALL_VALID,       0},           \
-         [SIE]     =   {ALL_VALID,       ALL_VALID,       0},           \
-         [STVEC] =     {ALL_VALID,       ALL_VALID,       0},           \
-         [SCOUNTEREN]= {ALL_VALID,       ALL_VALID,       0},           \
-         [SSCRATCH]    {ALL_VALID,       ALL_VALID,       0},           \
-         [SEPC] =      {ALL_VALID,       ALL_VALID,       0},           \
-         [SCAUSE] =    {ALL_VALID,       ALL_VALID,       0},           \
-         [STVAL] =     {ALL_VALID,       ALL_VALID,       0},           \
-         [SIP] =       {ALL_VALID,       SIP_WRITABLE,    0},           \
-         [SATP] =      {ALL_VALID,       ALL_VALID,       0},           \
-         [MSTATUS]=    {ALL_VALID,       ALL_VALID,       0},           \
-         [MEDELEG]=    {ALL_VALID,       ALL_VALID,       0},           \
-         [MIDELEG] =   {ALL_VALID,       ALL_VALID,       0},           \
-         [MIE] =       {ALL_VALID,       ALL_VALID,       0},           \
-         [MTVEC] =     {ALL_VALID,       ALL_VALID,       0},           \
-         [MISA] =      {ALL_VALID,       ALL_VALID,       0},           \
-         [MCOUNTEREN]= {ALL_VALID,       ALL_VALID,       0},           \
-         [MSCRATCH]=   {ALL_VALID,       ALL_VALID,       0},           \
-         [MEPC] =      {ALL_VALID,       ALL_VALID,       0},           \
-         [MCAUSE] =    {ALL_VALID,       ALL_VALID,       0},           \
-         [MTVAL] =     {ALL_VALID,       ALL_VALID,       0},           \
-         [MIP] =       {ALL_VALID,       ALL_VALID,       0},           \
-         [MHARTID] =   {ALL_VALID,       ALL_INVALID,     0},           \
-         [PMPCFG0] =   {ALL_VALID,       ALL_VALID,       0},           \
-         [PMPADDR0] =  {ALL_VALID,       ALL_VALID,       0},           \
-         [PMPADDR1] =  {ALL_VALID,       ALL_VALID,       0},           \
-         [PMPADDR2] =  {ALL_VALID,       ALL_VALID,       0},           \
-         [PMPADDR3] =  {ALL_VALID,       ALL_VALID,       0},           \
-         [TIME] =      {ALL_VALID,       ALL_INVALID,     0},           \
+         [SSTATUS] =   {SSTATUS_VISIBLE, SSTATUS_VISIBLE,  0},           \
+         [SEDELEG] =   {ALL_VALID,       ALL_VALID,        0},           \
+         [SIE]     =   {ALL_VALID,       ALL_VALID,        0},           \
+         [STVEC] =     {ALL_VALID,       ALL_VALID,        0},           \
+         [SCOUNTEREN]= {ALL_VALID,       ALL_VALID,        0},           \
+         [SSCRATCH]    {ALL_VALID,       ALL_VALID,        0},           \
+         [SEPC] =      {ALL_VALID,       ALL_VALID,        0},           \
+         [SCAUSE] =    {ALL_VALID,       ALL_VALID,        0},           \
+         [STVAL] =     {ALL_VALID,       ALL_VALID,        0},           \
+         [SIP] =       {ALL_VALID,       SIP_WRITABLE,     0},           \
+         [SATP] =      {ALL_VALID,       ALL_VALID,        0},           \
+         [MSTATUS]=    {ALL_VALID,       ALL_VALID,        0},           \
+         [MEDELEG]=    {ALL_VALID,       ALL_VALID,        0},           \
+         [MIDELEG] =   {ALL_VALID,       MIDELEG_WRITABLE, 0},           \
+         [MIE] =       {ALL_VALID,       ALL_VALID,        0},           \
+         [MTVEC] =     {ALL_VALID,       ALL_VALID,        0},           \
+         [MISA] =      {ALL_VALID,       ALL_VALID,        0},           \
+         [MCOUNTEREN]= {ALL_VALID,       ALL_VALID,        0},           \
+         [MSCRATCH]=   {ALL_VALID,       ALL_VALID,        0},           \
+         [MEPC] =      {ALL_VALID,       ALL_VALID,        0},           \
+         [MCAUSE] =    {ALL_VALID,       ALL_VALID,        0},           \
+         [MTVAL] =     {ALL_VALID,       ALL_VALID,        0},           \
+         [MIP] =       {ALL_VALID,       ALL_VALID,        0},           \
+         [MHARTID] =   {ALL_VALID,       ALL_INVALID,      0},           \
+         [PMPCFG0] =   {ALL_VALID,       ALL_VALID,        0},           \
+         [PMPADDR0] =  {ALL_VALID,       ALL_VALID,        0},           \
+         [PMPADDR1] =  {ALL_VALID,       ALL_VALID,        0},           \
+         [PMPADDR2] =  {ALL_VALID,       ALL_VALID,        0},           \
+         [PMPADDR3] =  {ALL_VALID,       ALL_VALID,        0},           \
+         [TIME] =      {ALL_VALID,       ALL_INVALID,      0},           \
     }
 /* clang-format on */
 
@@ -177,6 +183,7 @@ typedef struct {
 bool init_csr(riscv_csr *csr);
 uint64_t read_csr(riscv_csr *csr, uint16_t addr);
 void write_csr(riscv_csr *csr, uint16_t addr, uint64_t value);
+void tick_csr(riscv_csr *csr);
 void free_csr(riscv_csr *csr);
 
 #endif
