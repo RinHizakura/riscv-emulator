@@ -1693,12 +1693,14 @@ static void access_disk(riscv_cpu *cpu)
     uint64_t avail = virtio_blk->vq[0].avail;
     uint64_t used = virtio_blk->vq[0].used;
 
+    uint64_t queue_size = virtio_blk->vq[0].num;
+
     /* (for avail) idx field indicates where the driver would put the next
      * descriptor entry in the ring (modulo the queue size). This starts at 0,
      * and increases. */
     int idx = read_bus(&cpu->bus, avail + 2, 16, &cpu->exc);
-    int desc_offset = read_bus(&cpu->bus, avail + 4 + idx / VIRTQUEUE_MAX_SIZE,
-                               16, &cpu->exc);
+    int desc_offset =
+        read_bus(&cpu->bus, avail + 4 + (idx % queue_size), 16, &cpu->exc);
 
     /* MUST use a single 8-type descriptor containing type, reserved and sector,
      * followed by descriptors for data, then finally a separate 1-byte
@@ -1751,8 +1753,10 @@ static void access_disk(riscv_cpu *cpu)
      * descriptor entry in the ring (modulo the queue size). This starts at 0,
      * and increases */
 
-    idx = read_bus(&cpu->bus, used + 2, 16, &cpu->exc);
-    write_bus(&cpu->bus, used + 2, 16, idx + 1, &cpu->exc);
+    write_bus(&cpu->bus, used + 4 + ((virtio_blk->id % queue_size) * 8), 16,
+              desc_offset, &cpu->exc);
+    virtio_blk->id++;
+    write_bus(&cpu->bus, used + 2, 16, virtio_blk->id, &cpu->exc);
 }
 
 static uint64_t addr_translate(riscv_cpu *cpu, uint64_t addr, Access access)

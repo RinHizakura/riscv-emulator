@@ -51,14 +51,17 @@ typedef struct {
 } riscv_virtq;
 
 typedef struct {
+    uint64_t id;
+
     riscv_virtq vq[1];
     uint16_t queue_sel;
 
-    uint64_t host_features;
-    uint64_t guest_features;
+    uint32_t host_features[2];
+    uint32_t guest_features[2];
     uint32_t host_features_sel;
     uint32_t guest_features_sel;
     uint32_t guest_page_shift;
+    uint32_t queue_pfn;
 
     uint32_t queue_notify;
     uint8_t isr;

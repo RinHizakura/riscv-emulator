@@ -8,18 +8,31 @@
 
 #define ALIGN_UP(n, m) ((((n) + (m) -1) / (m)) * (m))
 
-
 static void reset_virtio_blk(riscv_virtio_blk *virtio_blk)
 {
     /* FIXME: Can't find the content of reset sequence in document...... */
+    virtio_blk->id = 0;
     virtio_blk->queue_sel = 0;
-    virtio_blk->guest_features = 0;
+    virtio_blk->guest_features[0] = 0;
+    virtio_blk->guest_features[1] = 0;
     virtio_blk->status = 0;
     virtio_blk->isr = 0;
 
     virtio_blk->vq[0].desc = 0;
     virtio_blk->vq[0].avail = 0;
     virtio_blk->vq[0].used = 0;
+}
+
+static virtqueue_update(riscv_virtio_blk *virtio_blk)
+{
+    virtio_blk->vq[0].desc = virtio_blk->queue_pfn
+                             << virtio_blk->guest_page_shift;
+    virtio_blk->vq[0].avail = virtio_blk->vq[0].desc +
+                              virtio_blk->vq[0].num * sizeof(riscv_virtq_desc);
+    virtio_blk->vq[0].used =
+        ALIGN_UP(virtio_blk->vq[0].avail +
+                     offsetof(riscv_virtq_avail, ring[virtio_blk->vq[0].num]),
+                 virtio_blk->vq[0].align);
 }
 
 bool init_virtio_blk(riscv_virtio_blk *virtio_blk, const char *rfs_name)
@@ -29,6 +42,9 @@ bool init_virtio_blk(riscv_virtio_blk *virtio_blk, const char *rfs_name)
     virtio_blk->queue_notify = 0xFFFFFFFF;
     // default the align of virtqueue to 4096
     virtio_blk->vq[0].align = VIRTQUEUE_ALIGN;
+
+    virtio_blk->config[1] = 0x20;
+    virtio_blk->config[2] = 0x03;
 
     if (rfs_name[0] == '\0') {
         virtio_blk->rfsimg = NULL;
@@ -87,12 +103,12 @@ uint64_t read_virtio_blk(riscv_virtio_blk *virtio_blk,
     case VIRTIO_MMIO_VENDOR_ID:
         return VIRT_VENDOR;
     case VIRTIO_MMIO_DEVICE_FEATURES:
-        return virtio_blk->host_features_sel ? 0 : virtio_blk->host_features;
+        return virtio_blk->host_features[virtio_blk->host_features_sel];
     case VIRTIO_MMIO_QUEUE_NUM_MAX:
         return VIRTQUEUE_MAX_SIZE;
     case VIRTIO_MMIO_QUEUE_PFN:
         assert(virtio_blk->queue_sel == 0);
-        return virtio_blk->vq[0].desc >> virtio_blk->guest_page_shift;
+        return virtio_blk->queue_pfn;
     case VIRTIO_MMIO_INTERRUPT_STATUS:
         return virtio_blk->isr;
     case VIRTIO_MMIO_STATUS:
@@ -120,7 +136,7 @@ bool write_virtio_blk(riscv_virtio_blk *virtio_blk,
         int index = offset - VIRTIO_MMIO_CONFIG;
         if (index >= 8)
             goto write_virtio_fail;
-        virtio_blk->config[index] = value & 0xFF;
+        virtio_blk->config[index] = (value >> (index * 8)) & 0xFF;
         return true;
     }
 
@@ -135,12 +151,7 @@ bool write_virtio_blk(riscv_virtio_blk *virtio_blk,
         virtio_blk->host_features_sel = value ? 1 : 0;
         break;
     case VIRTIO_MMIO_DRIVER_FEATURES:
-        if (virtio_blk->guest_features_sel)
-            LOG_ERROR(
-                "Attempt to write guest features with guest_features_sel > 0 "
-                "in legacy mode\n");
-        else
-            virtio_blk->guest_features = value;
+        virtio_blk->guest_features[virtio_blk->guest_features_sel] = value;
         break;
     case VIRTIO_MMIO_DRIVER_FEATURES_SEL:
         virtio_blk->guest_features_sel = value ? 1 : 0;
@@ -165,14 +176,8 @@ bool write_virtio_blk(riscv_virtio_blk *virtio_blk,
         break;
     case VIRTIO_MMIO_QUEUE_PFN:
         assert(virtio_blk->queue_sel == 0);
-        virtio_blk->vq[0].desc = value << virtio_blk->guest_page_shift;
-        virtio_blk->vq[0].avail =
-            virtio_blk->vq[0].desc +
-            virtio_blk->vq[0].num * sizeof(riscv_virtq_desc);
-        virtio_blk->vq[0].used = ALIGN_UP(
-            virtio_blk->vq[0].avail +
-                offsetof(riscv_virtq_avail, ring[virtio_blk->vq[0].num]),
-            virtio_blk->vq[0].align);
+        virtio_blk->queue_pfn = value;
+        virtqueue_update(virtio_blk);
         break;
     case VIRTIO_MMIO_QUEUE_NOTIFY:
         assert(value == 0);
@@ -189,6 +194,9 @@ bool write_virtio_blk(riscv_virtio_blk *virtio_blk,
         // Writing zero (0x0) to this register triggers a device reset.
         if (virtio_blk->status == 0)
             reset_virtio_blk(virtio_blk);
+
+        if (virtio_blk->status & 0x4)
+            virtqueue_update(virtio_blk);
         /* FIXME: we may have to do something for the indicating driver
          * progress? */
         break;

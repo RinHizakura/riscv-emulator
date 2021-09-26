@@ -65,6 +65,9 @@ xv6: $(BIN)
 	$(BIN) --binary xv6/kernel.img --rfsimg xv6/fs.img
 linux: $(BIN)
 	$(BIN) --binary linux/br-5-4.disk --rfsimg linux/rootfs.ext4
+linux-01: $(BIN)
+	$(BIN) --binary  linux-build/opensbi/build/platform/generic/firmware/fw_payload.elf \
+               --rfsimg linux-build/busybox/rootfs.img
 
 # variables for compliance
 COMPLIANCE_DIR ?= ./riscv-arch-test

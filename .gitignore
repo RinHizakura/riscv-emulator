@@ -2,5 +2,7 @@
 *.obj
 *.s
 *.dtb
+*.dts
 build
 linux
+linux-build
