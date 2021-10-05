@@ -767,11 +767,6 @@ static void instr_lrw(riscv_cpu *cpu)
         return;
     }
     cpu->xreg[cpu->instr.rd] = (int32_t)(tmp & 0xffffffff);
-
-    if (cpu->reservation != 0)
-        LOG_ERROR(
-            "The bad reservation set implementation could cause error!\n");
-
     cpu->reservation = addr;
 }
 
@@ -787,8 +782,8 @@ static void instr_scw(riscv_cpu *cpu)
         cpu->xreg[cpu->instr.rd] = 1;
     }
 
-    // invalidate the reservation by 0
-    cpu->reservation = 0;
+    // invalidate the reservation
+    cpu->reservation = (uint64_t) -1;
 }
 
 static void instr_amoxorw(riscv_cpu *cpu)
@@ -868,11 +863,6 @@ static void instr_lrd(riscv_cpu *cpu)
         return;
     }
     cpu->xreg[cpu->instr.rd] = tmp;
-
-    if (cpu->reservation != 0)
-        LOG_ERROR(
-            "The bad reservation set implementation could cause error!\n");
-
     cpu->reservation = addr;
 }
 
@@ -889,8 +879,8 @@ static void instr_scd(riscv_cpu *cpu)
         cpu->xreg[cpu->instr.rd] = 1;
     }
 
-    // invalidate the reservation by 0
-    cpu->reservation = 0;
+    // invalidate the reservation
+    cpu->reservation = (uint64_t) -1;
 }
 
 
@@ -2149,10 +2139,6 @@ static bool write_cpu(riscv_cpu *cpu,
                       uint8_t size,
                       uint64_t value)
 {
-    // invalidate the reservation by 0
-    if (addr == cpu->reservation)
-        cpu->reservation = 0;
-
     addr = addr_translate(cpu, addr, Access_Store);
     if (cpu->exc.exception != NoException)
         return false;
