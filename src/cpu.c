@@ -2099,6 +2099,7 @@ static bool check_pending_irq(riscv_cpu *cpu)
 
         if (irq) {
             // pending the external interrput bit
+            update_pending(&cpu->bus.plic, irq);
             set_csr_bits(&cpu->csr, MIP, MIP_SEIP);
         }
     }
@@ -2110,11 +2111,6 @@ static bool check_pending_irq(riscv_cpu *cpu)
     if (pending & MIP_SEIP) {
         if (irq_enable(cpu, SupervisorExternalInterrupt)) {
             cpu->irq.irq = SupervisorExternalInterrupt;
-
-            /* perform an interrupt claim and atomically clear
-             * the corresponding pending bit */
-            write_bus(&cpu->bus, PLIC_CLAIM_1, 32, irq, &cpu->exc);
-            assert(cpu->exc.exception == NoException);
             clear_csr_bits(&cpu->csr, MIP, MIP_SEIP);
             return true;
         }

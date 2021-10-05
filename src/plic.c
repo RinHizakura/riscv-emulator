@@ -80,13 +80,17 @@ bool write_plic(riscv_plic *plic,
             plic->threshold[0] = lo;
             break;
         case PLIC_CLAIM_0:
-            plic->claim[0] = lo;
+            plic->pending[value >> 5] =
+                plic->pending[value >> 5] & ~(1 << (value & 0x1f));
+            plic->claim[0] = 0;
             break;
         case PLIC_THRESHOLD_1:
             plic->threshold[1] = lo;
             break;
         case PLIC_CLAIM_1:
-            plic->claim[1] = lo;
+            plic->pending[value >> 5] =
+                plic->pending[value >> 5] & ~(1 << (value & 0x1f));
+            plic->claim[1] = 0;
             break;
         default:
             goto write_plic_fail;
@@ -98,4 +102,14 @@ write_plic_fail:
     LOG_ERROR("wrtie plic addr %lx for size %d failed\n", addr, size);
     exc->exception = StoreAMOAccessFault;
     return false;
+}
+
+void update_pending(riscv_plic *plic, uint32_t irq)
+{
+    /* FIXME: check the enable bit of plic register first */
+    uint64_t idx = irq >> 5;
+    plic->pending[idx] = plic->pending[idx] | (1 << (irq & 0x1f));
+    /* FIXME: How do we know we should perform an interrupt claim on
+     * context 1 (S-mode)? */
+    plic->claim[1] = irq;
 }

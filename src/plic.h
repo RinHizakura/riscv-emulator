@@ -55,4 +55,5 @@ bool write_plic(riscv_plic *plic,
                 uint64_t value,
                 riscv_exception *exc);
 
+void update_pending(riscv_plic *plic, uint32_t irq);
 #endif

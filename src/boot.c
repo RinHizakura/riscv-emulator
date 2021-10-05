@@ -83,7 +83,7 @@ static bool make_dtb()
         "\n"
         "       PLIC: plic@c000000 {\n"
         "          compatible = \"riscv,plic0\";\n"
-        "          interrupts-extended = <&CPU0_intc 0x09 &CPU0_intc 0x0b>;\n"
+        "          interrupts-extended = <&CPU0_intc 0x0b &CPU0_intc 0x09>;\n"
         "          reg = <0x00 0xc000000 0x00 0x4000000>;\n"
         "          riscv,ndev = <0x35>;\n"
         "          interrupt-controller;\n"

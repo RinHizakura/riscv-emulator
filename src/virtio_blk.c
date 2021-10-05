@@ -23,7 +23,7 @@ static void reset_virtio_blk(riscv_virtio_blk *virtio_blk)
     virtio_blk->vq[0].used = 0;
 }
 
-static virtqueue_update(riscv_virtio_blk *virtio_blk)
+static void virtqueue_update(riscv_virtio_blk *virtio_blk)
 {
     virtio_blk->vq[0].desc = virtio_blk->queue_pfn
                              << virtio_blk->guest_page_shift;

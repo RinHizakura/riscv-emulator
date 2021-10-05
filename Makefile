@@ -69,6 +69,11 @@ linux-01: $(BIN)
 	$(BIN) --binary  linux-build/opensbi/build/platform/generic/firmware/fw_payload.elf \
                --rfsimg linux-build/busybox/rootfs.img
 
+linux-build:
+	make -C linux-build/linux-5.4 ARCH=riscv CROSS_COMPILE=riscv64-unknown-linux-gnu-
+	make -C linux-build/opensbi PLATFORM=generic CROSS_COMPILE=riscv64-unknown-linux-gnu- \
+                PLATFORM_RISCV_XLEN=64 FW_PAYLOAD_PATH=../linux-5.4/arch/riscv/boot/Image
+
 # variables for compliance
 COMPLIANCE_DIR ?= ./riscv-arch-test
 export TARGETDIR ?= $(shell pwd)/riscv-target
