@@ -1223,7 +1223,7 @@ static void instr_cebreak_cjalr_cadd(riscv_cpu *cpu)
     if (cpu->instr.rs2 == 0) {
         // C.EBREAK
         if (cpu->instr.rs1 == 0) {
-            /* Because 'exception_take_trap' always assume the instruction
+            /* Because 'handle_exception' always assume the instruction
              * should be 32 bits, but C.EBREAK is a 16 bits instruction. We have
              * to trickly add 2 to correct this. */
             cpu->pc += 2;
@@ -1858,7 +1858,7 @@ translate_fail:
     return -1;
 }
 
-static Trap exception_take_trap(riscv_cpu *cpu)
+static Trap handle_exception(riscv_cpu *cpu)
 {
     uint64_t exc_pc = cpu->pc;
     switch (cpu->exc.exception) {
@@ -1963,15 +1963,15 @@ static Trap exception_take_trap(riscv_cpu *cpu)
     }
 }
 
-static void interrput_take_trap(riscv_cpu *cpu)
+static void interrput_take_trap(riscv_cpu *cpu, riscv_mode new_mode)
 {
     uint64_t irq_pc = cpu->pc;
     riscv_mode prev_mode = cpu->mode;
     uint8_t cause = cpu->irq.irq;
-    uint64_t mideleg = read_csr(&cpu->csr, MIDELEG);
 
-    if ((cpu->mode.mode <= SUPERVISOR) && (((mideleg >> cause) & 1) != 0)) {
-        cpu->mode.mode = SUPERVISOR;
+    cpu->mode = new_mode;
+
+    if (cpu->mode.mode == SUPERVISOR) {
         uint64_t stvec = read_csr(&cpu->csr, STVEC);
         if (stvec & 0x1)
             cpu->pc = (stvec & ~0x3) + 4 * cause;
@@ -1994,9 +1994,7 @@ static void interrput_take_trap(riscv_cpu *cpu)
         sstatus = read_csr(&cpu->csr, SSTATUS);
         write_csr(&cpu->csr, SSTATUS,
                   (sstatus & ~SSTATUS_SPP) | prev_mode.mode << 8);
-    } else {
-        cpu->mode.mode = MACHINE;
-
+    } else if (cpu->mode.mode == MACHINE) {
         uint64_t mtvec = read_csr(&cpu->csr, MTVEC);
         if (mtvec & 0x1)
             cpu->pc = (mtvec & ~0x3) + 4 * cause;
@@ -2015,6 +2013,9 @@ static void interrput_take_trap(riscv_cpu *cpu)
         mstatus = read_csr(&cpu->csr, MSTATUS);
         write_csr(&cpu->csr, MSTATUS,
                   (mstatus & ~MSTATUS_MPP) | prev_mode.mode << 11);
+    } else {
+        LOG_ERROR("Taking trap in user mode is not supported!\n");
+        exit(1);
     }
 }
 
@@ -2024,10 +2025,15 @@ static bool irq_enable(riscv_cpu *cpu, uint8_t cause)
     riscv_mode new_mode;
 
     // TODO: support handling for user mode
-    if ((cpu->mode.mode <= SUPERVISOR) && (((mideleg >> cause) & 1) != 0))
-        new_mode.mode = SUPERVISOR;
-    else
+    if (((mideleg >> cause) & 1) == 0)
         new_mode.mode = MACHINE;
+    else {
+        uint64_t sideleg = read_csr(&cpu->csr, SIDELEG);
+        if (((sideleg >> cause) & 1) == 0)
+            new_mode.mode = SUPERVISOR;
+        else
+            new_mode.mode = USER;
+    }
 
     if (new_mode.mode < cpu->mode.mode)
         return false;
@@ -2039,13 +2045,18 @@ static bool irq_enable(riscv_cpu *cpu, uint8_t cause)
             if (!check_csr_bit(&cpu->csr, SSTATUS, SSTATUS_SIE)) {
                 return false;
             }
+        } else {
+            LOG_ERROR("Handling interrupt in USER mode is not supported!\n");
+            exit(1);
         }
     }
 
+    cpu->irq.irq = cause;
+    interrput_take_trap(cpu, new_mode);
     return true;
 }
 
-static bool check_pending_irq(riscv_cpu *cpu)
+static void handle_interrupt(riscv_cpu *cpu)
 {
     /* FIXME:
      * 1. Priority of interrupt should be considered
@@ -2059,39 +2070,34 @@ static bool check_pending_irq(riscv_cpu *cpu)
         if (irq_enable(cpu, MachineExternalInterrupt)) {
             cpu->irq.irq = MachineExternalInterrupt;
             clear_csr_bits(&cpu->csr, MIP, MIP_MEIP);
-            return true;
         }
     }
     if (pending & MIP_MSIP) {
         if (irq_enable(cpu, MachineSoftwareInterrupt)) {
             cpu->irq.irq = MachineSoftwareInterrupt;
             clear_csr_bits(&cpu->csr, MIP, MIP_MSIP);
-            return true;
         }
     }
     if (pending & MIP_MTIP) {
         if (irq_enable(cpu, MachineTimerInterrupt)) {
             cpu->irq.irq = MachineTimerInterrupt;
             clear_csr_bits(&cpu->csr, MIP, MIP_MTIP);
-            return true;
         }
     }
 
     /* FIXME: we should check the device interrupt from else where */
     int irq = 0;
-    if (irq_enable(cpu, SupervisorExternalInterrupt)) {
-        if (uart_is_interrupt(&cpu->bus.uart)) {
-            irq = UART0_IRQ;
-        } else if (virtio_is_interrupt(&cpu->bus.virtio_blk)) {
-            access_disk(cpu);
-            irq = VIRTIO_IRQ;
-        }
+    if (uart_is_interrupt(&cpu->bus.uart)) {
+        irq = UART0_IRQ;
+    } else if (virtio_is_interrupt(&cpu->bus.virtio_blk)) {
+        access_disk(cpu);
+        irq = VIRTIO_IRQ;
+    }
 
-        if (irq) {
-            // pending the external interrput bit
-            update_pending(&cpu->bus.plic, irq);
-            set_csr_bits(&cpu->csr, MIP, MIP_SEIP);
-        }
+    if (irq) {
+        // pending the external interrput bit
+        update_pending(&cpu->bus.plic, irq);
+        set_csr_bits(&cpu->csr, MIP, MIP_SEIP);
     }
 
     /* FIXME: do we need to update this since SIP and SIE are subset of the
@@ -2102,26 +2108,22 @@ static bool check_pending_irq(riscv_cpu *cpu)
         if (irq_enable(cpu, SupervisorExternalInterrupt)) {
             cpu->irq.irq = SupervisorExternalInterrupt;
             clear_csr_bits(&cpu->csr, MIP, MIP_SEIP);
-            return true;
         }
     }
     if (pending & MIP_SSIP) {
         if (irq_enable(cpu, SupervisorSoftwareInterrupt)) {
             cpu->irq.irq = SupervisorSoftwareInterrupt;
             clear_csr_bits(&cpu->csr, MIP, MIP_SSIP);
-            return true;
         }
     }
     if (pending & MIP_STIP) {
         if (irq_enable(cpu, SupervisorTimerInterrupt)) {
             cpu->irq.irq = SupervisorTimerInterrupt;
             clear_csr_bits(&cpu->csr, MIP, MIP_STIP);
-            return true;
         }
     }
 
     cpu->irq.irq = NoInterrupt;
-    return false;
 }
 
 /* these two functions are the indirect layer of read / write bus from cpu,
@@ -2179,14 +2181,11 @@ bool tick(riscv_cpu *cpu)
     // Increment the value for mtime in Clint
     tick_bus(&cpu->bus, &cpu->csr);
 
-    if (check_pending_irq(cpu)) {
-        // if any interrupt is pending
-        interrput_take_trap(cpu);
+    handle_interrupt(cpu);
 #ifdef ICACHE_CONFIG
-        // flush cache when jumping in trap handler
-        invalid_icache(&cpu->icache);
+    // flush cache when jumping in trap handler
+    invalid_icache(&cpu->icache);
 #endif
-    }
 
     bool ret = true;
     bool is_cache = false;
@@ -2208,9 +2207,12 @@ exec_stage:
 get_trap:
     if (!ret) {
         uint64_t next_pc = cpu->pc;
-        Trap trap = exception_take_trap(cpu);
+        Trap trap = handle_exception(cpu);
         if (trap == Trap_Fatal) {
-            LOG_ERROR("Trap %x happen before pc %lx\n", trap, next_pc);
+            dump_reg(cpu);
+            dump_csr(cpu);
+            LOG_ERROR("CPU mode: %d, exception %x happen before pc %lx\n",
+                      cpu->mode.mode, cpu->exc.exception, next_pc);
             return false;
         }
         // reset exception flag if recovery from trap
@@ -2334,7 +2336,7 @@ void dump_reg(riscv_cpu *cpu)
 
     printf("pc = 0x%lx\n", cpu->pc);
     for (size_t i = 0; i < 32; i++) {
-        printf("x%-2ld(%-3s) = 0x%-8lx, ", i, abi_name[i], cpu->xreg[i]);
+        printf("x%-2ld(%-3s) = 0x%-16lx, ", i, abi_name[i], cpu->xreg[i]);
         if (!((i + 1) & 3))
             printf("\n");
     }
@@ -2343,15 +2345,15 @@ void dump_reg(riscv_cpu *cpu)
 
 void dump_csr(riscv_cpu *cpu)
 {
-    printf("%-10s = 0x%-8lx, ", "MSTATUS", read_csr(&cpu->csr, MSTATUS));
-    printf("%-10s = 0x%-8lx, ", "MTVEC", read_csr(&cpu->csr, MTVEC));
-    printf("%-10s = 0x%-8lx, ", "MEPC", read_csr(&cpu->csr, MEPC));
-    printf("%-10s = 0x%-8lx\n", "MCAUSE", read_csr(&cpu->csr, MCAUSE));
+    printf("%-10s = 0x%-16lx, ", "MSTATUS", read_csr(&cpu->csr, MSTATUS));
+    printf("%-10s = 0x%-16lx, ", "MTVEC", read_csr(&cpu->csr, MTVEC));
+    printf("%-10s = 0x%-16lx, ", "MEPC", read_csr(&cpu->csr, MEPC));
+    printf("%-10s = 0x%-16lx\n", "MCAUSE", read_csr(&cpu->csr, MCAUSE));
 
-    printf("%-10s = 0x%-8lx, ", "SSTATUS", read_csr(&cpu->csr, SSTATUS));
-    printf("%-10s = 0x%-8lx, ", "STVEC", read_csr(&cpu->csr, STVEC));
-    printf("%-10s = 0x%-8lx, ", "SEPC", read_csr(&cpu->csr, SEPC));
-    printf("%-10s = 0x%-8lx\n", "SCAUSE", read_csr(&cpu->csr, SCAUSE));
+    printf("%-10s = 0x%-16lx, ", "SSTATUS", read_csr(&cpu->csr, SSTATUS));
+    printf("%-10s = 0x%-16lx, ", "STVEC", read_csr(&cpu->csr, STVEC));
+    printf("%-10s = 0x%-16lx, ", "SEPC", read_csr(&cpu->csr, SEPC));
+    printf("%-10s = 0x%-16lx\n", "SCAUSE", read_csr(&cpu->csr, SCAUSE));
 }
 
 void free_cpu(riscv_cpu *cpu)
