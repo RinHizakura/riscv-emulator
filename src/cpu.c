@@ -1764,12 +1764,15 @@ translate_fail:
     switch (access) {
     case Access_Instr:
         cpu->exc.exception = InstructionPageFault;
+        cpu->exc.value = addr;
         break;
     case Access_Load:
         cpu->exc.exception = LoadPageFault;
+        cpu->exc.value = addr;
         break;
     case Access_Store:
         cpu->exc.exception = StoreAMOPageFault;
+        cpu->exc.value = addr;
         break;
     }
     return -1;
@@ -1821,10 +1824,8 @@ static Trap handle_exception(riscv_cpu *cpu)
         /* When a trap is taken into S-mode, scause is written with a code
          * indicating the event that caused the trap. */
         write_csr(&cpu->csr, SCAUSE, cause);
-
-        /* FIXME: write stval with exception-specific information to assist
-         * software in handling the trap.*/
-        write_csr(&cpu->csr, STVAL, 0);
+        /* FIXME: only some case of exception set this value correctly */
+        write_csr(&cpu->csr, STVAL, cpu->exc.value);
 
         /* When a trap is taken into supervisor mode, SPIE is set to SIE */
         uint64_t sstatus = read_csr(&cpu->csr, SSTATUS);
@@ -1843,9 +1844,8 @@ static Trap handle_exception(riscv_cpu *cpu)
         cpu->pc = read_csr(&cpu->csr, MTVEC) & ~0x3;
         write_csr(&cpu->csr, MEPC, exc_pc & ~0x1);
         write_csr(&cpu->csr, MCAUSE, cause);
-        /* FIXME: write mtval with exception-specific information to assist
-         * software in handling the trap.*/
-        write_csr(&cpu->csr, MTVAL, 0);
+        /* FIXME: only some case of exception set this value correctly */
+        write_csr(&cpu->csr, MTVAL, cpu->exc.value);
         uint64_t mstatus = read_csr(&cpu->csr, MSTATUS);
         write_csr(&cpu->csr, MSTATUS,
                   (mstatus & ~MSTATUS_MPIE) | ((mstatus & MSTATUS_MIE) << 4));
@@ -1869,7 +1869,6 @@ static Trap handle_exception(riscv_cpu *cpu)
         return Trap_Requested;
     case LoadAddressMisaligned:
     case LoadAccessFault:
-        return Trap_Contained;
     case StoreAMOAddressMisaligned:
     case StoreAMOAccessFault:
         return Trap_Fatal;

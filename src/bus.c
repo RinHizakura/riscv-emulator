@@ -50,6 +50,7 @@ uint64_t read_bus(riscv_bus *bus,
 
     LOG_ERROR("Invalid read memory address 0x%lx\n", addr);
     exc->exception = LoadAccessFault;
+    exc->value = addr;
     return -1;
 }
 
@@ -77,6 +78,7 @@ bool write_bus(riscv_bus *bus,
 
     LOG_ERROR("Invalid write memory address 0x%ld\n", addr);
     exc->exception = StoreAMOAccessFault;
+    exc->value = addr;
     return false;
 }
 

@@ -1,6 +1,8 @@
 #ifndef RISCV_EXC
 #define RISCV_EXC
 
+#include <stdint.h>
+
 /* the term 'trap' refer to the transfer of control to a trap handler caused by
  * either an exception or an interrupt */
 typedef enum trap Trap;
@@ -41,6 +43,7 @@ typedef struct {
         // extra number to represent no exception for error checking
         NoException = 99,
     } exception;
+    uint64_t value;
 } riscv_exception;
 
 #endif
