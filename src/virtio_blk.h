@@ -64,6 +64,7 @@ typedef struct {
     uint32_t guest_features_sel;
     uint32_t guest_page_shift;
     uint32_t queue_pfn;
+    uint32_t queue_notify;
     uint8_t isr;
     uint8_t status;
     uint8_t config[8];

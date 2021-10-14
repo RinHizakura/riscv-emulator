@@ -127,6 +127,8 @@ static void access_disk(riscv_virtio_blk *virtio_blk)
 bool init_virtio_blk(riscv_virtio_blk *virtio_blk, const char *rfs_name)
 {
     memset(virtio_blk, 0, sizeof(riscv_virtio_blk));
+    // notify is set to -1 for no event happen
+    virtio_blk->queue_notify = 0xFFFFFFFF;
     // default the align of virtqueue to 4096
     virtio_blk->vq[0].align = VIRTQUEUE_ALIGN;
 
@@ -268,6 +270,7 @@ bool write_virtio_blk(riscv_virtio_blk *virtio_blk,
         break;
     case VIRTIO_MMIO_QUEUE_NOTIFY:
         assert(value == 0);
+        virtio_blk->queue_notify = value;
         virtio_blk->notify_clock = virtio_blk->clock;
         break;
     case VIRTIO_MMIO_INTERRUPT_ACK:
@@ -306,13 +309,13 @@ bool virtio_is_interrupt(riscv_virtio_blk *virtio_blk)
 
 void tick_virtio_blk(riscv_virtio_blk *virtio_blk)
 {
-    uint64_t clock = virtio_blk->notify_clock;
-    if (clock > 0 && (virtio_blk->clock == clock + DISK_DELAY)) {
+    if (virtio_blk->queue_notify != 0xFFFFFFFF &&
+        virtio_blk->clock == virtio_blk->notify_clock + DISK_DELAY) {
         /* the interrupt was asserted because the device has used a buffer
          * in at least one of the active virtual queues. */
         virtio_blk->isr |= 0x1;
         access_disk(virtio_blk);
-        virtio_blk->notify_clock = 0;
+        virtio_blk->queue_notify = 0xFFFFFFFF;
     }
     virtio_blk->clock++;
 }
