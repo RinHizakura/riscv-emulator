@@ -83,6 +83,9 @@ bool write_bus(riscv_bus *bus,
 void tick_bus(riscv_bus *bus, riscv_csr *csr)
 {
     tick_clint(&bus->clint, csr);
+    tick_plic(&bus->plic, csr, uart_is_interrupt(&bus->uart),
+              virtio_is_interrupt(&bus->virtio_blk));
+    tick_virtio_blk(&bus->virtio_blk);
 }
 
 void free_bus(riscv_bus *bus)

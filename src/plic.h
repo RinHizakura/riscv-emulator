@@ -13,6 +13,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#include "csr.h"
 #include "exception.h"
 #include "memmap.h"
 
@@ -42,6 +43,8 @@ typedef struct {
     uint32_t enable[32 * 2];
     uint32_t threshold[2];
     uint32_t claim[2];
+
+    bool update_irq;
 } riscv_plic;
 
 uint64_t read_plic(riscv_plic *plic,
@@ -54,6 +57,8 @@ bool write_plic(riscv_plic *plic,
                 uint8_t size,
                 uint64_t value,
                 riscv_exception *exc);
-
-void update_pending(riscv_plic *plic, uint32_t irq);
+void tick_plic(riscv_plic *plic,
+               riscv_csr *csr,
+               bool is_uart_irq,
+               bool is_virtio_irq);
 #endif

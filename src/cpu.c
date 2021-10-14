@@ -1658,97 +1658,6 @@ static bool __decode(riscv_cpu *cpu, riscv_instr_desc *instr_desc)
     return true;
 }
 
-static inline riscv_virtq_desc load_desc(riscv_cpu *cpu, uint64_t addr)
-{
-    uint64_t desc_addr = read_bus(&cpu->bus, addr, 64, &cpu->exc);
-    uint64_t tmp = read_bus(&cpu->bus, addr + 8, 64, &cpu->exc);
-    return (riscv_virtq_desc){.addr = desc_addr,
-                              .len = tmp & 0xffffffff,
-                              .flags = (tmp >> 32) & 0xffff,
-                              .next = (tmp >> 48) & 0xffff};
-}
-
-// FIXME: error of read / write bus should be handled
-static void access_disk(riscv_cpu *cpu)
-{
-    riscv_virtio_blk *virtio_blk = &cpu->bus.virtio_blk;
-
-    assert(virtio_blk->queue_sel == 0);
-
-    /* the interrupt was asserted because the device has used a buffer
-     * in at least one of the active virtual queues. */
-    virtio_blk->isr |= 0x1;
-
-    uint64_t desc = virtio_blk->vq[0].desc;
-    uint64_t avail = virtio_blk->vq[0].avail;
-    uint64_t used = virtio_blk->vq[0].used;
-
-    uint64_t queue_size = virtio_blk->vq[0].num;
-
-    /* (for avail) idx field indicates where the driver would put the next
-     * descriptor entry in the ring (modulo the queue size). This starts at 0,
-     * and increases. */
-    int idx = read_bus(&cpu->bus, avail + 2, 16, &cpu->exc);
-    int desc_offset =
-        read_bus(&cpu->bus, avail + 4 + (idx % queue_size), 16, &cpu->exc);
-
-    /* MUST use a single 8-type descriptor containing type, reserved and sector,
-     * followed by descriptors for data, then finally a separate 1-byte
-     * descriptor for status. */
-    riscv_virtq_desc desc0 =
-        load_desc(cpu, desc + sizeof(riscv_virtq_desc) * desc_offset);
-
-    riscv_virtq_desc desc1 =
-        load_desc(cpu, desc + sizeof(riscv_virtq_desc) * desc0.next);
-
-    riscv_virtq_desc desc2 =
-        load_desc(cpu, desc + sizeof(riscv_virtq_desc) * desc1.next);
-
-    assert(desc0.flags & VIRTQ_DESC_F_NEXT);
-    assert(desc1.flags & VIRTQ_DESC_F_NEXT);
-    assert(!(desc2.flags & VIRTQ_DESC_F_NEXT));
-
-    // the desc address should map to memory and we can then use memcpy directly
-    assert(desc1.addr >= DRAM_BASE && desc1.addr < DRAM_END);
-    assert((desc1.addr + desc1.len) >= DRAM_BASE &&
-           (desc1.addr + desc1.len) < DRAM_END);
-
-    // take value of type and sector in field of struct virtio_blk_req
-    int blk_req_type = read_bus(&cpu->bus, desc0.addr, 32, &cpu->exc);
-    int blk_req_sector = read_bus(&cpu->bus, desc0.addr + 8, 64, &cpu->exc);
-
-    // write device
-    if (blk_req_type == VIRTIO_BLK_T_OUT) {
-        assert(!(desc1.flags & VIRTQ_DESC_F_WRITE));
-
-        memcpy(cpu->bus.virtio_blk.rfsimg + (blk_req_sector * SECTOR_SIZE),
-               cpu->bus.memory.mem + (desc1.addr - DRAM_BASE), desc1.len);
-    }
-    // read device
-    else {
-        assert(desc1.flags & VIRTQ_DESC_F_WRITE);
-
-        memcpy(cpu->bus.memory.mem + (desc1.addr - DRAM_BASE),
-               cpu->bus.virtio_blk.rfsimg + (blk_req_sector * SECTOR_SIZE),
-               desc1.len);
-    }
-
-    assert(desc2.flags & VIRTQ_DESC_F_WRITE);
-
-    /* The final status byte is written by the device: VIRTIO_BLK_S_OK for
-     * success */
-    write_bus(&cpu->bus, desc2.addr, 8, VIRTIO_BLK_S_OK, &cpu->exc);
-
-    /* (for used) idx field indicates where the device would put the next
-     * descriptor entry in the ring (modulo the queue size). This starts at 0,
-     * and increases */
-
-    write_bus(&cpu->bus, used + 4 + ((virtio_blk->id % queue_size) * 8), 16,
-              desc_offset, &cpu->exc);
-    virtio_blk->id++;
-    write_bus(&cpu->bus, used + 2, 16, virtio_blk->id, &cpu->exc);
-}
-
 static uint64_t addr_translate(riscv_cpu *cpu, uint64_t addr, Access access)
 {
     uint64_t satp = read_csr(&cpu->csr, SATP);
@@ -2085,20 +1994,6 @@ static void handle_interrupt(riscv_cpu *cpu)
         }
     }
 
-    /* FIXME: we should check the device interrupt from else where */
-    int irq = 0;
-    if (uart_is_interrupt(&cpu->bus.uart)) {
-        irq = UART0_IRQ;
-    } else if (virtio_is_interrupt(&cpu->bus.virtio_blk)) {
-        access_disk(cpu);
-        irq = VIRTIO_IRQ;
-    }
-
-    if (irq) {
-        // pending the external interrput bit
-        update_pending(&cpu->bus.plic, irq);
-        set_csr_bits(&cpu->csr, MIP, MIP_SEIP);
-    }
 
     /* FIXME: do we need to update this since SIP and SIE are subset of the
      * equivalent machine-mode CSR? */
@@ -2180,7 +2075,6 @@ bool tick(riscv_cpu *cpu)
     tick_csr(&cpu->csr);
     // Increment the value for mtime in Clint
     tick_bus(&cpu->bus, &cpu->csr);
-
     handle_interrupt(cpu);
 #ifdef ICACHE_CONFIG
     // flush cache when jumping in trap handler

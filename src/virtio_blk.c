@@ -3,8 +3,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "cpu.h"
+#include "macros.h"
 #include "memmap.h"
-#include "virtio_blk.h"
 
 #define ALIGN_UP(n, m) ((((n) + (m) -1) / (m)) * (m))
 
@@ -35,11 +36,97 @@ static void virtqueue_update(riscv_virtio_blk *virtio_blk)
                  virtio_blk->vq[0].align);
 }
 
+static inline riscv_virtq_desc load_desc(riscv_cpu *cpu, uint64_t addr)
+{
+    uint64_t desc_addr = read_bus(&cpu->bus, addr, 64, &cpu->exc);
+    uint64_t tmp = read_bus(&cpu->bus, addr + 8, 64, &cpu->exc);
+    return (riscv_virtq_desc){.addr = desc_addr,
+                              .len = tmp & 0xffffffff,
+                              .flags = (tmp >> 32) & 0xffff,
+                              .next = (tmp >> 48) & 0xffff};
+}
+
+// FIXME: error of read / write bus should be handled
+static void access_disk(riscv_virtio_blk *virtio_blk)
+{
+    riscv_cpu *cpu = container_of(
+        container_of(virtio_blk, riscv_bus, virtio_blk), riscv_cpu, bus);
+
+    assert(virtio_blk->queue_sel == 0);
+
+    uint64_t desc = virtio_blk->vq[0].desc;
+    uint64_t avail = virtio_blk->vq[0].avail;
+    uint64_t used = virtio_blk->vq[0].used;
+
+    uint64_t queue_size = virtio_blk->vq[0].num;
+
+    /* (for avail) idx field indicates where the driver would put the next
+     * descriptor entry in the ring (modulo the queue size). This starts at 0,
+     * and increases. */
+    int idx = read_bus(&cpu->bus, avail + 2, 16, &cpu->exc);
+    int desc_offset =
+        read_bus(&cpu->bus, avail + 4 + (idx % queue_size), 16, &cpu->exc);
+
+    /* MUST use a single 8-type descriptor containing type, reserved and sector,
+     * followed by descriptors for data, then finally a separate 1-byte
+     * descriptor for status. */
+    riscv_virtq_desc desc0 =
+        load_desc(cpu, desc + sizeof(riscv_virtq_desc) * desc_offset);
+
+    riscv_virtq_desc desc1 =
+        load_desc(cpu, desc + sizeof(riscv_virtq_desc) * desc0.next);
+
+    riscv_virtq_desc desc2 =
+        load_desc(cpu, desc + sizeof(riscv_virtq_desc) * desc1.next);
+
+    assert(desc0.flags & VIRTQ_DESC_F_NEXT);
+    assert(desc1.flags & VIRTQ_DESC_F_NEXT);
+    assert(!(desc2.flags & VIRTQ_DESC_F_NEXT));
+
+    // the desc address should map to memory and we can then use memcpy directly
+    assert(desc1.addr >= DRAM_BASE && desc1.addr < DRAM_END);
+    assert((desc1.addr + desc1.len) >= DRAM_BASE &&
+           (desc1.addr + desc1.len) < DRAM_END);
+
+    // take value of type and sector in field of struct virtio_blk_req
+    int blk_req_type = read_bus(&cpu->bus, desc0.addr, 32, &cpu->exc);
+    int blk_req_sector = read_bus(&cpu->bus, desc0.addr + 8, 64, &cpu->exc);
+
+    // write device
+    if (blk_req_type == VIRTIO_BLK_T_OUT) {
+        assert(!(desc1.flags & VIRTQ_DESC_F_WRITE));
+
+        memcpy(cpu->bus.virtio_blk.rfsimg + (blk_req_sector * SECTOR_SIZE),
+               cpu->bus.memory.mem + (desc1.addr - DRAM_BASE), desc1.len);
+    }
+    // read device
+    else {
+        assert(desc1.flags & VIRTQ_DESC_F_WRITE);
+
+        memcpy(cpu->bus.memory.mem + (desc1.addr - DRAM_BASE),
+               cpu->bus.virtio_blk.rfsimg + (blk_req_sector * SECTOR_SIZE),
+               desc1.len);
+    }
+
+    assert(desc2.flags & VIRTQ_DESC_F_WRITE);
+
+    /* The final status byte is written by the device: VIRTIO_BLK_S_OK for
+     * success */
+    write_bus(&cpu->bus, desc2.addr, 8, VIRTIO_BLK_S_OK, &cpu->exc);
+
+    /* (for used) idx field indicates where the device would put the next
+     * descriptor entry in the ring (modulo the queue size). This starts at 0,
+     * and increases */
+
+    write_bus(&cpu->bus, used + 4 + ((virtio_blk->id % queue_size) * 8), 16,
+              desc_offset, &cpu->exc);
+    virtio_blk->id++;
+    write_bus(&cpu->bus, used + 2, 16, virtio_blk->id, &cpu->exc);
+}
+
 bool init_virtio_blk(riscv_virtio_blk *virtio_blk, const char *rfs_name)
 {
     memset(virtio_blk, 0, sizeof(riscv_virtio_blk));
-    // notify is set to -1 for no event happen
-    virtio_blk->queue_notify = 0xFFFFFFFF;
     // default the align of virtqueue to 4096
     virtio_blk->vq[0].align = VIRTQUEUE_ALIGN;
 
@@ -181,7 +268,7 @@ bool write_virtio_blk(riscv_virtio_blk *virtio_blk,
         break;
     case VIRTIO_MMIO_QUEUE_NOTIFY:
         assert(value == 0);
-        virtio_blk->queue_notify = value;
+        virtio_blk->notify_clock = virtio_blk->clock;
         break;
     case VIRTIO_MMIO_INTERRUPT_ACK:
         /* clear bits by given bitmask to represent that the events causing
@@ -214,11 +301,20 @@ write_virtio_fail:
 
 bool virtio_is_interrupt(riscv_virtio_blk *virtio_blk)
 {
-    if (virtio_blk->queue_notify != 0xFFFFFFFF) {
-        virtio_blk->queue_notify = 0xFFFFFFFF;
-        return true;
+    return (virtio_blk->isr & 0x1) == 1;
+}
+
+void tick_virtio_blk(riscv_virtio_blk *virtio_blk)
+{
+    uint64_t clock = virtio_blk->notify_clock;
+    if (clock > 0 && (virtio_blk->clock == clock + DISK_DELAY)) {
+        /* the interrupt was asserted because the device has used a buffer
+         * in at least one of the active virtual queues. */
+        virtio_blk->isr |= 0x1;
+        access_disk(virtio_blk);
+        virtio_blk->notify_clock = 0;
     }
-    return false;
+    virtio_blk->clock++;
 }
 
 void free_virtio_blk(riscv_virtio_blk *virtio_blk)

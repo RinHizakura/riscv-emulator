@@ -14,4 +14,10 @@
             *((ptr) + i) = (value >> (i << 3)) & 0xff; \
     } while (0)
 
+#define container_of(ptr, type, member)               \
+    ({                                                \
+        void *__mptr = (void *) (ptr);                \
+        ((type *) (__mptr - offsetof(type, member))); \
+    })
+
 #endif /* MACROS */

@@ -18,6 +18,7 @@
 #include "exception.h"
 #include "virtio.h"
 
+#define DISK_DELAY 500
 #define SECTOR_SIZE 512
 
 #define VIRTIO_BLK_T_IN 0
@@ -52,21 +53,19 @@ typedef struct {
 
 typedef struct {
     uint64_t id;
+    uint64_t clock;
+    uint64_t notify_clock;
 
     riscv_virtq vq[1];
     uint16_t queue_sel;
-
     uint32_t host_features[2];
     uint32_t guest_features[2];
     uint32_t host_features_sel;
     uint32_t guest_features_sel;
     uint32_t guest_page_shift;
     uint32_t queue_pfn;
-
-    uint32_t queue_notify;
     uint8_t isr;
     uint8_t status;
-
     uint8_t config[8];
 
     uint8_t *rfsimg;
@@ -83,6 +82,7 @@ bool write_virtio_blk(riscv_virtio_blk *virtio_blk,
                       uint64_t value,
                       riscv_exception *exc);
 bool virtio_is_interrupt(riscv_virtio_blk *virtio_blk);
+void tick_virtio_blk(riscv_virtio_blk *virtio_blk);
 void free_virtio_blk(riscv_virtio_blk *virtio_blk);
 
 #endif

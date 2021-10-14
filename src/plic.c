@@ -1,4 +1,5 @@
 #include "plic.h"
+#include "irq.h"
 
 uint64_t read_plic(riscv_plic *plic,
                    uint64_t addr,
@@ -90,6 +91,7 @@ bool write_plic(riscv_plic *plic,
         case PLIC_CLAIM_1:
             plic->pending[value >> 5] =
                 plic->pending[value >> 5] & ~(1 << (value & 0x1f));
+            plic->update_irq = true;
             plic->claim[1] = 0;
             break;
         default:
@@ -104,12 +106,53 @@ write_plic_fail:
     return false;
 }
 
-void update_pending(riscv_plic *plic, uint32_t irq)
+static void update_pending(riscv_plic *plic, uint32_t irq)
 {
     /* FIXME: check the enable bit of plic register first */
     uint64_t idx = irq >> 5;
     plic->pending[idx] = plic->pending[idx] | (1 << (irq & 0x1f));
-    /* FIXME: How do we know we should perform an interrupt claim on
-     * context 1 (S-mode)? */
-    plic->claim[1] = irq;
+    plic->update_irq = true;
+}
+
+static bool update_irq(riscv_plic *plic)
+{
+    /* FIXME:
+     *  1. How do we know we should perform an interrupt claim on
+     *     context 1 (S-mode)?
+     *  2. The priority of interrput should be consider */
+
+    uint32_t pending = (plic->pending[UART0_IRQ >> 5] >> UART0_IRQ) & 1;
+    uint32_t enable = (plic->enable[32] >> UART0_IRQ) & 1;
+    if (pending && enable) {
+        plic->claim[1] = UART0_IRQ;
+        return true;
+    }
+
+    pending = (plic->pending[VIRTIO_IRQ >> 5] >> VIRTIO_IRQ) & 1;
+    enable = (plic->enable[32] >> VIRTIO_IRQ) & 1;
+    if (pending && enable) {
+        plic->claim[1] = VIRTIO_IRQ;
+        return true;
+    }
+
+    plic->claim[1] = 0;
+    return false;
+}
+
+void tick_plic(riscv_plic *plic,
+               riscv_csr *csr,
+               bool is_uart_irq,
+               bool is_virtio_irq)
+{
+    if (is_uart_irq)
+        update_pending(plic, UART0_IRQ);
+    if (is_virtio_irq)
+        update_pending(plic, VIRTIO_IRQ);
+
+    if (plic->update_irq) {
+        // pending the external interrput bit
+        if (update_irq(plic))
+            set_csr_bits(csr, MIP, MIP_SEIP);
+        plic->update_irq = false;
+    }
 }
