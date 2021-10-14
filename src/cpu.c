@@ -1661,10 +1661,18 @@ static bool __decode(riscv_cpu *cpu, riscv_instr_desc *instr_desc)
 static uint64_t addr_translate(riscv_cpu *cpu, uint64_t addr, Access access)
 {
     uint64_t satp = read_csr(&cpu->csr, SATP);
-
     // if not enable page table translation
-    if (satp >> 60 != 8 || cpu->mode.mode == MACHINE)
+    if (satp >> 60 != 8)
         return addr;
+
+    /*  When MPRV=0, translation and protection behave as normal.
+     *  Whem MPRV=1, load and store memory addresses are translated
+     *  and protected as though the current privilege mode were set to MPP */
+    if (cpu->mode.mode == MACHINE)
+        if ((access == Access_Instr) ||
+            (!check_csr_bit(&cpu->csr, MSTATUS, MSTATUS_MPRV)) ||
+            ((read_csr(&cpu->csr, MSTATUS) >> 11) == MACHINE))
+            return addr;
 
     /* Reference to:
      * - 4.3.2 Virtual Address Translation Process
@@ -1769,7 +1777,11 @@ translate_fail:
 
 static Trap handle_exception(riscv_cpu *cpu)
 {
+    riscv_mode prev_mode = cpu->mode;
+    uint8_t cause = cpu->exc.exception;
     uint64_t exc_pc = cpu->pc;
+    uint64_t medeleg = read_csr(&cpu->csr, MEDELEG);
+
     switch (cpu->exc.exception) {
     /* ECALL and EBREAK cause the receiving privilege mode’s epc register to be
      * set to the address of the ECALL or EBREAK instruction itself, not the
@@ -1783,19 +1795,19 @@ static Trap handle_exception(riscv_cpu *cpu)
     default:
         exc_pc = cpu->pc;
     }
-    riscv_mode prev_mode = cpu->mode;
 
-    uint8_t cause = cpu->exc.exception;
+    // TODO: support handling for user mode
+    if (((medeleg >> cause) & 1) == 0)
+        cpu->mode.mode = MACHINE;
+    else {
+        uint64_t sedeleg = read_csr(&cpu->csr, SEDELEG);
+        if (((sedeleg >> cause) & 1) == 0)
+            cpu->mode.mode = SUPERVISOR;
+        else
+            cpu->mode.mode = USER;
+    }
 
-    /* certain exceptions and interrupts can be processed directly by a lower
-     * privilege level within medeleg or mideleg register */
-
-    /* For medeleg, the index of the bit position equal to the value returned in
-     * the mcause register */
-    uint64_t medeleg = read_csr(&cpu->csr, MEDELEG);
-    if ((cpu->mode.mode <= SUPERVISOR) && (((medeleg >> cause) & 1) != 0)) {
-        cpu->mode.mode = SUPERVISOR;
-
+    if (cpu->mode.mode == SUPERVISOR) {
         /* The last two bits of stvec indicate the vector mode, which make
          * different for pc setting when interrupt. For (synchronous) exception,
          * no matter what the mode is, always set pc to BASE by stvec when
@@ -1825,10 +1837,9 @@ static Trap handle_exception(riscv_cpu *cpu)
         sstatus = read_csr(&cpu->csr, SSTATUS);
         write_csr(&cpu->csr, SSTATUS,
                   (sstatus & ~SSTATUS_SPP) | prev_mode.mode << 8);
-    } else {
+    } else if (cpu->mode.mode == MACHINE) {
         /* Handle in machine mode. You can see that the process is similar to
          * handle in supervisor mode. */
-        cpu->mode.mode = MACHINE;
         cpu->pc = read_csr(&cpu->csr, MTVEC) & ~0x3;
         write_csr(&cpu->csr, MEPC, exc_pc & ~0x1);
         write_csr(&cpu->csr, MCAUSE, cause);
@@ -1842,6 +1853,9 @@ static Trap handle_exception(riscv_cpu *cpu)
         mstatus = read_csr(&cpu->csr, MSTATUS);
         write_csr(&cpu->csr, MSTATUS,
                   (mstatus & ~MSTATUS_MPP) | prev_mode.mode << 11);
+    } else {
+        LOG_ERROR("Taking trap in user mode is not supported!\n");
+        exit(1);
     }
 
     // https://github.com/d0iasm/rvemu/blob/master/src/exception.rs
@@ -1855,6 +1869,7 @@ static Trap handle_exception(riscv_cpu *cpu)
         return Trap_Requested;
     case LoadAddressMisaligned:
     case LoadAccessFault:
+        return Trap_Contained;
     case StoreAMOAddressMisaligned:
     case StoreAMOAccessFault:
         return Trap_Fatal;

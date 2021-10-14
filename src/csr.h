@@ -93,6 +93,7 @@
 #define MSTATUS_MIE 0x8UL
 #define MSTATUS_MPIE 0x80UL
 #define MSTATUS_MPP 0x1800UL
+#define MSTATUS_MPRV 0x20000UL
 
 // MIP fields
 #define MIP_SSIP 0x2UL
