@@ -1976,6 +1976,10 @@ static bool irq_enable(riscv_cpu *cpu, uint8_t cause)
 
     cpu->irq.irq = cause;
     interrput_take_trap(cpu, new_mode);
+#ifdef ICACHE_CONFIG
+    // flush cache when jumping in trap handler
+    invalid_icache(&cpu->icache);
+#endif
     return true;
 }
 
@@ -2090,10 +2094,6 @@ bool tick(riscv_cpu *cpu)
     // Increment the value for mtime in Clint
     tick_bus(&cpu->bus, &cpu->csr);
     handle_interrupt(cpu);
-#ifdef ICACHE_CONFIG
-    // flush cache when jumping in trap handler
-    invalid_icache(&cpu->icache);
-#endif
 
     bool ret = true;
     bool is_cache = false;
