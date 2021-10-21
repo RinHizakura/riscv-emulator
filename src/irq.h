@@ -1,6 +1,8 @@
 #ifndef RISCV_IRQ
 #define RISCV_IRQ
 
+#include <stdint.h>
+
 /* The source id can refer to qemu
  * - https://github.com/qemu/qemu/blob/master/include/hw/riscv/virt.h#L65
  */
@@ -24,6 +26,7 @@ typedef struct {
         // extra number to represent no interrput for error checking
         NoInterrupt = 99,
     } irq;
+    uint64_t value;
 } riscv_irq;
 
 #endif

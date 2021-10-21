@@ -599,6 +599,7 @@ static void instr_ecall(riscv_cpu *cpu)
 {
     assert(cpu->instr.instr & 0x73);
 
+    cpu->exc.value = cpu->pc - 4;
     switch (cpu->mode.mode) {
     case MACHINE:
         cpu->exc.exception = EnvironmentCallFromMMode;
@@ -611,6 +612,7 @@ static void instr_ecall(riscv_cpu *cpu)
         return;
     default:
         cpu->exc.exception = IllegalInstruction;
+        cpu->exc.value = 0;
         return;
     }
 }
@@ -1721,6 +1723,7 @@ static uint64_t addr_translate(riscv_cpu *cpu, uint64_t addr, Access access)
         a = pte.ppn << PAGE_SHIFT;
     }
 
+
     /* 5. (skip) A leaf PTE has been found. Determine if the requested memory
      * access is allowed by the pte.r, pte.w, pte.x, and pte.u bits, given the
      * current privilege mode and the value of the SUM and MXR fields of the
@@ -1730,7 +1733,6 @@ static uint64_t addr_translate(riscv_cpu *cpu, uint64_t addr, Access access)
     /* 6. If i > 0 and pte.ppn[i − 1 : 0] != 0, this is a misaligned superpage;
      * stop and raise a page-fault exception corresponding to the original
      * access type. */
-
     uint64_t ppn[3] = {pte.ppn & 0x1ff, (pte.ppn >> 9) & 0x1ff,
                        (pte.ppn >> 18) & 0x3ffffff};
 
@@ -1764,17 +1766,15 @@ translate_fail:
     switch (access) {
     case Access_Instr:
         cpu->exc.exception = InstructionPageFault;
-        cpu->exc.value = addr;
         break;
     case Access_Load:
         cpu->exc.exception = LoadPageFault;
-        cpu->exc.value = addr;
         break;
     case Access_Store:
         cpu->exc.exception = StoreAMOPageFault;
-        cpu->exc.value = addr;
         break;
     }
+    cpu->exc.value = addr;
     return -1;
 }
 
@@ -1905,10 +1905,8 @@ static void interrput_take_trap(riscv_cpu *cpu, riscv_mode new_mode)
         /* The Interrupt bit in the scause register is set if the trap was
          * caused by an interrupt */
         write_csr(&cpu->csr, SCAUSE, 1UL << 63 | cause);
-
-        /* FIXME: write stval with exception-specific information to assist
-         * software in handling the trap.*/
-        write_csr(&cpu->csr, STVAL, 0);
+        /* FIXME: only some case of interrupt set this value correctly */
+        write_csr(&cpu->csr, STVAL, cpu->irq.value);
 
         uint64_t sstatus = read_csr(&cpu->csr, SSTATUS);
         write_csr(&cpu->csr, SSTATUS,
@@ -1926,9 +1924,8 @@ static void interrput_take_trap(riscv_cpu *cpu, riscv_mode new_mode)
 
         write_csr(&cpu->csr, MEPC, irq_pc & ~0x1);
         write_csr(&cpu->csr, MCAUSE, 1UL << 63 | cause);
-        /* FIXME: write stval with exception-specific information to assist
-         * software in handling the trap.*/
-        write_csr(&cpu->csr, MTVAL, 0);
+        /* FIXME: only some case of interrupt set this value correctly */
+        write_csr(&cpu->csr, MTVAL, cpu->irq.value);
         uint64_t mstatus = read_csr(&cpu->csr, MSTATUS);
         write_csr(&cpu->csr, MSTATUS,
                   (mstatus & ~MSTATUS_MPIE) | ((mstatus & MSTATUS_MIE) << 4));
@@ -1975,6 +1972,7 @@ static bool irq_enable(riscv_cpu *cpu, uint8_t cause)
     }
 
     cpu->irq.irq = cause;
+    cpu->irq.value = cpu->pc;
     interrput_take_trap(cpu, new_mode);
 #ifdef ICACHE_CONFIG
     // flush cache when jumping in trap handler
@@ -1995,20 +1993,20 @@ static void handle_interrupt(riscv_cpu *cpu)
 
     if (pending & MIP_MEIP) {
         if (irq_enable(cpu, MachineExternalInterrupt)) {
-            cpu->irq.irq = MachineExternalInterrupt;
             clear_csr_bits(&cpu->csr, MIP, MIP_MEIP);
+            return;
         }
     }
     if (pending & MIP_MSIP) {
         if (irq_enable(cpu, MachineSoftwareInterrupt)) {
-            cpu->irq.irq = MachineSoftwareInterrupt;
             clear_csr_bits(&cpu->csr, MIP, MIP_MSIP);
+            return;
         }
     }
     if (pending & MIP_MTIP) {
         if (irq_enable(cpu, MachineTimerInterrupt)) {
-            cpu->irq.irq = MachineTimerInterrupt;
             clear_csr_bits(&cpu->csr, MIP, MIP_MTIP);
+            return;
         }
     }
 
@@ -2019,24 +2017,29 @@ static void handle_interrupt(riscv_cpu *cpu)
 
     if (pending & MIP_SEIP) {
         if (irq_enable(cpu, SupervisorExternalInterrupt)) {
-            cpu->irq.irq = SupervisorExternalInterrupt;
             clear_csr_bits(&cpu->csr, MIP, MIP_SEIP);
+            return;
         }
     }
     if (pending & MIP_SSIP) {
         if (irq_enable(cpu, SupervisorSoftwareInterrupt)) {
-            cpu->irq.irq = SupervisorSoftwareInterrupt;
             clear_csr_bits(&cpu->csr, MIP, MIP_SSIP);
+            return;
         }
     }
     if (pending & MIP_STIP) {
         if (irq_enable(cpu, SupervisorTimerInterrupt)) {
-            cpu->irq.irq = SupervisorTimerInterrupt;
             clear_csr_bits(&cpu->csr, MIP, MIP_STIP);
+            return;
         }
     }
-
+    /* If all of our implementation are right, we don't actually need to
+     * clean up the irq structure below. But for easily debugging purpose, we'll
+     * reset all of the members in irq structure now. */
+#ifdef DEBUG
     cpu->irq.irq = NoInterrupt;
+    cpu->irq.value = 0;
+#endif
 }
 
 /* these two functions are the indirect layer of read / write bus from cpu,
