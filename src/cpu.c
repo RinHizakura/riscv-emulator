@@ -792,6 +792,10 @@ static void instr_amoxorw(riscv_cpu *cpu)
 {
     uint64_t addr = cpu->xreg[cpu->instr.rs1];
     uint64_t tmp = read_cpu(cpu, addr, 32);
+    if (cpu->exc.exception != NoException) {
+        assert(tmp == (uint64_t) -1);
+        return;
+    }
 
     uint64_t value = (int32_t)((tmp ^ cpu->xreg[cpu->instr.rs2]) & 0xffffffff);
     if (!write_cpu(cpu, addr, 32, value))
@@ -804,6 +808,10 @@ static void instr_amoorw(riscv_cpu *cpu)
 {
     uint64_t addr = cpu->xreg[cpu->instr.rs1];
     uint64_t tmp = read_cpu(cpu, addr, 32);
+    if (cpu->exc.exception != NoException) {
+        assert(tmp == (uint64_t) -1);
+        return;
+    }
 
     uint64_t value = (int32_t)((tmp | cpu->xreg[cpu->instr.rs2]) & 0xffffffff);
     if (!write_cpu(cpu, addr, 32, value))
@@ -816,6 +824,10 @@ static void instr_amoandw(riscv_cpu *cpu)
 {
     uint64_t addr = cpu->xreg[cpu->instr.rs1];
     uint64_t tmp = read_cpu(cpu, addr, 32);
+    if (cpu->exc.exception != NoException) {
+        assert(tmp == (uint64_t) -1);
+        return;
+    }
 
     uint64_t value = (int32_t)((tmp & cpu->xreg[cpu->instr.rs2]) & 0xffffffff);
     if (!write_cpu(cpu, addr, 32, value))
@@ -890,6 +902,10 @@ static void instr_amoxord(riscv_cpu *cpu)
 {
     uint64_t addr = cpu->xreg[cpu->instr.rs1];
     uint64_t tmp = read_cpu(cpu, addr, 64);
+    if (cpu->exc.exception != NoException) {
+        assert(tmp == (uint64_t) -1);
+        return;
+    }
 
     uint64_t value = tmp ^ cpu->xreg[cpu->instr.rs2];
     if (!write_cpu(cpu, addr, 64, value))
@@ -902,6 +918,10 @@ static void instr_amoord(riscv_cpu *cpu)
 {
     uint64_t addr = cpu->xreg[cpu->instr.rs1];
     uint64_t tmp = read_cpu(cpu, addr, 64);
+    if (cpu->exc.exception != NoException) {
+        assert(tmp == (uint64_t) -1);
+        return;
+    }
 
     uint64_t value = tmp | cpu->xreg[cpu->instr.rs2];
     if (!write_cpu(cpu, addr, 64, value))
@@ -914,6 +934,10 @@ static void instr_amoandd(riscv_cpu *cpu)
 {
     uint64_t addr = cpu->xreg[cpu->instr.rs1];
     uint64_t tmp = read_cpu(cpu, addr, 64);
+    if (cpu->exc.exception != NoException) {
+        assert(tmp == (uint64_t) -1);
+        return;
+    }
 
     uint64_t value = tmp & cpu->xreg[cpu->instr.rs2];
     if (!write_cpu(cpu, addr, 64, value))
@@ -1183,6 +1207,10 @@ static void instr_clwsp(riscv_cpu *cpu)
     uint16_t offset =
         ((instr << 4) & 0xc0) | ((instr >> 7) & 0x20) | ((instr >> 2) & 0x1c);
     uint32_t val = read_cpu(cpu, cpu->xreg[2] + offset, 32);
+    if (cpu->exc.exception != NoException) {
+        assert(val == (uint32_t) -1);
+        return;
+    }
     // C.LWSP is only valid when rd != x0;
     if (cpu->instr.rd != 0) {
         cpu->xreg[cpu->instr.rd] = (int32_t) val;
@@ -1196,6 +1224,10 @@ static void instr_cldsp(riscv_cpu *cpu)
     uint16_t offset =
         ((instr << 4) & 0x1c0) | ((instr >> 7) & 0x20) | ((instr >> 2) & 0x18);
     uint64_t val = read_cpu(cpu, cpu->xreg[2] + offset, 64);
+    if (cpu->exc.exception != NoException) {
+        assert(val == (uint64_t) -1);
+        return;
+    }
     // C.LDSP is only valid when rd != x0;
     if (cpu->instr.rd != 0) {
         cpu->xreg[cpu->instr.rd] = val;
@@ -1729,6 +1761,20 @@ static uint64_t addr_translate(riscv_cpu *cpu, uint64_t addr, Access access)
      * current privilege mode and the value of the SUM and MXR fields of the
      * mstatus register. If not, stop and raise a page-fault exception
      * corresponding to the original access type. */
+    switch (access) {
+    case Access_Instr:
+        if (pte.x == 0)
+            goto translate_fail;
+        break;
+    case Access_Load:
+        if (pte.r == 0)
+            goto translate_fail;
+        break;
+    case Access_Store:
+        if (pte.w == 0)
+            goto translate_fail;
+        break;
+    }
 
     /* 6. If i > 0 and pte.ppn[i − 1 : 0] != 0, this is a misaligned superpage;
      * stop and raise a page-fault exception corresponding to the original
