@@ -76,8 +76,8 @@ int main(int argc, char *argv[])
             return -1;
         }
 
-        uint64_t begin = emu->cpu.bus.memory.elf.sig_start + DRAM_BASE;
-        uint64_t end = emu->cpu.bus.memory.elf.sig_end + DRAM_BASE;
+        uint64_t begin = emu->cpu.bus.memory.elf.sig_start;
+        uint64_t end = emu->cpu.bus.memory.elf.sig_end;
 
         for (uint64_t i = begin; i < end; i += 4) {
             uint32_t value =
