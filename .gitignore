@@ -4,5 +4,5 @@
 *.dtb
 *.dts
 build
-linux
 linux-build
+*.swp
