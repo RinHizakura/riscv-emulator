@@ -1,3 +1,5 @@
+include mk/external.mk
+
 CC = gcc
 CFLAGS = -Wall -Wextra -O3
 CFLAGS += -include src/common.h
@@ -46,7 +48,7 @@ $(BIN): $(OBJ_FILES)
 
 $(OUT)/src/%.o: src/%.c
 	mkdir -p $(@D)
-	$(CC) -c $(CFLAGS) $< -o $@ 
+	$(CC) -c $(CFLAGS) $< -o $@
 
 check: CFLAGS += -O3
 check: LDFLAGS += -O3
@@ -63,9 +65,9 @@ check: $(BIN)
 
 xv6: $(BIN)
 	$(BIN) --binary xv6/kernel.img --rfsimg xv6/fs.img
-linux: $(BIN)
-	$(BIN) --binary  linux-build/opensbi/build/platform/generic/firmware/fw_payload.elf \
-               --rfsimg rootfs/rootfs.img
+
+linux: $(BIN) $(LINUX_IMG) $(LINUX_RFS_IMG)
+	$(BIN) --binary $(LINUX_IMG) --rfsimg $(LINUX_RFS_IMG)
 
 # variables for compliance
 COMPLIANCE_DIR ?= ./riscv-arch-test
