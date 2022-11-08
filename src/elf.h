@@ -11,6 +11,17 @@
 #define Elf64_Off uint64_t
 #define Elf64_Xword uint64_t
 
+// program header type
+enum {
+    PT_LOAD = 1,
+};
+
+// section type
+enum {
+    SHT_SYMTAB = 2,
+    SHT_DYNSYM = 11,
+};
+
 // elf header
 typedef struct {
     unsigned char e_ident[EI_NIDENT];
@@ -40,9 +51,6 @@ typedef struct {
     Elf64_Xword p_memsz;
     Elf64_Xword p_align;
 } Elf64_Phdr;
-
-#define SHT_SYMTAB 2
-#define SHT_DYNSYM 11
 
 // section header
 typedef struct {

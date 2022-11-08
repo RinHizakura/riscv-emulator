@@ -62,11 +62,14 @@ static bool parse_elf(riscv_mem *mem, uint8_t *elf_file)
         Elf64_Phdr *prog_header = get_program_header(elf_file, elf_header, i);
 
         printf("Program Headers:\n");
-        printf("Offset              VirtAddr                  PhysAddr\n");
-        printf("0x%-16lx  0x%-16lx        0x%-16lx\n", prog_header->p_offset,
-               prog_header->p_vaddr, prog_header->p_paddr);
-        printf("FileSiz             MemSiz               Flags    Align\n");
-        printf("0x%-16lx  0x%-16lx   0x%x      0x%lx\n", prog_header->p_filesz,
+        printf("%-18s %-18s %-18s %-18s \n", "Type", "Offset", "VirtAddr",
+               "PhysAddr");
+        printf("0x%-16x 0x%-16lx 0x%-16lx 0x%-16lx\n", prog_header->p_type,
+               prog_header->p_offset, prog_header->p_vaddr,
+               prog_header->p_paddr);
+        printf("%-18s %-18s %-8s %-8s \n", "FileSiz", "MemSiz", "Flags",
+               "Align");
+        printf("0x%-16lx 0x%-16lx 0x%-6x 0x%-6lx\n", prog_header->p_filesz,
                prog_header->p_memsz, prog_header->p_flags,
                prog_header->p_align);
 
@@ -75,7 +78,9 @@ static bool parse_elf(riscv_mem *mem, uint8_t *elf_file)
         uint64_t start = prog_header->p_paddr - elf_header->e_entry;
         uint64_t size = prog_header->p_filesz;
         uint64_t offset = prog_header->p_offset;
-        memcpy(mem->mem + start, elf_file + offset, size);
+        if (prog_header->p_type == PT_LOAD) {
+            memcpy(mem->mem + start, elf_file + offset, size);
+        }
     }
 
     return true;

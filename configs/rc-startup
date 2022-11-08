@@ -1,0 +1,5 @@
+#!/bin/sh
+mkdir /proc
+mount -t proc /proc /proc
+mkdir /sys
+mount -t sysfs sysfs /sys

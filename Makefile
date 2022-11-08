@@ -1,7 +1,5 @@
-include mk/external.mk
-
 CC = gcc
-CFLAGS = -Wall -Wextra -O3
+CFLAGS = -Wall -Wextra -O3 -g
 CFLAGS += -include src/common.h
 LDFLAGS = -lpthread
 
@@ -42,6 +40,8 @@ debug: $(BIN)
 $(GIT_HOOKS):
 	@scripts/install-git-hooks
 	@echo
+
+include mk/external.mk
 
 $(BIN): $(OBJ_FILES)
 	$(CC) $(LDFLAGS) -o $@ $(OBJ_FILES) $(LDFLAGS)

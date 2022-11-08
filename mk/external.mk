@@ -8,6 +8,11 @@ OPENSBI_VER=1.1
 OPENSBI_SRC_URL=https://github.com/riscv-software-src/opensbi/archive/refs/tags/v$(OPENSBI_VER).tar.gz
 OPENSBI_SRC=$(OPENSBI_OUT)/opensbi-$(OPENSBI_VER)
 
+BUSYBOX_OUT=$(LINUX_OUT)
+BUSYBOX_VER=1.35.0
+BUSYBOX_SRC_URL = https://busybox.net/downloads/busybox-${BUSYBOX_VER}.tar.bz2
+BUSYBOX_SRC = $(BUSYBOX_OUT)/busybox-${BUSYBOX_VER}
+
 define download-n-extract
 $(eval $(T)_SRC_ARCHIVE = $($(T)_OUT)/$(shell basename $($(T)_SRC_URL)))
 $($(T)_SRC_ARCHIVE):
@@ -19,7 +24,7 @@ $($(T)_SRC): $($(T)_SRC_ARCHIVE)
 	$(Q)tar -xf $$< -C $($(T)_OUT)
 endef
 
-EXTERNAL_SRC = LINUX OPENSBI
+EXTERNAL_SRC = LINUX OPENSBI BUSYBOX
 $(foreach T,$(EXTERNAL_SRC),$(eval $(download-n-extract)))
 
 LINUX_IMG=$(OPENSBI_SRC)/build/platform/generic/firmware/fw_payload.elf
@@ -33,4 +38,18 @@ $(LINUX_IMG): $(OPENSBI_SRC) $(LINUX_SRC)
 		CROSS_COMPILE=riscv64-unknown-linux-gnu- \
 		FW_PAYLOAD_PATH=../../$(LINUX_SRC)/arch/riscv/boot/Image
 
-LINUX_RFS_IMG=#TODO
+BUSYBOX_BIN=$(LINUX_OUT)/rootfs/bin/busybox
+$(BUSYBOX_BIN): $(BUSYBOX_SRC)
+	make -C $(BUSYBOX_SRC) defconfig
+	make -C $(BUSYBOX_SRC) -j 2
+	make -C $(BUSYBOX_SRC) CONFIG_PREFIX='../rootfs' install
+
+LINUX_RFS_IMG=$(LINUX_OUT)/rootfs/rootfs.cpio
+$(LINUX_RFS_IMG): $(BUSYBOX_BIN)
+	cd $(LINUX_OUT)/rootfs; \
+	ls; \
+	mv linuxrc init; \
+	mkdir -p etc/init.d; \
+	cp -f ../../configs/rc-startup etc/init.d/rcS; \
+	chmod 755 etc/init.d/rcS; \
+	find . | cpio -o --format=newc > $(abspath $@)
