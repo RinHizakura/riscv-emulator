@@ -48,7 +48,6 @@ The [riscv-arch-test](https://github.com/riscv/riscv-arch-test) is applied to ch
 implementing the specifications correctly. We can pass RV64I, M, and C now. You can run the 
 compliance test by the following command.
 ```
-$ git submodule update --init
 $ make compliance
 ```
 
