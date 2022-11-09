@@ -1,11 +1,11 @@
 #ifndef MACROS
 #define MACROS
 
-#define read_len(bit, ptr, value)                            \
-    do {                                                     \
-        value = 0;                                           \
-        for (int i = 0; i < ((bit) >> 3); i++)               \
-            value |= ((uint64_t)(*((ptr) + i))) << (i << 3); \
+#define read_len(bit, ptr, value)                             \
+    do {                                                      \
+        value = 0;                                            \
+        for (int i = 0; i < ((bit) >> 3); i++)                \
+            value |= ((uint64_t) (*((ptr) + i))) << (i << 3); \
     } while (0)
 
 #define write_len(bit, ptr, value)                     \

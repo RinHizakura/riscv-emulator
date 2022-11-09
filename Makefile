@@ -1,6 +1,6 @@
 CC = gcc
-CFLAGS = -Wall -Wextra -O3 -g
-CFLAGS += -include src/common.h
+CFLAGS = -Wall -Wextra -Iinclude -O3 -g
+CFLAGS += -include common.h
 LDFLAGS = -lpthread
 
 OUT ?= build

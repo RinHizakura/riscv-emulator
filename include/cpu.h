@@ -62,10 +62,5 @@ typedef struct INSTR_ENTRY {
 
 bool tick(riscv_cpu *cpu);
 bool init_cpu(riscv_cpu *cpu, const char *filename, const char *rfs_name);
-bool fetch(riscv_cpu *cpu, bool *is_cache);
-bool decode(riscv_cpu *cpu);
-bool exec(riscv_cpu *cpu);
-void dump_reg(riscv_cpu *cpu);
-void dump_csr(riscv_cpu *cpu);
 void free_cpu(riscv_cpu *cpu);
 #endif

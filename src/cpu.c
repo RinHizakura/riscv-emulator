@@ -62,7 +62,7 @@ static void instr_lb(riscv_cpu *cpu)
         assert(value == (uint64_t) -1);
         return;
     }
-    cpu->xreg[cpu->instr.rd] = ((int8_t)(value));
+    cpu->xreg[cpu->instr.rd] = ((int8_t) (value));
 }
 
 static void instr_lh(riscv_cpu *cpu)
@@ -73,7 +73,7 @@ static void instr_lh(riscv_cpu *cpu)
         assert(value == (uint64_t) -1);
         return;
     }
-    cpu->xreg[cpu->instr.rd] = ((int16_t)(value));
+    cpu->xreg[cpu->instr.rd] = ((int16_t) (value));
 }
 
 static void instr_lw(riscv_cpu *cpu)
@@ -84,7 +84,7 @@ static void instr_lw(riscv_cpu *cpu)
         assert(value == (uint64_t) -1);
         return;
     }
-    cpu->xreg[cpu->instr.rd] = ((int32_t)(value));
+    cpu->xreg[cpu->instr.rd] = ((int32_t) (value));
 }
 
 static void instr_ld(riscv_cpu *cpu)
@@ -137,7 +137,7 @@ static void instr_fence(__attribute__((unused)) riscv_cpu *cpu)
      * So nothing will do for fence instruction */
 }
 
-static void instr_fencei(riscv_cpu *cpu)
+static void instr_fencei(__attribute__((unused)) riscv_cpu *cpu)
 {
     /* A FENCE.I instruction ensures that a subsequent instruction fetch on a
      * RISC-V
@@ -200,7 +200,7 @@ static void instr_srai(riscv_cpu *cpu)
 {
     // shift amount is the lower 6 bits of immediate
     uint32_t shamt = (cpu->instr.imm & 0x3f);
-    cpu->xreg[cpu->instr.rd] = (int64_t)(cpu->xreg[cpu->instr.rs1]) >> shamt;
+    cpu->xreg[cpu->instr.rd] = (int64_t) (cpu->xreg[cpu->instr.rs1]) >> shamt;
 }
 
 static void instr_ori(riscv_cpu *cpu)
@@ -379,29 +379,29 @@ static void instr_auipc(riscv_cpu *cpu)
 
 static void instr_addiw(riscv_cpu *cpu)
 {
-    cpu->xreg[cpu->instr.rd] = (int32_t)(
-        ((uint32_t) cpu->xreg[cpu->instr.rs1] + (uint32_t) cpu->instr.imm));
+    cpu->xreg[cpu->instr.rd] = (int32_t) ((
+        (uint32_t) cpu->xreg[cpu->instr.rs1] + (uint32_t) cpu->instr.imm));
 }
 
 static void instr_slliw(riscv_cpu *cpu)
 {
     uint32_t shamt = (cpu->instr.imm & 0x1f);
     cpu->xreg[cpu->instr.rd] =
-        (int32_t)(((uint32_t) cpu->xreg[cpu->instr.rs1] << shamt));
+        (int32_t) (((uint32_t) cpu->xreg[cpu->instr.rs1] << shamt));
 }
 
 static void instr_srliw(riscv_cpu *cpu)
 {
     uint32_t shamt = (cpu->instr.imm & 0x1f);
     cpu->xreg[cpu->instr.rd] =
-        (int32_t)((uint32_t) cpu->xreg[cpu->instr.rs1] >> shamt);
+        (int32_t) ((uint32_t) cpu->xreg[cpu->instr.rs1] >> shamt);
 }
 
 static void instr_sraiw(riscv_cpu *cpu)
 {
     uint32_t shamt = (cpu->instr.imm & 0x1f);
     cpu->xreg[cpu->instr.rd] =
-        (int32_t)((uint32_t) cpu->xreg[cpu->instr.rs1]) >> shamt;
+        (int32_t) ((uint32_t) cpu->xreg[cpu->instr.rs1]) >> shamt;
 }
 
 static void instr_sb(riscv_cpu *cpu)
@@ -435,8 +435,8 @@ static void instr_lui(riscv_cpu *cpu)
 
 static void instr_addw(riscv_cpu *cpu)
 {
-    cpu->xreg[cpu->instr.rd] = (int32_t)((uint32_t) cpu->xreg[cpu->instr.rs1] +
-                                         (uint32_t) cpu->xreg[cpu->instr.rs2]);
+    cpu->xreg[cpu->instr.rd] = (int32_t) ((uint32_t) cpu->xreg[cpu->instr.rs1] +
+                                          (uint32_t) cpu->xreg[cpu->instr.rs2]);
 }
 
 static void instr_mulw(riscv_cpu *cpu)
@@ -448,15 +448,15 @@ static void instr_mulw(riscv_cpu *cpu)
 
 static void instr_subw(riscv_cpu *cpu)
 {
-    cpu->xreg[cpu->instr.rd] = (int32_t)((uint32_t) cpu->xreg[cpu->instr.rs1] -
-                                         (uint32_t) cpu->xreg[cpu->instr.rs2]);
+    cpu->xreg[cpu->instr.rd] = (int32_t) ((uint32_t) cpu->xreg[cpu->instr.rs1] -
+                                          (uint32_t) cpu->xreg[cpu->instr.rs2]);
 }
 
 static void instr_sllw(riscv_cpu *cpu)
 {
     uint32_t shamt = (cpu->xreg[cpu->instr.rs2] & 0x1f);
     cpu->xreg[cpu->instr.rd] =
-        (int32_t)((uint32_t) cpu->xreg[cpu->instr.rs1] << shamt);
+        (int32_t) ((uint32_t) cpu->xreg[cpu->instr.rs1] << shamt);
 }
 
 static void instr_divw(riscv_cpu *cpu)
@@ -485,7 +485,7 @@ static void instr_srlw(riscv_cpu *cpu)
 {
     uint32_t shamt = (cpu->xreg[cpu->instr.rs2] & 0x1f);
     cpu->xreg[cpu->instr.rd] =
-        (int32_t)((uint32_t) cpu->xreg[cpu->instr.rs1] >> shamt);
+        (int32_t) ((uint32_t) cpu->xreg[cpu->instr.rs1] >> shamt);
 }
 
 static void instr_divuw(riscv_cpu *cpu)
@@ -499,7 +499,7 @@ static void instr_divuw(riscv_cpu *cpu)
         // the quotient of division by zero has all bits set
         cpu->xreg[cpu->instr.rd] = -1;
     } else {
-        cpu->xreg[cpu->instr.rd] = (int32_t)(dividend / divisor);
+        cpu->xreg[cpu->instr.rd] = (int32_t) (dividend / divisor);
     }
 }
 
@@ -507,7 +507,7 @@ static void instr_sraw(riscv_cpu *cpu)
 {
     uint32_t shamt = (cpu->xreg[cpu->instr.rs2] & 0x1f);
     cpu->xreg[cpu->instr.rd] =
-        (int32_t)((uint32_t) cpu->xreg[cpu->instr.rs1]) >> shamt;
+        (int32_t) ((uint32_t) cpu->xreg[cpu->instr.rs1]) >> shamt;
 }
 
 static void instr_remw(riscv_cpu *cpu)
@@ -537,7 +537,7 @@ static void instr_remuw(riscv_cpu *cpu)
         // the remainder of division by zero equals the dividend
         cpu->xreg[cpu->instr.rd] = (int32_t) dividend;
     } else {
-        cpu->xreg[cpu->instr.rd] = (int32_t)(dividend % divisor);
+        cpu->xreg[cpu->instr.rd] = (int32_t) (dividend % divisor);
     }
 }
 
@@ -744,7 +744,7 @@ static void instr_amoaddw(riscv_cpu *cpu)
                    tmp + cpu->xreg[cpu->instr.rs2]))
         return;
     // For RV64, 32-bit AMOs always sign-extend the value placed in rd.
-    cpu->xreg[cpu->instr.rd] = (int32_t)(tmp & 0xffffffff);
+    cpu->xreg[cpu->instr.rd] = (int32_t) (tmp & 0xffffffff);
 }
 
 static void instr_amoswapw(riscv_cpu *cpu)
@@ -757,7 +757,7 @@ static void instr_amoswapw(riscv_cpu *cpu)
     if (!write_cpu(cpu, cpu->xreg[cpu->instr.rs1], 32,
                    cpu->xreg[cpu->instr.rs2]))
         return;
-    cpu->xreg[cpu->instr.rd] = (int32_t)(tmp & 0xffffffff);
+    cpu->xreg[cpu->instr.rd] = (int32_t) (tmp & 0xffffffff);
 }
 
 static void instr_lrw(riscv_cpu *cpu)
@@ -768,7 +768,7 @@ static void instr_lrw(riscv_cpu *cpu)
         assert(tmp == (uint64_t) -1);
         return;
     }
-    cpu->xreg[cpu->instr.rd] = (int32_t)(tmp & 0xffffffff);
+    cpu->xreg[cpu->instr.rd] = (int32_t) (tmp & 0xffffffff);
     cpu->reservation = addr;
 }
 
@@ -797,11 +797,11 @@ static void instr_amoxorw(riscv_cpu *cpu)
         return;
     }
 
-    uint64_t value = (int32_t)((tmp ^ cpu->xreg[cpu->instr.rs2]) & 0xffffffff);
+    uint64_t value = (int32_t) ((tmp ^ cpu->xreg[cpu->instr.rs2]) & 0xffffffff);
     if (!write_cpu(cpu, addr, 32, value))
         return;
 
-    cpu->xreg[cpu->instr.rd] = (int32_t)(tmp & 0xffffffff);
+    cpu->xreg[cpu->instr.rd] = (int32_t) (tmp & 0xffffffff);
 }
 
 static void instr_amoorw(riscv_cpu *cpu)
@@ -813,11 +813,11 @@ static void instr_amoorw(riscv_cpu *cpu)
         return;
     }
 
-    uint64_t value = (int32_t)((tmp | cpu->xreg[cpu->instr.rs2]) & 0xffffffff);
+    uint64_t value = (int32_t) ((tmp | cpu->xreg[cpu->instr.rs2]) & 0xffffffff);
     if (!write_cpu(cpu, addr, 32, value))
         return;
 
-    cpu->xreg[cpu->instr.rd] = (int32_t)(tmp & 0xffffffff);
+    cpu->xreg[cpu->instr.rd] = (int32_t) (tmp & 0xffffffff);
 }
 
 static void instr_amoandw(riscv_cpu *cpu)
@@ -829,11 +829,11 @@ static void instr_amoandw(riscv_cpu *cpu)
         return;
     }
 
-    uint64_t value = (int32_t)((tmp & cpu->xreg[cpu->instr.rs2]) & 0xffffffff);
+    uint64_t value = (int32_t) ((tmp & cpu->xreg[cpu->instr.rs2]) & 0xffffffff);
     if (!write_cpu(cpu, addr, 32, value))
         return;
 
-    cpu->xreg[cpu->instr.rd] = (int32_t)(tmp & 0xffffffff);
+    cpu->xreg[cpu->instr.rd] = (int32_t) (tmp & 0xffffffff);
 }
 
 /*
@@ -1039,7 +1039,7 @@ static void instr_caddiw(riscv_cpu *cpu)
     // C.ADDIW is only valid when rd != x0
     if (cpu->instr.rd != 0) {
         cpu->xreg[cpu->instr.rd] =
-            (int32_t)((uint32_t) cpu->xreg[cpu->instr.rd] + imm);
+            (int32_t) ((uint32_t) cpu->xreg[cpu->instr.rd] + imm);
     }
 }
 
@@ -1145,14 +1145,14 @@ static void instr_cand(riscv_cpu *cpu)
 
 static void instr_csubw(riscv_cpu *cpu)
 {
-    cpu->xreg[cpu->instr.rd] = (int32_t)((uint32_t) cpu->xreg[cpu->instr.rd] -
-                                         (uint32_t) cpu->xreg[cpu->instr.rs2]);
+    cpu->xreg[cpu->instr.rd] = (int32_t) ((uint32_t) cpu->xreg[cpu->instr.rd] -
+                                          (uint32_t) cpu->xreg[cpu->instr.rs2]);
 }
 
 static void instr_caddw(riscv_cpu *cpu)
 {
-    cpu->xreg[cpu->instr.rd] = (int32_t)((uint32_t) cpu->xreg[cpu->instr.rd] +
-                                         (uint32_t) cpu->xreg[cpu->instr.rs2]);
+    cpu->xreg[cpu->instr.rd] = (int32_t) ((uint32_t) cpu->xreg[cpu->instr.rd] +
+                                          (uint32_t) cpu->xreg[cpu->instr.rs2]);
 }
 
 static void instr_cj(riscv_cpu *cpu)
@@ -2135,62 +2135,12 @@ bool init_cpu(riscv_cpu *cpu, const char *filename, const char *rfs_name)
     return true;
 }
 
-bool tick(riscv_cpu *cpu)
+#ifdef ICACHE_CONFIG
+static bool fetch_icache(riscv_cpu *cpu)
 {
-    // TODO: sync mtime in Clint and TIME in CSR
-    // Increment the value for Time in CSR
-    tick_csr(&cpu->csr);
-    // Increment the value for mtime in Clint
-    tick_bus(&cpu->bus, &cpu->csr);
-    handle_interrupt(cpu);
-
-    bool ret = true;
-    bool is_cache = false;
-
-    ret = fetch(cpu, &is_cache);
-#ifdef ICACHE_CONFIG
-    if (is_cache)
-        goto exec_stage;
-#endif
-    if (!ret)
-        goto get_trap;
-
-    ret = decode(cpu);
-    if (!ret)
-        goto get_trap;
-
-exec_stage:
-    ret = exec(cpu);
-get_trap:
-    if (!ret) {
-        uint64_t next_pc = cpu->pc;
-        Trap trap = handle_exception(cpu);
-        if (trap == Trap_Fatal) {
-            dump_reg(cpu);
-            dump_csr(cpu);
-            LOG_ERROR("CPU mode: %d, exception %x happen before pc %lx\n",
-                      cpu->mode.mode, cpu->exc.exception, next_pc);
-            return false;
-        }
-        // reset exception flag if recovery from trap
-        cpu->exc.exception = NoException;
-#ifdef ICACHE_CONFIG
-        // flush cache when jumping in trap handler
-        invalid_icache(&cpu->icache);
-#endif
-    }
-
-    return true;
-}
-
-bool fetch(riscv_cpu *cpu, bool *is_cache)
-{
-#ifdef ICACHE_CONFIG
     riscv_instr *icache_instr = read_icache(&cpu->icache, cpu->pc);
 
     if (icache_instr != NULL) {
-        *is_cache = true;
-
         memcpy(&cpu->instr, icache_instr, sizeof(riscv_instr));
         cpu->pc += (cpu->instr.instr & 0x3) == 0x3 ? 4 : 2;
 
@@ -2204,8 +2154,13 @@ bool fetch(riscv_cpu *cpu, bool *is_cache)
 
         return true;
     }
+
+    return false;
+}
 #endif
 
+static bool fetch(riscv_cpu *cpu)
+{
     uint64_t pc = addr_translate(cpu, cpu->pc, Access_Instr);
     if (cpu->exc.exception != NoException)
         return false;
@@ -2241,7 +2196,7 @@ bool fetch(riscv_cpu *cpu, bool *is_cache)
     return true;
 }
 
-bool decode(riscv_cpu *cpu)
+static bool decode(riscv_cpu *cpu)
 {
     bool ret = __decode(cpu, &opcode_type_list);
 
@@ -2264,7 +2219,7 @@ bool decode(riscv_cpu *cpu)
     return ret;
 }
 
-bool exec(riscv_cpu *cpu)
+static bool exec(riscv_cpu *cpu)
 {
     cpu->instr.exec_func(cpu);
 
@@ -2284,7 +2239,7 @@ bool exec(riscv_cpu *cpu)
     return true;
 }
 
-void dump_reg(riscv_cpu *cpu)
+static void dump_reg(riscv_cpu *cpu)
 {
     static char *abi_name[] = {
         "z",  "ra", "sp", "gp", "tp",  "t0",  "t1", "t2", "s0", "s1", "a0",
@@ -2300,7 +2255,7 @@ void dump_reg(riscv_cpu *cpu)
     printf("\n");
 }
 
-void dump_csr(riscv_cpu *cpu)
+static void dump_csr(riscv_cpu *cpu)
 {
     printf("%-10s = 0x%-16lx, ", "MSTATUS", read_csr(&cpu->csr, MSTATUS));
     printf("%-10s = 0x%-16lx, ", "MTVEC", read_csr(&cpu->csr, MTVEC));
@@ -2311,6 +2266,53 @@ void dump_csr(riscv_cpu *cpu)
     printf("%-10s = 0x%-16lx, ", "STVEC", read_csr(&cpu->csr, STVEC));
     printf("%-10s = 0x%-16lx, ", "SEPC", read_csr(&cpu->csr, SEPC));
     printf("%-10s = 0x%-16lx\n", "SCAUSE", read_csr(&cpu->csr, SCAUSE));
+}
+
+bool tick(riscv_cpu *cpu)
+{
+    // TODO: sync mtime in Clint and TIME in CSR
+    // Increment the value for Time in CSR
+    tick_csr(&cpu->csr);
+    // Increment the value for mtime in Clint
+    tick_bus(&cpu->bus, &cpu->csr);
+    handle_interrupt(cpu);
+
+    bool ret = true;
+
+#ifdef ICACHE_CONFIG
+    if (!fetch_icache(cpu))
+#endif
+    {
+        ret = fetch(cpu);
+        if (!ret)
+            goto get_trap;
+
+        ret = decode(cpu);
+        if (!ret)
+            goto get_trap;
+    }
+
+    ret = exec(cpu);
+get_trap:
+    if (!ret) {
+        uint64_t next_pc = cpu->pc;
+        Trap trap = handle_exception(cpu);
+        if (trap == Trap_Fatal) {
+            dump_reg(cpu);
+            dump_csr(cpu);
+            LOG_ERROR("CPU mode: %d, exception %x happen before pc %lx\n",
+                      cpu->mode.mode, cpu->exc.exception, next_pc);
+            return false;
+        }
+        // reset exception flag if recovery from trap
+        cpu->exc.exception = NoException;
+#ifdef ICACHE_CONFIG
+        // flush cache when jumping in trap handler
+        invalid_icache(&cpu->icache);
+#endif
+    }
+
+    return true;
 }
 
 void free_cpu(riscv_cpu *cpu)
