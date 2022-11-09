@@ -44,8 +44,8 @@ $(BUSYBOX_BIN): $(BUSYBOX_SRC)
 	make -C $(BUSYBOX_SRC) -j 2
 	make -C $(BUSYBOX_SRC) CONFIG_PREFIX='../rootfs' install
 
-LINUX_RFS_IMG=$(LINUX_OUT)/rootfs/rootfs.cpio
-$(LINUX_RFS_IMG): $(BUSYBOX_BIN)
+BUSYBOX_CPIO=$(LINUX_OUT)/rootfs/rootfs.cpio
+$(BUSYBOX_CPIO): $(BUSYBOX_BIN)
 	cd $(LINUX_OUT)/rootfs; \
 	ls; \
 	mv linuxrc init; \
@@ -53,3 +53,13 @@ $(LINUX_RFS_IMG): $(BUSYBOX_BIN)
 	cp -f ../../configs/rc-startup etc/init.d/rcS; \
 	chmod 755 etc/init.d/rcS; \
 	find . | cpio -o --format=newc > $(abspath $@)
+
+LINUX_RFS_IMG=$(LINUX_OUT)/root.img
+$(LINUX_RFS_IMG): $(BUSYBOX_CPIO)
+	dd if=/dev/zero of=$(LINUX_RFS_IMG) bs=1024 count=32000
+	mkfs.ext4 -F $(LINUX_RFS_IMG) >/dev/null
+	mkdir -p tmpdir
+	sudo mount -o loop $(LINUX_RFS_IMG) tmpdir
+	cd tmpdir; \
+	sudo cpio -id -I ../$(LINUX_OUT)/rootfs/rootfs.cpio
+	sudo umount tmpdir
