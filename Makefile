@@ -1,3 +1,5 @@
+include mk/toolchain.mk
+
 CC = gcc
 CFLAGS = -Wall -Wextra -Iinclude -O3 -g
 CFLAGS += -include common.h
@@ -58,8 +60,8 @@ $(OUT)/%.o: src/%.c
 check: CFLAGS += -O3
 check: LDFLAGS += -O3
 check: $(BIN)
-	 riscv64-unknown-elf-gcc -S -nostdlib -mcmodel=medany ./test/c_test.c
-	 riscv64-unknown-elf-gcc \
+	 $(RISCV_GCC) -S -nostdlib -mcmodel=medany ./test/c_test.c
+	 $(RISCV_GCC) \
 		 -T ./test/linker.ld \
 		 -nostdlib \
 		 -march=rv64g \

@@ -1,12 +1,11 @@
-RISCV_PREFIX   ?= riscv64-unknown-elf-
-RISCV_GCC      ?= $(RISCV_PREFIX)gcc
+include $(TARGETDIR)/../mk/toolchain.mk
 
 TARGET_SIM ?= $(TARGETDIR)/../build/emu
 TARGET_FLAGS ?= $(RISCV_TARGET_FLAGS)
 
 RUN_TARGET = $(TARGET_SIM) $(TARGET_FLAGS) \
 	--binary $(<) \
-        --compliance $(*).signature.output 
+        --compliance $(*).signature.output
 
 RISCV_GCC_OPTS ?= \
     -march=rv64gc \
@@ -23,6 +22,6 @@ COMPILE_CMD = $$(RISCV_GCC) $(1) $$(RISCV_GCC_OPTS) \
 	      -I$(ROOTDIR)/riscv-test-suite/env/ \
 	      -I$(TARGETDIR)/$(RISCV_TARGET)/ \
 	      -T$(TARGETDIR)/$(RISCV_TARGET)/link.ld \
-	      $$(<) -o $$@ 
+	      $$(<) -o $$@
 
-COMPILE_TARGET= $(COMPILE_CMD) 
+COMPILE_TARGET= $(COMPILE_CMD)
