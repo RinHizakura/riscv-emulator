@@ -67,6 +67,8 @@ int main(int argc, char *argv[])
         goto clean_up;
     }
 
+    run_emu(emu);
+
     // FIXME: Refactor to prettier code
     if (opt_compliance) {
         FILE *f = fopen(signature_out_file, "w");

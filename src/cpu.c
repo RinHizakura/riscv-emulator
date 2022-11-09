@@ -2268,7 +2268,7 @@ static void dump_csr(riscv_cpu *cpu)
     printf("%-10s = 0x%-16lx\n", "SCAUSE", read_csr(&cpu->csr, SCAUSE));
 }
 
-bool tick(riscv_cpu *cpu)
+bool tick_cpu(riscv_cpu *cpu)
 {
     // TODO: sync mtime in Clint and TIME in CSR
     // Increment the value for Time in CSR

@@ -60,7 +60,7 @@ typedef struct INSTR_ENTRY {
     riscv_instr_desc *next;
 } riscv_instr_entry;
 
-bool tick(riscv_cpu *cpu);
 bool init_cpu(riscv_cpu *cpu, const char *filename, const char *rfs_name);
+bool tick_cpu(riscv_cpu *cpu);
 void free_cpu(riscv_cpu *cpu);
 #endif
