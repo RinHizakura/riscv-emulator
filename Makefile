@@ -99,6 +99,16 @@ compliance: $(BIN) $(COMPLIANCE_DIR)
 	$(MAKE) -C $(COMPLIANCE_DIR) clean
 	$(MAKE) -C $(COMPLIANCE_DIR)
 
+RISCV_TEST_DIR ?= ./riscv-tests/
+export RISCV_PREFIX ?= riscv64-unknown-elf-
+riscv-test:
+	cd $(RISCV_TEST_DIR); \
+	git submodule update --init --recursive; \
+	autoupdate; \
+	autoconf; \
+	./configure --prefix=$(TARGETDIR)
+	$(MAKE) -C $(RISCV_TEST_DIR)
+
 clean:
 	@$(RM) $(BIN) $(COBJ)
 	@$(RM) *.obj *.bin *.s *.dtb
