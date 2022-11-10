@@ -63,9 +63,11 @@ static void access_disk(riscv_virtio_blk *virtio_blk)
     /* (for avail) idx field indicates where the driver would put the next
      * descriptor entry in the ring (modulo the queue size). This starts at 0,
      * and increases. */
-    int idx = read_bus(&cpu->bus, avail + 2, 16, &cpu->exc);
+    int idx = read_bus(&cpu->bus, avail + offsetof(riscv_virtq_avail, idx), 16,
+                       &cpu->exc);
     int desc_offset =
-        read_bus(&cpu->bus, avail + 4 + (idx % queue_size), 16, &cpu->exc);
+        read_bus(&cpu->bus, avail + 4 + (idx % queue_size) * sizeof(uint16_t),
+                 16, &cpu->exc);
 
     /* MUST use a single 8-type descriptor containing type, reserved and sector,
      * followed by descriptors for data, then finally a separate 1-byte
