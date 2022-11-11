@@ -2,7 +2,7 @@ include mk/toolchain.mk
 
 CC = gcc
 CFLAGS = -Wall -Wextra -Iinclude -O3 -g
-CFLAGS += -include common.h
+CFLAGS += -include log.h
 LDFLAGS = -lpthread
 
 OUT ?= build
