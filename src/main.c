@@ -26,8 +26,6 @@ int main(int argc, char *argv[])
         {"riscv-test", 0, NULL, 'T'},
     };
 
-    log_begin();
-
     int c;
     while ((c = getopt_long(argc, argv, "B:R:C:T", opts, &option_index)) !=
            -1) {
@@ -64,6 +62,8 @@ int main(int argc, char *argv[])
     if (!opt_rfsimg)
         rfsimg_file[0] = '\0';
 
+    log_begin();
+
     int ret = 0;
     riscv_emu *emu = calloc(1, sizeof(riscv_emu));
     if (!emu) {
@@ -81,6 +81,7 @@ int main(int argc, char *argv[])
         if (emu->cpu.xreg[10] == 0) {
             printf("Run test %s PASS\n", input_file);
         } else {
+            ret = -1;
             printf("Run test %s FAIL\n", input_file);
         }
     } else {
@@ -92,7 +93,7 @@ int main(int argc, char *argv[])
             if (!f) {
                 LOG_ERROR("Failed to open file %s for compilance test.\n",
                           signature_out_file);
-                return -1;
+                goto clean_up;
             }
 
             uint64_t begin = emu->cpu.bus.memory.elf.sig_start;
@@ -108,9 +109,8 @@ int main(int argc, char *argv[])
         }
     }
 
-    log_end();
-
 clean_up:
+    log_end();
     free_emu(emu);
     free(emu);
     return ret;
