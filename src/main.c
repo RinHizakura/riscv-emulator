@@ -23,6 +23,8 @@ int main(int argc, char *argv[])
         {"compliance", 1, NULL, 'C'},
     };
 
+    log_begin();
+
     int c;
     while ((c = getopt_long(argc, argv, "B:R:C:", opts, &option_index)) != -1) {
         switch (c) {
@@ -89,6 +91,8 @@ int main(int argc, char *argv[])
         }
         fclose(f);
     }
+
+    log_end();
 
 clean_up:
     free_emu(emu);
