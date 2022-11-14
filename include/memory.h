@@ -10,6 +10,7 @@
 typedef struct {
     riscv_elf elf;
     uint8_t *mem;
+    uint64_t tohost_addr;
 } riscv_mem;
 
 uint64_t get_entry_addr();

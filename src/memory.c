@@ -31,6 +31,10 @@ static bool parse_elf(riscv_mem *mem, uint8_t *elf_file)
         printf("%16s %14lx %14lx\n", sec_name, sec_header->sh_addr,
                sec_header->sh_size);
 
+        if (strcmp(sec_name, ".tohost") == 0) {
+            mem->tohost_addr = sec_header->sh_addr;
+        }
+
         if (sec_header->sh_type == SHT_SYMTAB ||
             sec_header->sh_type == SHT_DYNSYM) {
             Elf64_Sym *symtab_header =

@@ -3,7 +3,7 @@ include mk/toolchain.mk
 CC = gcc
 CFLAGS = -Wall -Wextra -Iinclude -O3 -g
 CFLAGS += -include log.h
-LDFLAGS = -lpthread
+LDFLAGS = -lpthread -O3
 
 OUT ?= build
 BIN = $(OUT)/emu
@@ -35,12 +35,9 @@ ifeq ("$(ICACHE)", "1")
     CFLAGS +=  -DICACHE_CONFIG
 endif
 
-all: CFLAGS += -O3 -g
-all: LDFLAGS += -O3
 all: $(BIN) $(GIT_HOOKS)
 
-debug: CFLAGS += -O3 -g -DDEBUG
-debug: LDFLAGS += -O3
+debug: CFLAGS += -DDEBUG
 debug: $(BIN)
 
 $(GIT_HOOKS):
@@ -57,8 +54,6 @@ $(OUT)/%.o: src/%.c
 	@echo "  CC\t$@"
 	@$(CC) -c $(CFLAGS) $< -o $@
 
-check: CFLAGS += -O3
-check: LDFLAGS += -O3
 check: $(BIN)
 	 $(RISCV_GCC) -S -nostdlib -mcmodel=medany ./test/c_test.c
 	 $(RISCV_GCC) \
@@ -76,38 +71,14 @@ xv6: $(BIN)
 linux: $(BIN) $(LINUX_IMG) $(LINUX_RFS_IMG)
 	$(BIN) --binary $(LINUX_IMG) --rfsimg $(LINUX_RFS_IMG)
 
-# variables for compliance
-COMPLIANCE_SRC ?= ./riscv-arch-test/Makefile
-COMPLIANCE_DIR ?= ./riscv-arch-test/
-export TARGETDIR ?= $(shell pwd)/riscv-target
-export RISCV_TARGET ?= riscv-emu
-export XLEN ?= 64
-export RISCV_DEVICE ?= I
-export RISCV_TEST = lbu-align-01
-export RISCV_TARGET_FLAGS ?=
-export RISCV_ASSERT ?= 0
-export JOBS = -j1
-export WORK = $(TARGETDIR)/build/compliance
-
-$(COMPLIANCE_SRC):
-	git submodule update --init
-	touch $(@)
-
-$(COMPLIANCE_DIR): $(COMPLIANCE_SRC)
-
-compliance: $(BIN) $(COMPLIANCE_DIR)
+include mk/compliance.mk
+compliance: $(BIN) $(COMPLIANCE_SRC)
 	$(MAKE) -C $(COMPLIANCE_DIR) clean
 	$(MAKE) -C $(COMPLIANCE_DIR)
-
-RISCV_TEST_DIR ?= ./riscv-tests/
-export RISCV_PREFIX ?= riscv64-unknown-elf-
-riscv-test:
-	cd $(RISCV_TEST_DIR); \
-	git submodule update --init --recursive; \
-	autoupdate; \
-	autoconf; \
-	./configure --prefix=$(TARGETDIR)
+include mk/riscv-tests.mk
+riscv-test: $(BIN) $(RISCV_TEST_SRC)
 	$(MAKE) -C $(RISCV_TEST_DIR)
+	$(BIN) --binary $(RISCV_TEST_BIN) --riscv-test
 
 clean:
 	@$(RM) $(BIN) $(COBJ)

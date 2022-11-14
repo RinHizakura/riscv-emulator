@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <getopt.h>
 #include <stdlib.h>
 #include <string.h>
@@ -13,6 +14,7 @@ static char signature_out_file[MAX_FILE_LEN];
 static char opt_input = false;
 static char opt_rfsimg = false;
 static bool opt_compliance = false;
+static bool opt_riscv_test = false;
 
 int main(int argc, char *argv[])
 {
@@ -21,12 +23,14 @@ int main(int argc, char *argv[])
         {"binary", 1, NULL, 'B'},
         {"rfsimg", 1, NULL, 'R'},
         {"compliance", 1, NULL, 'C'},
+        {"riscv-test", 0, NULL, 'T'},
     };
 
     log_begin();
 
     int c;
-    while ((c = getopt_long(argc, argv, "B:R:C:", opts, &option_index)) != -1) {
+    while ((c = getopt_long(argc, argv, "B:R:C:T", opts, &option_index)) !=
+           -1) {
         switch (c) {
         case 'B':
             opt_input = true;
@@ -42,6 +46,9 @@ int main(int argc, char *argv[])
             opt_compliance = true;
             strncpy(signature_out_file, optarg, MAX_FILE_LEN - 1);
             signature_out_file[MAX_FILE_LEN - 1] = '\0';
+            break;
+        case 'T':
+            opt_riscv_test = true;
             break;
         default:
             LOG_ERROR("Unknown option\n");
@@ -69,27 +76,36 @@ int main(int argc, char *argv[])
         goto clean_up;
     }
 
-    run_emu(emu);
-
-    // FIXME: Refactor to prettier code
-    if (opt_compliance) {
-        FILE *f = fopen(signature_out_file, "w");
-        if (!f) {
-            LOG_ERROR("Failed to open file %s for compilance test.\n",
-                      signature_out_file);
-            return -1;
+    if (opt_riscv_test) {
+        test_emu(emu);
+        if (emu->cpu.xreg[10] == 0) {
+            printf("Run test %s PASS\n", input_file);
+        } else {
+            printf("Run test %s FAIL\n", input_file);
         }
+    } else {
+        run_emu(emu);
 
-        uint64_t begin = emu->cpu.bus.memory.elf.sig_start;
-        uint64_t end = emu->cpu.bus.memory.elf.sig_end;
+        // FIXME: Refactor to prettier code
+        if (opt_compliance) {
+            FILE *f = fopen(signature_out_file, "w");
+            if (!f) {
+                LOG_ERROR("Failed to open file %s for compilance test.\n",
+                          signature_out_file);
+                return -1;
+            }
 
-        for (uint64_t i = begin; i < end; i += 4) {
-            uint32_t value =
-                read_mem(&emu->cpu.bus.memory, i, 32, &emu->cpu.exc) &
-                0xffffffff;
-            fprintf(f, "%08x\n", value);
+            uint64_t begin = emu->cpu.bus.memory.elf.sig_start;
+            uint64_t end = emu->cpu.bus.memory.elf.sig_end;
+
+            for (uint64_t i = begin; i < end; i += 4) {
+                uint32_t value =
+                    read_mem(&emu->cpu.bus.memory, i, 32, &emu->cpu.exc) &
+                    0xffffffff;
+                fprintf(f, "%08x\n", value);
+            }
+            fclose(f);
         }
-        fclose(f);
     }
 
     log_end();
