@@ -77,13 +77,10 @@ int main(int argc, char *argv[])
     }
 
     if (opt_riscv_test) {
-        test_emu(emu);
-        if (emu->cpu.xreg[10] == 0) {
-            printf("Run test %s PASS\n", input_file);
-        } else {
-            ret = -1;
-            printf("Run test %s FAIL\n", input_file);
-        }
+        ret = test_emu(emu);
+        // ret >> 1 is the number of test case that we fail to pass
+        printf("Run test %s %s(%d)\n", input_file, ret ? "FAIL" : "PASS",
+               ret >> 1);
     } else {
         run_emu(emu);
 

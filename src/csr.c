@@ -39,6 +39,7 @@ bool init_csr(riscv_csr *csr)
                         (1 << 2) |     // Compressed extension)
                         1;             // Atomic extension
     write_csr(csr, MISA, misa_val);
+    write_csr(csr, MSTATUS, 2UL << 32);
     return true;
 }
 
@@ -71,7 +72,7 @@ void write_csr(riscv_csr *csr, uint16_t addr, uint64_t value)
     switch (addr) {
     case SSTATUS: {
         uint64_t *mstatus = &csr->reg[MSTATUS];
-        *mstatus = (*mstatus & ~SSTATUS_VISIBLE) | (value & SSTATUS_VISIBLE);
+        *mstatus = (*mstatus & ~SSTATUS_WRITABLE) | (value & SSTATUS_WRITABLE);
         break;
     }
     case SIE: {
@@ -89,6 +90,11 @@ void write_csr(riscv_csr *csr, uint16_t addr, uint64_t value)
     case MIDELEG: {
         uint64_t *mideleg = &csr->reg[MIDELEG];
         *mideleg = (*mideleg & ~MIDELEG_WRITABLE) | (value & MIDELEG_WRITABLE);
+        break;
+    }
+    case MSTATUS: {
+        uint64_t *mstatus = &csr->reg[MSTATUS];
+        *mstatus = (*mstatus & ~MSTATUS_WRITABLE) | (value & MSTATUS_WRITABLE);
         break;
     }
     // read only CSR

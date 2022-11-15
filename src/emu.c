@@ -18,7 +18,7 @@ void run_emu(riscv_emu *emu)
         ;
 }
 
-void test_emu(riscv_emu *emu)
+int test_emu(riscv_emu *emu)
 {
     while (tick_cpu(&emu->cpu)) {
         /* If a riscv-tests program is done, it will write non-zero value to
@@ -30,6 +30,8 @@ void test_emu(riscv_emu *emu)
         if (read_mem(mem, tohost_addr, 8, &emu->cpu.exc) != 0)
             break;
     }
+
+    return emu->cpu.xreg[10];
 }
 
 void free_emu(riscv_emu *emu)
