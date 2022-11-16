@@ -39,7 +39,6 @@ bool init_csr(riscv_csr *csr)
                         (1 << 2) |     // Compressed extension)
                         1;             // Atomic extension
     write_csr(csr, MISA, misa_val);
-    write_csr(csr, MSTATUS, 2UL << 32);
     return true;
 }
 
@@ -52,7 +51,7 @@ uint64_t read_csr(riscv_csr *csr, uint16_t addr)
 
     switch (addr) {
     case SSTATUS:
-        return (csr->reg[MSTATUS] & SSTATUS_VISIBLE);
+        return (csr->reg[MSTATUS] | SSTATUS_UXL_64BIT) & SSTATUS_VISIBLE;
     case SIE:
         return (csr->reg[MIE] & csr->reg[MIDELEG]);
     case SIP:
