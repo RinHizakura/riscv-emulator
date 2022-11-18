@@ -76,11 +76,9 @@ compliance: $(BIN) $(COMPLIANCE_SRC)
 	$(MAKE) -C $(COMPLIANCE_DIR) clean
 	$(MAKE) -C $(COMPLIANCE_DIR)
 include mk/riscv-tests.mk
-RISCV_TEST_BIN = $(RISCV_TEST_DIR)/isa/rv64si-p-csr
-riscv-test: $(BIN) $(RISCV_TEST_SRC)
+riscv-tests: $(BIN) $(RISCV_TEST_SRC)
 	$(MAKE) -C $(RISCV_TEST_DIR)
-	$(BIN) --binary $(RISCV_TEST_BIN) --riscv-test
-
+	scripts/riscv-tests-run.sh
 clean:
 	@$(RM) $(BIN) $(COBJ)
 	@$(RM) *.obj *.bin *.s *.dtb
