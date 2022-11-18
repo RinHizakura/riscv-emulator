@@ -58,6 +58,7 @@ typedef struct INSTR_ENTRY {
     void (*decode_func)(riscv_instr *instr);
     void (*exec_func)(riscv_cpu *cpu);
     riscv_instr_desc *next;
+    char *entry_name;
 } riscv_instr_entry;
 
 bool init_cpu(riscv_cpu *cpu, const char *filename, const char *rfs_name);

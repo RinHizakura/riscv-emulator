@@ -1257,10 +1257,6 @@ static void instr_cebreak_cjalr_cadd(riscv_cpu *cpu)
     if (cpu->instr.rs2 == 0) {
         // C.EBREAK
         if (cpu->instr.rs1 == 0) {
-            /* Because 'handle_exception' always assume the instruction
-             * should be 32 bits, but C.EBREAK is a 16 bits instruction. We have
-             * to trickly add 2 to correct this. */
-            cpu->pc += 2;
             cpu->exc.exception = Breakpoint;
         }
         // C.JALR
@@ -1305,316 +1301,316 @@ static void instr_csdsp(riscv_cpu *cpu)
         {_type}, sizeof(_instr) / sizeof(_instr[0]), _instr}
 
 static riscv_instr_entry instr_load_type[] = {
-    [0x0] = {NULL, instr_lb, NULL},  
-    [0x1] = {NULL, instr_lh, NULL},
-    [0x2] = {NULL, instr_lw, NULL},  
-    [0x3] = {NULL, instr_ld, NULL},
-    [0x4] = {NULL, instr_lbu, NULL}, 
-    [0x5] = {NULL, instr_lhu, NULL},
-    [0x6] = {NULL, instr_lwu, NULL}
+    [0x0] = {NULL, instr_lb, NULL, "LB"},
+    [0x1] = {NULL, instr_lh, NULL, "LH"},
+    [0x2] = {NULL, instr_lw, NULL, "LW"},
+    [0x3] = {NULL, instr_ld, NULL, "LD"},
+    [0x4] = {NULL, instr_lbu, NULL, "LBU"},
+    [0x5] = {NULL, instr_lhu, NULL, "LHU"},
+    [0x6] = {NULL, instr_lwu, NULL, "LWU"}
 };
 INIT_RISCV_INSTR_LIST(FUNC3, instr_load_type);
 
 static riscv_instr_entry instr_fence_type[] = {
-    [0x0] = {NULL, instr_fence, NULL},
-    [0x1] = {NULL, instr_fencei, NULL}
+    [0x0] = {NULL, instr_fence, NULL, "FENCE"},
+    [0x1] = {NULL, instr_fencei, NULL, "FENCEI"}
 };
 INIT_RISCV_INSTR_LIST(FUNC3, instr_fence_type);
 
 
 static riscv_instr_entry instr_srli_srai_type[] = {
-    [0x0] =  {NULL, instr_srli, NULL},
-    [0x10] = {NULL, instr_srai, NULL}
+    [0x0] =  {NULL, instr_srli, NULL, "SRLI"},
+    [0x10] = {NULL, instr_srai, NULL, "SRAI"}
 };
 INIT_RISCV_INSTR_LIST(FUNC7_S, instr_srli_srai_type);
 
 static riscv_instr_entry instr_imm_type[] = {
-    [0x0] = {NULL, instr_addi, NULL},
-    [0x1] = {NULL, instr_slli, NULL},
-    [0x2] = {NULL, instr_slti, NULL},
-    [0x3] = {NULL, instr_sltiu, NULL},
-    [0x4] = {NULL, instr_xori, NULL},
-    [0x5] = {NULL, NULL, &instr_srli_srai_type_list},
-    [0x6] = {NULL, instr_ori, NULL},
-    [0x7] = {NULL, instr_andi, NULL}
+    [0x0] = {NULL, instr_addi, NULL, "ADDI"},
+    [0x1] = {NULL, instr_slli, NULL, "SLLI"},
+    [0x2] = {NULL, instr_slti, NULL, "SLTI"},
+    [0x3] = {NULL, instr_sltiu, NULL, "SLTIU"},
+    [0x4] = {NULL, instr_xori, NULL, "XORI"},
+    [0x5] = {NULL, NULL, &instr_srli_srai_type_list, NULL},
+    [0x6] = {NULL, instr_ori, NULL, "ORI"},
+    [0x7] = {NULL, instr_andi, NULL, "ANDI"}
 };
 INIT_RISCV_INSTR_LIST(FUNC3, instr_imm_type);
 
 static riscv_instr_entry instr_add_mul_sub_type[] = {
-    [0x00] = {NULL, instr_add, NULL},
-    [0x01] = {NULL, instr_mul, NULL},
-    [0x20] = {NULL, instr_sub, NULL}
+    [0x00] = {NULL, instr_add, NULL, "ADD"},
+    [0x01] = {NULL, instr_mul, NULL, "MUL"},
+    [0x20] = {NULL, instr_sub, NULL, "SUB"}
 };
 INIT_RISCV_INSTR_LIST(FUNC7, instr_add_mul_sub_type);
 
 static riscv_instr_entry instr_sll_mulh_type[] = {
-    [0x00] = {NULL, instr_sll, NULL},
-    [0x01] = {NULL, instr_mulh, NULL}
+    [0x00] = {NULL, instr_sll, NULL, "SLL"},
+    [0x01] = {NULL, instr_mulh, NULL, "MULH"}
 };
 INIT_RISCV_INSTR_LIST(FUNC7, instr_sll_mulh_type);
 
 static riscv_instr_entry instr_slt_mulhsu_type[] = {
-    [0x00] = {NULL, instr_slt, NULL},
-    [0x01] = {NULL, instr_mulhsu, NULL}
+    [0x00] = {NULL, instr_slt, NULL, "SLT"},
+    [0x01] = {NULL, instr_mulhsu, NULL, "MULHSU"}
 };
 INIT_RISCV_INSTR_LIST(FUNC7, instr_slt_mulhsu_type);
 
 static riscv_instr_entry instr_sltu_mulhu_type[] = {
-    [0x00] = {NULL, instr_sltu, NULL},
-    [0x01] = {NULL, instr_mulhu, NULL}
+    [0x00] = {NULL, instr_sltu, NULL, "SLTU"},
+    [0x01] = {NULL, instr_mulhu, NULL, "MULHU"}
 };
 INIT_RISCV_INSTR_LIST(FUNC7, instr_sltu_mulhu_type);
 
 static riscv_instr_entry instr_xor_div_type[] = {
-    [0x00] = {NULL, instr_xor, NULL},
-    [0x01] = {NULL, instr_div, NULL}
+    [0x00] = {NULL, instr_xor, NULL, "XOR"},
+    [0x01] = {NULL, instr_div, NULL, "DIV"}
 };
 INIT_RISCV_INSTR_LIST(FUNC7, instr_xor_div_type);
 
 static riscv_instr_entry instr_srl_divu_sra_type[] = {
-    [0x00] = {NULL, instr_srl, NULL},
-    [0x01] = {NULL, instr_divu, NULL},
-    [0x20] = {NULL, instr_sra, NULL}
+    [0x00] = {NULL, instr_srl, NULL, "SRL"},
+    [0x01] = {NULL, instr_divu, NULL, "DIVU"},
+    [0x20] = {NULL, instr_sra, NULL, "SRA"}
 };
 INIT_RISCV_INSTR_LIST(FUNC7, instr_srl_divu_sra_type);
 
 static riscv_instr_entry instr_or_rem_type[] = {
-    [0x00] = {NULL, instr_or, NULL},
-    [0x01] = {NULL, instr_rem, NULL}
+    [0x00] = {NULL, instr_or, NULL, "OR"},
+    [0x01] = {NULL, instr_rem, NULL, "REM"}
 };
 INIT_RISCV_INSTR_LIST(FUNC7, instr_or_rem_type);
 
 static riscv_instr_entry instr_and_remu_type[] = {
-    [0x00] = {NULL, instr_and, NULL},
-    [0x01] = {NULL, instr_remu, NULL}
+    [0x00] = {NULL, instr_and, NULL, "AND"},
+    [0x01] = {NULL, instr_remu, NULL, "REMU"}
 };
 INIT_RISCV_INSTR_LIST(FUNC7, instr_and_remu_type);
 
 static riscv_instr_entry instr_reg_type[] = {
-    [0x0] = {NULL, NULL, &instr_add_mul_sub_type_list},
-    [0x1] = {NULL, NULL, &instr_sll_mulh_type_list},
-    [0x2] = {NULL, NULL, &instr_slt_mulhsu_type_list},
-    [0x3] = {NULL, NULL, &instr_sltu_mulhu_type_list},
-    [0x4] = {NULL, NULL, &instr_xor_div_type_list},
-    [0x5] = {NULL, NULL, &instr_srl_divu_sra_type_list},
-    [0x6] = {NULL, NULL, &instr_or_rem_type_list},
-    [0x7] = {NULL, NULL, &instr_and_remu_type_list}
+    [0x0] = {NULL, NULL, &instr_add_mul_sub_type_list, NULL},
+    [0x1] = {NULL, NULL, &instr_sll_mulh_type_list, NULL},
+    [0x2] = {NULL, NULL, &instr_slt_mulhsu_type_list, NULL},
+    [0x3] = {NULL, NULL, &instr_sltu_mulhu_type_list, NULL},
+    [0x4] = {NULL, NULL, &instr_xor_div_type_list, NULL},
+    [0x5] = {NULL, NULL, &instr_srl_divu_sra_type_list, NULL},
+    [0x6] = {NULL, NULL, &instr_or_rem_type_list, NULL},
+    [0x7] = {NULL, NULL, &instr_and_remu_type_list, NULL}
 };
 INIT_RISCV_INSTR_LIST(FUNC3, instr_reg_type);
 
 static riscv_instr_entry instr_srliw_sraiw_type[] = {
-    [0x00] = {NULL, instr_srliw, NULL},
-    [0x20] = {NULL, instr_sraiw, NULL}
+    [0x00] = {NULL, instr_srliw, NULL, "SRLIW"},
+    [0x20] = {NULL, instr_sraiw, NULL, "SRAIW"}
 };
 INIT_RISCV_INSTR_LIST(FUNC7, instr_srliw_sraiw_type);
 
 static riscv_instr_entry instr_immw_type[] = {
-    [0x0] = {NULL, instr_addiw, NULL},
-    [0x1] = {NULL, instr_slliw, NULL},
-    [0x5] = {NULL, NULL, &instr_srliw_sraiw_type_list}
+    [0x0] = {NULL, instr_addiw, NULL, "ADDIW"},
+    [0x1] = {NULL, instr_slliw, NULL, "SLLIW"},
+    [0x5] = {NULL, NULL, &instr_srliw_sraiw_type_list, NULL}
 };
 INIT_RISCV_INSTR_LIST(FUNC3, instr_immw_type);
 
 static riscv_instr_entry instr_store_type[] = {
-    [0x0] = {NULL, instr_sb, NULL},
-    [0x1] = {NULL, instr_sh, NULL},
-    [0x2] = {NULL, instr_sw, NULL},
-    [0x3] = {NULL, instr_sd, NULL},
+    [0x0] = {NULL, instr_sb, NULL, "SB"},
+    [0x1] = {NULL, instr_sh, NULL, "SH"},
+    [0x2] = {NULL, instr_sw, NULL, "SW"},
+    [0x3] = {NULL, instr_sd, NULL, "SD"},
 };
 INIT_RISCV_INSTR_LIST(FUNC3, instr_store_type);
 
 static riscv_instr_entry instr_addw_mulw_subw_type[] = {
-    [0x00] = {NULL, instr_addw, NULL},
-    [0x01] = {NULL, instr_mulw, NULL},
-    [0x20] = {NULL, instr_subw, NULL}
+    [0x00] = {NULL, instr_addw, NULL, "ADDW"},
+    [0x01] = {NULL, instr_mulw, NULL, "MULW"},
+    [0x20] = {NULL, instr_subw, NULL, "SUBW"}
 };
 INIT_RISCV_INSTR_LIST(FUNC7, instr_addw_mulw_subw_type);
 
 static riscv_instr_entry instr_sllw_type[] = {
-    [0x00] = {NULL, instr_sllw, NULL},
+    [0x00] = {NULL, instr_sllw, NULL, "SLLW"},
 };
 INIT_RISCV_INSTR_LIST(FUNC7, instr_sllw_type);
 
 static riscv_instr_entry instr_divw_type[] = {
-    [0x01] = {NULL, instr_divw, NULL}
+    [0x01] = {NULL, instr_divw, NULL, "DIVW"}
 };
 INIT_RISCV_INSTR_LIST(FUNC7, instr_divw_type);
 
 static riscv_instr_entry instr_srlw_divuw_sraw_type[] = {
-    [0x00] = {NULL, instr_srlw, NULL},
-    [0x01] = {NULL, instr_divuw, NULL},
-    [0x20] = {NULL, instr_sraw, NULL}
+    [0x00] = {NULL, instr_srlw, NULL, "SRLW"},
+    [0x01] = {NULL, instr_divuw, NULL, "DIVUW"},
+    [0x20] = {NULL, instr_sraw, NULL, "SRAW"}
 };
 INIT_RISCV_INSTR_LIST(FUNC7, instr_srlw_divuw_sraw_type);
 
 static riscv_instr_entry instr_remw_type[] = {
-    [0x01] = {NULL, instr_remw, NULL}
+    [0x01] = {NULL, instr_remw, NULL, "REMW"}
 };
 INIT_RISCV_INSTR_LIST(FUNC7, instr_remw_type);
 
 static riscv_instr_entry instr_remuw_type[] = {
-    [0x01] =  {NULL, instr_remuw, NULL}
+    [0x01] =  {NULL, instr_remuw, NULL, "REMUW"}
 };
 INIT_RISCV_INSTR_LIST(FUNC7, instr_remuw_type);
 
 static riscv_instr_entry instr_regw_type[] = {
-    [0x0] = {NULL, NULL, &instr_addw_mulw_subw_type_list},
-    [0x1] = {NULL, NULL, &instr_sllw_type_list},
-    [0x4] = {NULL, NULL, &instr_divw_type_list},
-    [0x5] = {NULL, NULL, &instr_srlw_divuw_sraw_type_list},
-    [0x6] = {NULL, NULL, &instr_remw_type_list},
-    [0x7] = {NULL, NULL, &instr_remuw_type_list},
+    [0x0] = {NULL, NULL, &instr_addw_mulw_subw_type_list, NULL},
+    [0x1] = {NULL, NULL, &instr_sllw_type_list, NULL},
+    [0x4] = {NULL, NULL, &instr_divw_type_list, NULL},
+    [0x5] = {NULL, NULL, &instr_srlw_divuw_sraw_type_list, NULL},
+    [0x6] = {NULL, NULL, &instr_remw_type_list, NULL},
+    [0x7] = {NULL, NULL, &instr_remuw_type_list, NULL},
 };
 INIT_RISCV_INSTR_LIST(FUNC3, instr_regw_type);
 
 static riscv_instr_entry instr_branch_type[] = {
-    [0x0] = {NULL, instr_beq, NULL},
-    [0x1] = {NULL, instr_bne, NULL},
-    [0x4] = {NULL, instr_blt, NULL},
-    [0x5] = {NULL, instr_bge, NULL},
-    [0x6] = {NULL, instr_bltu, NULL},
-    [0x7] = {NULL, instr_bgeu, NULL},
+    [0x0] = {NULL, instr_beq, NULL, "BEQ"},
+    [0x1] = {NULL, instr_bne, NULL, "BNE"},
+    [0x4] = {NULL, instr_blt, NULL, "BLT"},
+    [0x5] = {NULL, instr_bge, NULL, "BGE"},
+    [0x6] = {NULL, instr_bltu, NULL, "BLTU"},
+    [0x7] = {NULL, instr_bgeu, NULL, "BGEU"},
 };
 INIT_RISCV_INSTR_LIST(FUNC3, instr_branch_type);
 
 static riscv_instr_entry instr_ecall_ebreak_type[] = {
-    [0x0] = {NULL, instr_ecall, NULL},
-    [0x1] = {NULL, instr_ebreak, NULL},
+    [0x0] = {NULL, instr_ecall, NULL, "ECALL"},
+    [0x1] = {NULL, instr_ebreak, NULL, "EBREAK"},
 };
 INIT_RISCV_INSTR_LIST(RS2, instr_ecall_ebreak_type);
 
 static riscv_instr_entry instr_sret_wfi_type[] = {
-    [0x2] = {NULL, instr_sret, NULL},
-    [0x5] = {NULL, instr_wfi, NULL}
+    [0x2] = {NULL, instr_sret, NULL, "SRET"},
+    [0x5] = {NULL, instr_wfi, NULL, "WFI"}
 };
 INIT_RISCV_INSTR_LIST(RS2, instr_sret_wfi_type);
 
 static riscv_instr_entry instr_ret_type[] = {
-    [0x00] = {NULL, NULL, &instr_ecall_ebreak_type_list},
-    [0x08] = {NULL, NULL, &instr_sret_wfi_type_list},
-    [0x18] = {NULL, instr_mret, NULL},
-    [0x09] = {NULL, instr_sfencevma, NULL},
-    [0x11] = {NULL, instr_hfencebvma, NULL},
-    [0x51] = {NULL, instr_hfencegvma, NULL}
+    [0x00] = {NULL, NULL, &instr_ecall_ebreak_type_list, NULL},
+    [0x08] = {NULL, NULL, &instr_sret_wfi_type_list, NULL},
+    [0x18] = {NULL, instr_mret, NULL, "MRET"},
+    [0x09] = {NULL, instr_sfencevma, NULL, "SFENCEVMA"},
+    [0x11] = {NULL, instr_hfencebvma, NULL, "HFENCEBVMA"},
+    [0x51] = {NULL, instr_hfencegvma, NULL, "HFENCEGVMA"}
 };
 INIT_RISCV_INSTR_LIST(FUNC7, instr_ret_type);
 
 static riscv_instr_entry instr_csr_type[] = {
-    [0x0] = {NULL, NULL, &instr_ret_type_list},
-    [0x1] = {NULL, instr_csrrw, NULL},
-    [0x2] = {NULL, instr_csrrs, NULL},
-    [0x3] = {NULL, instr_csrrc, NULL},
-    [0x5] = {NULL, instr_csrrwi, NULL},
-    [0x6] = {NULL, instr_csrrsi, NULL},
-    [0x7] = {NULL, instr_csrrci, NULL},
+    [0x0] = {NULL, NULL, &instr_ret_type_list, NULL},
+    [0x1] = {NULL, instr_csrrw, NULL, "CSRRW"},
+    [0x2] = {NULL, instr_csrrs, NULL, "CSRRS"},
+    [0x3] = {NULL, instr_csrrc, NULL, "CSRRC"},
+    [0x5] = {NULL, instr_csrrwi, NULL, "CSRRWI"},
+    [0x6] = {NULL, instr_csrrsi, NULL, "CSRRSI"},
+    [0x7] = {NULL, instr_csrrci, NULL, "CSRRCI"},
 };
 INIT_RISCV_INSTR_LIST(FUNC3, instr_csr_type);
 
 static riscv_instr_entry instr_amow_type[] = {
-    [0x00] = {NULL, instr_amoaddw, NULL}, 
-    [0x01] = {NULL, instr_amoswapw, NULL},
-    [0x02] = {NULL, instr_lrw, NULL},
-    [0x03] = {NULL, instr_scw, NULL},
-    [0x04] = {NULL, instr_amoxorw, NULL},
-    [0x08] = {NULL, instr_amoorw, NULL},
-    [0x0c] = {NULL, instr_amoandw, NULL},
+    [0x00] = {NULL, instr_amoaddw, NULL, "AMOADDW"},
+    [0x01] = {NULL, instr_amoswapw, NULL, "AMOSWAPW"},
+    [0x02] = {NULL, instr_lrw, NULL, "LRW"},
+    [0x03] = {NULL, instr_scw, NULL, "SCW"},
+    [0x04] = {NULL, instr_amoxorw, NULL, "AMOXORW"},
+    [0x08] = {NULL, instr_amoorw, NULL, "AMOORW"},
+    [0x0c] = {NULL, instr_amoandw, NULL, "AMOANDW"},
     //[0x10] = {NULL, instr_amominw, NULL},
     //[0x14] = {NULL, instr_amomaxw, NULL},
 };
 INIT_RISCV_INSTR_LIST(FUNC5, instr_amow_type);
 
 static riscv_instr_entry instr_amod_type[] = {
-    [0x00] = {NULL, instr_amoaddd, NULL}, 
-    [0x01] = {NULL, instr_amoswapd, NULL},
-    [0x02] = {NULL, instr_lrd, NULL},
-    [0x03] = {NULL, instr_scd, NULL},
-    [0x04] = {NULL, instr_amoxord, NULL},
-    [0x08] = {NULL, instr_amoord, NULL},
-    [0x0c] = {NULL, instr_amoandd, NULL},
+    [0x00] = {NULL, instr_amoaddd, NULL, "AMOADDD"},
+    [0x01] = {NULL, instr_amoswapd, NULL, "AMOSWAPD"},
+    [0x02] = {NULL, instr_lrd, NULL, "LRD"},
+    [0x03] = {NULL, instr_scd, NULL, "SCD"},
+    [0x04] = {NULL, instr_amoxord, NULL, "AMOXORD"},
+    [0x08] = {NULL, instr_amoord, NULL, "AMOORD"},
+    [0x0c] = {NULL, instr_amoandd, NULL, "AMOANDD"},
     //[0x10] = {NULL, instr_amomind, NULL},
     //[0x14] = {NULL, instr_amomaxd, NULL},
 };
 INIT_RISCV_INSTR_LIST(FUNC5, instr_amod_type);
 
 static riscv_instr_entry instr_atomic_type[] = {
-    [0x2] = {NULL, NULL, &instr_amow_type_list},
-    [0x3] = {NULL, NULL, &instr_amod_type_list},
+    [0x2] = {NULL, NULL, &instr_amow_type_list, NULL},
+    [0x3] = {NULL, NULL, &instr_amod_type_list, NULL},
 };
 INIT_RISCV_INSTR_LIST(FUNC3, instr_atomic_type);
 
 static riscv_instr_entry instr_c0_type[] = {
-    [0x0] = {CIW_decode, instr_caddi4spn, NULL},
-    [0x2] = {CL_decode, instr_clw, NULL},
-    [0x3] = {CL_decode, instr_cld, NULL},
-    [0x6] = {CS_decode, instr_csw, NULL},
-    [0x7] = {CS_decode, instr_csd, NULL}
+    [0x0] = {CIW_decode, instr_caddi4spn, NULL, "CADDI4SPN"},
+    [0x2] = {CL_decode, instr_clw, NULL, "CLW"},
+    [0x3] = {CL_decode, instr_cld, NULL, "CLD"},
+    [0x6] = {CS_decode, instr_csw, NULL, "CSW"},
+    [0x7] = {CS_decode, instr_csd, NULL, "CSD"}
 };
 INIT_RISCV_INSTR_LIST(FUNC3, instr_c0_type);
 
 static riscv_instr_entry instr_ca_type[] = {
-    [0x0] = {NULL, instr_csub, NULL},
-    [0x1] = {NULL, instr_cxor, NULL},
-    [0x2] = {NULL, instr_cor, NULL},
-    [0x3] = {NULL, instr_cand, NULL},
-    [0x4] = {NULL, instr_csubw, NULL},
-    [0x5] = {NULL, instr_caddw, NULL},
+    [0x0] = {NULL, instr_csub, NULL, "CSUB"},
+    [0x1] = {NULL, instr_cxor, NULL, "CXOR"},
+    [0x2] = {NULL, instr_cor, NULL, "COR"},
+    [0x3] = {NULL, instr_cand, NULL, "CAND"},
+    [0x4] = {NULL, instr_csubw, NULL, "CSUBW"},
+    [0x5] = {NULL, instr_caddw, NULL, "CADDW"},
 };
 INIT_RISCV_INSTR_LIST(FUNC2_S, instr_ca_type);
 
 static riscv_instr_entry instr_cb_ca_type[] = {
-    [0x0] = {CB_decode, instr_csrli, NULL},
-    [0x1] = {CB_decode, instr_csrai, NULL},
-    [0x2] = {CB_decode, instr_candi, NULL},
-    [0x3] = {CA_decode, NULL, &instr_ca_type_list},
+    [0x0] = {CB_decode, instr_csrli, NULL, "CSRLI"},
+    [0x1] = {CB_decode, instr_csrai, NULL, "CSRAI"},
+    [0x2] = {CB_decode, instr_candi, NULL, "CANDI"},
+    [0x3] = {CA_decode, NULL, &instr_ca_type_list, NULL},
 };
 INIT_RISCV_INSTR_LIST(FUNC6_S, instr_cb_ca_type);
 
 static riscv_instr_entry instr_c1_type[] = {
-    [0x0] = {CI_decode, instr_caddi, NULL},
-    [0x1] = {CI_decode, instr_caddiw, NULL},
-    [0x2] = {CI_decode, instr_cli, NULL},
-    [0x3] = {CI_decode, instr_clui_caddi16sp, NULL},
-    [0x4] = {Cxx_decode, NULL, &instr_cb_ca_type_list},
-    [0x5] = {CJ_decode, instr_cj, NULL},
-    [0x6] = {CB_decode, instr_cbeqz, NULL},
-    [0x7] = {CB_decode, instr_cbnez, NULL},
+    [0x0] = {CI_decode, instr_caddi, NULL, "CADDI"},
+    [0x1] = {CI_decode, instr_caddiw, NULL, "CADDIW"},
+    [0x2] = {CI_decode, instr_cli, NULL, "CLI"},
+    [0x3] = {CI_decode, instr_clui_caddi16sp, NULL, "CLUI/CADDI16SP"},
+    [0x4] = {Cxx_decode, NULL, &instr_cb_ca_type_list, NULL},
+    [0x5] = {CJ_decode, instr_cj, NULL, "CJ"},
+    [0x6] = {CB_decode, instr_cbeqz, NULL, "CBEQZ"},
+    [0x7] = {CB_decode, instr_cbnez, NULL, "CBNEZ"},
 };
 INIT_RISCV_INSTR_LIST(FUNC3, instr_c1_type);
 
 static riscv_instr_entry instr_cr_type[] = {
-    [0x0] = {NULL, instr_cjr_cmv, NULL},
-    [0x1] = {NULL, instr_cebreak_cjalr_cadd, NULL},
+    [0x0] = {NULL, instr_cjr_cmv, NULL, "CJR/CMV"},
+    [0x1] = {NULL, instr_cebreak_cjalr_cadd, NULL, "CEBREAK/CJALR/CADD"},
 };
 INIT_RISCV_INSTR_LIST(FUNC4_S, instr_cr_type);
 
 static riscv_instr_entry instr_c2_type[] = {
-    [0x0] = {CI_decode, instr_cslli, NULL},
-    [0x2] = {CI_decode, instr_clwsp, NULL},
-    [0x3] = {CI_decode, instr_cldsp, NULL},
-    [0x4] = {CR_decode, NULL, &instr_cr_type_list},
-    [0x6] = {CSS_decode, instr_cswsp, NULL},
-    [0x7] = {CSS_decode, instr_csdsp, NULL},
+    [0x0] = {CI_decode, instr_cslli, NULL, "CSLLI"},
+    [0x2] = {CI_decode, instr_clwsp, NULL, "CLWSP"},
+    [0x3] = {CI_decode, instr_cldsp, NULL, "CLDSP"},
+    [0x4] = {CR_decode, NULL, &instr_cr_type_list, NULL},
+    [0x6] = {CSS_decode, instr_cswsp, NULL, "CSWSP"},
+    [0x7] = {CSS_decode, instr_csdsp, NULL, "CSDSP"},
 };
 INIT_RISCV_INSTR_LIST(FUNC3, instr_c2_type);
 
 static riscv_instr_entry opcode_type[] = {
-    [0x00] = {Cx_decode, NULL, &instr_c0_type_list},
-    [0x01] = {Cx_decode, NULL, &instr_c1_type_list}, 
-    [0x02] = {Cx_decode, NULL, &instr_c2_type_list}, 
-    [0x03] = {I_decode, NULL, &instr_load_type_list},
-    [0x0f] = {I_decode, NULL, &instr_fence_type_list},
-    [0x13] = {I_decode, NULL, &instr_imm_type_list},
-    [0x17] = {U_decode, instr_auipc, NULL},
-    [0x1b] = {I_decode, NULL, &instr_immw_type_list},
-    [0x23] = {S_decode, NULL, &instr_store_type_list},
-    [0x2f] = {R_decode, NULL, &instr_atomic_type_list},
-    [0x33] = {R_decode, NULL, &instr_reg_type_list},
-    [0x37] = {U_decode, instr_lui, NULL},
-    [0x3b] = {R_decode, NULL, &instr_regw_type_list},
-    [0x63] = {B_decode, NULL, &instr_branch_type_list},
-    [0x67] = {I_decode, instr_jalr, NULL},
-    [0x6f] = {J_decode, instr_jal, NULL},
-    [0x73] = {P_decode, NULL, &instr_csr_type_list},
+    [0x00] = {Cx_decode, NULL, &instr_c0_type_list, NULL},
+    [0x01] = {Cx_decode, NULL, &instr_c1_type_list, NULL},
+    [0x02] = {Cx_decode, NULL, &instr_c2_type_list, NULL},
+    [0x03] = {I_decode, NULL, &instr_load_type_list, NULL},
+    [0x0f] = {I_decode, NULL, &instr_fence_type_list, NULL},
+    [0x13] = {I_decode, NULL, &instr_imm_type_list, NULL},
+    [0x17] = {U_decode, instr_auipc, NULL, "AUIPC"},
+    [0x1b] = {I_decode, NULL, &instr_immw_type_list, NULL},
+    [0x23] = {S_decode, NULL, &instr_store_type_list, NULL},
+    [0x2f] = {R_decode, NULL, &instr_atomic_type_list, NULL},
+    [0x33] = {R_decode, NULL, &instr_reg_type_list, NULL},
+    [0x37] = {U_decode, instr_lui, NULL, "LUI"},
+    [0x3b] = {R_decode, NULL, &instr_regw_type_list, NULL},
+    [0x63] = {B_decode, NULL, &instr_branch_type_list, NULL},
+    [0x67] = {I_decode, instr_jalr, NULL, "JALR"},
+    [0x6f] = {J_decode, instr_jal, NULL, "JAL"},
+    [0x73] = {P_decode, NULL, &instr_csr_type_list, NULL},
 };
 INIT_RISCV_INSTR_LIST(OPCODE, opcode_type);
 /* clang-format on */
@@ -1689,6 +1685,10 @@ static bool __decode(riscv_cpu *cpu, riscv_instr_desc *instr_desc)
     else
         cpu->instr.exec_func = entry.exec_func;
 
+    if (entry.entry_name) {
+        LOG_DEBUG("[DEBUG] next INSTR: %s\n", entry.entry_name);
+    }
+
     return true;
 }
 
@@ -1719,6 +1719,7 @@ static uint64_t addr_translate(riscv_cpu *cpu, uint64_t addr, Access access)
     /* 1. Let a be satp.ppn × PAGESIZE, and let i = LEVELS − 1. */
     uint64_t a = (satp & SATP_PPN) << PAGE_SHIFT;
     int i = LEVELS - 1;
+
 
     sv39_pte_t pte;
     while (1) {
@@ -1824,26 +1825,11 @@ translate_fail:
     return -1;
 }
 
-static Trap handle_exception(riscv_cpu *cpu)
+static Trap handle_exception(riscv_cpu *cpu, uint64_t exc_pc)
 {
     riscv_mode prev_mode = cpu->mode;
     uint8_t cause = cpu->exc.exception;
-    uint64_t exc_pc = cpu->pc;
     uint64_t medeleg = read_csr(&cpu->csr, MEDELEG);
-
-    switch (cpu->exc.exception) {
-    /* ECALL and EBREAK cause the receiving privilege mode’s epc register to be
-     * set to the address of the ECALL or EBREAK instruction itself, not the
-     * address of the following instruction. */
-    case Breakpoint:
-    case EnvironmentCallFromUMode:
-    case EnvironmentCallFromSMode:
-    case EnvironmentCallFromMMode:
-        exc_pc = cpu->pc - 4;
-        break;
-    default:
-        exc_pc = cpu->pc;
-    }
 
     // TODO: support handling for user mode
     if (((medeleg >> cause) & 1) == 0)
@@ -2277,6 +2263,7 @@ bool tick_cpu(riscv_cpu *cpu)
     tick_bus(&cpu->bus, &cpu->csr);
     handle_interrupt(cpu);
 
+    uint64_t instr_addr = cpu->pc;
     bool ret = true;
 
 #ifdef ICACHE_CONFIG
@@ -2296,7 +2283,7 @@ bool tick_cpu(riscv_cpu *cpu)
 get_trap:
     if (!ret) {
         uint64_t next_pc = cpu->pc;
-        Trap trap = handle_exception(cpu);
+        Trap trap = handle_exception(cpu, instr_addr);
         if (trap == Trap_Fatal) {
             dump_reg(cpu);
             dump_csr(cpu);
