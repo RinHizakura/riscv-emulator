@@ -428,6 +428,22 @@ static void instr_sd(riscv_cpu *cpu)
     write_cpu(cpu, addr, 64, cpu->xreg[cpu->instr.rs2]);
 }
 
+static void instr_fsw(riscv_cpu *cpu)
+{
+    /* TODO */
+    LOG_ERROR("fsw\n");
+    while (1)
+        ;
+}
+
+static void instr_fsd(riscv_cpu *cpu)
+{
+    /* TODO */
+    LOG_ERROR("fsd\n");
+    while (1)
+        ;
+}
+
 static void instr_lui(riscv_cpu *cpu)
 {
     cpu->xreg[cpu->instr.rd] = cpu->instr.imm;
@@ -1429,6 +1445,12 @@ static riscv_instr_entry instr_store_type[] = {
 };
 INIT_RISCV_INSTR_LIST(FUNC3, instr_store_type);
 
+static riscv_instr_entry instr_store_fp_type[] = {
+    [0x2] = {NULL, instr_fsw, NULL, "FSW"},
+    [0x3] = {NULL, instr_fsd, NULL, "FSD"},
+};
+INIT_RISCV_INSTR_LIST(WIDTH, instr_store_fp_type);
+
 static riscv_instr_entry instr_addw_mulw_subw_type[] = {
     [0x00] = {NULL, instr_addw, NULL, "ADDW"},
     [0x01] = {NULL, instr_mulw, NULL, "MULW"},
@@ -1614,6 +1636,7 @@ static riscv_instr_entry opcode_type[] = {
     [0x17] = {U_decode, instr_auipc, NULL, "AUIPC"},
     [0x1b] = {I_decode, NULL, &instr_immw_type_list, NULL},
     [0x23] = {S_decode, NULL, &instr_store_type_list, NULL},
+    [0x27] = {FS_decode, NULL, &instr_store_fp_type_list, NULL},
     [0x2f] = {R_decode, NULL, &instr_atomic_type_list, NULL},
     [0x33] = {R_decode, NULL, &instr_reg_type_list, NULL},
     [0x37] = {U_decode, instr_lui, NULL, "LUI"},
@@ -1657,6 +1680,9 @@ static bool __decode(riscv_cpu *cpu, riscv_instr_desc *instr_desc)
         break;
     case RS2:
         index = cpu->instr.rs2;
+        break;
+    case WIDTH:
+        index = cpu->instr.width;
         break;
     default:
         LOG_ERROR("Invalid index type\n");

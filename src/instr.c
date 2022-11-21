@@ -13,7 +13,7 @@ void I_decode(riscv_instr *instr)
 {
     instr->rd = (instr->instr >> 7) & 0x1f;
     instr->rs1 = ((instr->instr >> 15) & 0x1f);
-    instr->imm = (int32_t)(instr->instr & 0xfff00000) >> 20;
+    instr->imm = (int32_t) (instr->instr & 0xfff00000) >> 20;
     instr->funct3 = (instr->instr >> 12) & 0x7;
     instr->funct7 = (instr->instr >> 25) & 0x7f;
 }
@@ -40,8 +40,8 @@ void S_decode(riscv_instr *instr)
     /* note that we have to convert the right statement of "bitwise or" to
      * int32_t to avoid non-expected promotion. Same case in B type and J type
      * decoding */
-    instr->imm = (((int32_t)(instr->instr & 0xfe000000) >> 20) |
-                  (int32_t)((instr->instr >> 7) & 0x1f));
+    instr->imm = (((int32_t) (instr->instr & 0xfe000000) >> 20) |
+                  (int32_t) ((instr->instr >> 7) & 0x1f));
     instr->funct3 = (instr->instr >> 12) & 0x7;
 }
 
@@ -50,17 +50,17 @@ void B_decode(riscv_instr *instr)
     instr->rs1 = ((instr->instr >> 15) & 0x1f);
     instr->rs2 = ((instr->instr >> 20) & 0x1f);
     // imm[12|10:5|4:1|11] = inst[31|30:25|11:8|7]
-    instr->imm = ((int32_t)(instr->instr & 0x80000000) >> 19)  // 12
-                 | (int32_t)((instr->instr & 0x80) << 4)       // 11
-                 | (int32_t)((instr->instr >> 20) & 0x7e0)     // 10:5
-                 | (int32_t)((instr->instr >> 7) & 0x1e);      // 4:1
+    instr->imm = ((int32_t) (instr->instr & 0x80000000) >> 19)  // 12
+                 | (int32_t) ((instr->instr & 0x80) << 4)       // 11
+                 | (int32_t) ((instr->instr >> 20) & 0x7e0)     // 10:5
+                 | (int32_t) ((instr->instr >> 7) & 0x1e);      // 4:1
     instr->funct3 = (instr->instr >> 12) & 0x7;
 }
 
 void U_decode(riscv_instr *instr)
 {
     instr->rd = (instr->instr >> 7) & 0x1f;
-    instr->imm = (int32_t)(instr->instr & 0xfffff000);
+    instr->imm = (int32_t) (instr->instr & 0xfffff000);
 }
 
 void J_decode(riscv_instr *instr)
@@ -68,10 +68,10 @@ void J_decode(riscv_instr *instr)
     instr->rd = (instr->instr >> 7) & 0x1f;
 
     // imm[20|10:1|11|19:12] = inst[31|30:21|20|19:12]
-    instr->imm = ((int32_t)(instr->instr & 0x80000000) >> 11)  // 20
-                 | (int32_t)((instr->instr & 0xff000))         // 19:12
-                 | (int32_t)((instr->instr >> 9) & 0x800)      // 11
-                 | (int32_t)((instr->instr >> 20) & 0x7fe);    // 10:1
+    instr->imm = ((int32_t) (instr->instr & 0x80000000) >> 11)  // 20
+                 | (int32_t) ((instr->instr & 0xff000))         // 19:12
+                 | (int32_t) ((instr->instr >> 9) & 0x800)      // 11
+                 | (int32_t) ((instr->instr >> 20) & 0x7fe);    // 10:1
 }
 
 /* For C extension instruction decoding:
@@ -157,4 +157,14 @@ void CR_decode(riscv_instr *instr)
     instr->rs1 = (instr->instr >> 7) & 0x1f;
     instr->rd = instr->rs1;
     instr->rs2 = (instr->instr >> 2) & 0x1f;
+}
+
+void FS_decode(riscv_instr *instr)
+{
+    instr->width = (instr->instr >> 12) & 0x7;
+    instr->rs1 = (instr->instr >> 15) & 0x1f;
+    instr->rs2 = (instr->instr >> 20) & 0x1f;
+    // offset[11:5|4:0] = inst[31:25|11:7]
+    instr->imm = (((int32_t) (instr->instr & 0xfe000000) >> 20) |
+                  (int32_t) ((instr->instr >> 7) & 0x1f));
 }

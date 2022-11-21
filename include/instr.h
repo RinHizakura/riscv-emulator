@@ -17,6 +17,7 @@ typedef struct {
     uint64_t imm;
     uint8_t funct2;
     uint8_t funct3;
+    uint8_t width;
     uint8_t funct4;
     uint8_t funct6;
     uint8_t funct7;
@@ -42,5 +43,6 @@ void CJ_decode(riscv_instr *instr);
 void CB_decode(riscv_instr *instr);
 void CA_decode(riscv_instr *instr);
 void CR_decode(riscv_instr *instr);
+void FS_decode(riscv_instr *instr);
 
 #endif

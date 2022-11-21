@@ -55,6 +55,7 @@ typedef struct {
         FUNC7,
         FUNC7_S,
         RS2,
+        WIDTH,
     } type;
 } riscv_instr_desc_type;
 
