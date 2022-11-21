@@ -1,5 +1,6 @@
 #include <assert.h>
 #include <getopt.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -62,53 +63,31 @@ int main(int argc, char *argv[])
     if (!opt_rfsimg)
         rfsimg_file[0] = '\0';
 
-    log_begin();
-
-    int ret = 0;
-    riscv_emu *emu = calloc(1, sizeof(riscv_emu));
-    if (!emu) {
-        ret = -1;
-        goto clean_up;
+    if (!log_begin()) {
+        LOG_ERROR("Fail to initialize the debug logger\n");
+        return -1;
     }
 
-    if (!init_emu(emu, input_file, rfsimg_file)) {
+    int ret = 0;
+    riscv_emu *emu = create_emu(input_file, rfsimg_file);
+    if (!emu) {
+        LOG_ERROR("Fail to create the emulator\n");
         ret = -1;
         goto clean_up;
     }
 
     if (opt_riscv_test) {
         ret = test_emu(emu);
-        // ret >> 1 is the number of test case that we fail to pass
-        printf("Run test %s %s(%d)\n", input_file, ret ? "FAIL" : "PASS",
-               ret >> 1);
     } else {
         run_emu(emu);
+    }
 
-        // FIXME: Refactor to prettier code
-        if (opt_compliance) {
-            FILE *f = fopen(signature_out_file, "w");
-            if (!f) {
-                LOG_ERROR("Failed to open file %s for compilance test.\n",
-                          signature_out_file);
-                goto clean_up;
-            }
-
-            uint64_t begin = emu->cpu.bus.memory.elf.sig_start;
-            uint64_t end = emu->cpu.bus.memory.elf.sig_end;
-
-            for (uint64_t i = begin; i < end; i += 4) {
-                uint32_t value =
-                    read_mem(&emu->cpu.bus.memory, i, 32, &emu->cpu.exc) &
-                    0xffffffff;
-                fprintf(f, "%08x\n", value);
-            }
-            fclose(f);
-        }
+    if (opt_compliance) {
+        ret = take_signature_emu(emu, signature_out_file);
     }
 
 clean_up:
     log_end();
     free_emu(emu);
-    free(emu);
     return ret;
 }
