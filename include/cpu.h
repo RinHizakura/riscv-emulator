@@ -20,7 +20,7 @@ typedef struct {
  *
  * See https://gcc.gnu.org/bugs/#nonbugs for more information */
 typedef union {
-    float f;
+    double f;
     uint64_t u;
 } float_reg_t;
 
