@@ -994,6 +994,16 @@ static void instr_cld(riscv_cpu *cpu)
     cpu->xreg[cpu->instr.rd] = value;
 }
 
+static void instr_cfsd(riscv_cpu *cpu)
+{
+    uint32_t instr = cpu->instr.instr;
+    // offset[5:3|7:6] = inst[12:10|6:5]
+    uint8_t offset = ((instr >> 7) & 0x38) | ((instr << 1) & 0xc0);
+
+    uint64_t addr = cpu->xreg[cpu->instr.rs1] + offset;
+    write_cpu(cpu, addr, 64, cpu->freg[cpu->instr.rs2].u);
+}
+
 static void instr_csw(riscv_cpu *cpu)
 {
     uint32_t instr = cpu->instr.instr;
@@ -1542,6 +1552,7 @@ static riscv_instr_entry instr_c0_type[] = {
     [0x0] = {CIW_decode, instr_caddi4spn, NULL, "CADDI4SPN"},
     [0x2] = {CL_decode, instr_clw, NULL, "CLW"},
     [0x3] = {CL_decode, instr_cld, NULL, "CLD"},
+    [0x5] = {CS_decode, instr_cfsd, NULL, "CFSD"},
     [0x6] = {CS_decode, instr_csw, NULL, "CSW"},
     [0x7] = {CS_decode, instr_csd, NULL, "CSD"}
 };
@@ -2114,6 +2125,10 @@ bool init_cpu(riscv_cpu *cpu, const char *filename, const char *rfs_name)
 
     memset(&cpu->instr, 0, sizeof(riscv_instr));
     memset(&cpu->xreg[0], 0, sizeof(uint64_t) * 32);
+    for (int i = 0; i < 32; i++) {
+        cpu->freg[i].u = 0;
+        cpu->freg[i].f = 0;
+    }
 
     cpu->pc = BOOT_ROM_BASE;
     cpu->xreg[2] = DRAM_BASE + DRAM_SIZE;

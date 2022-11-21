@@ -15,6 +15,15 @@ typedef struct {
     enum { USER = 0x0, SUPERVISOR = 0x1, MACHINE = 0x3 } mode;
 } riscv_mode;
 
+/* This union is used for valid type punning on GCC. Note that it
+ * could be incorrect on other compiler.
+ *
+ * See https://gcc.gnu.org/bugs/#nonbugs for more information */
+typedef union {
+    float f;
+    uint64_t u;
+} float_reg_t;
+
 typedef struct CPU {
     riscv_mode mode;
     riscv_exception exc;
@@ -27,6 +36,7 @@ typedef struct CPU {
 #endif
 
     uint64_t xreg[32];
+    float_reg_t freg[32];
     uint64_t pc;
     // FIXME: we should maintain a reservation set but not a single u64
     uint64_t reservation;
