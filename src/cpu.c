@@ -430,18 +430,16 @@ static void instr_sd(riscv_cpu *cpu)
 
 static void instr_fsw(riscv_cpu *cpu)
 {
-    /* TODO */
-    LOG_ERROR("fsw\n");
-    while (1)
-        ;
+    uint64_t addr = cpu->xreg[cpu->instr.rs1] + cpu->instr.imm;
+    float32_reg_t f32;
+    f32.f = cpu->freg[cpu->instr.rs2].f;
+    write_cpu(cpu, addr, 32, f32.u);
 }
 
 static void instr_fsd(riscv_cpu *cpu)
 {
-    /* TODO */
-    LOG_ERROR("fsd\n");
-    while (1)
-        ;
+    uint64_t addr = cpu->xreg[cpu->instr.rs1] + cpu->instr.imm;
+    write_cpu(cpu, addr, 64, cpu->freg[cpu->instr.rs2].u);
 }
 
 static void instr_lui(riscv_cpu *cpu)
