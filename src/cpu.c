@@ -2024,7 +2024,7 @@ static bool irq_enable(riscv_cpu *cpu, uint8_t cause)
 
     if (new_mode.mode < cpu->mode.mode)
         return false;
-    else {
+    else if (new_mode.mode == cpu->mode.mode) {
         if (cpu->mode.mode == MACHINE) {
             if (!check_csr_bit(&cpu->csr, MSTATUS, MSTATUS_MIE))
                 return false;
