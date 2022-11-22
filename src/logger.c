@@ -43,7 +43,8 @@ void log_end(void)
 
 void log_debug(const char *format, ...)
 {
-    assert(gLogger);
+    if (gLogger == NULL)
+        return;
 
     va_list vargs;
     char *buf = gLogger->line_buf[gLogger->line_cnt & MAX_RECORD_LINE_MASK];
