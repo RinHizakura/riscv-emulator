@@ -1,3 +1,5 @@
+CROSS_COMPILE=riscv64-unknown-linux-gnu-
+
 LINUX_OUT=linux-build
 LINUX_VER=5.16.5
 LINUX_SRC_URL=https://cdn.kernel.org/pub/linux/kernel/v5.x/linux-${LINUX_VER}.tar.xz
@@ -30,26 +32,26 @@ $(foreach T,$(EXTERNAL_SRC),$(eval $(download-n-extract)))
 LINUX_IMG=$(OPENSBI_SRC)/build/platform/generic/firmware/fw_payload.elf
 $(LINUX_IMG): $(OPENSBI_SRC) $(LINUX_SRC)
 	make -C $(LINUX_SRC) \
-		ARCH=riscv CROSS_COMPILE=riscv64-unknown-linux-gnu- defconfig
+		ARCH=riscv CROSS_COMPILE=$(CROSS_COMPILE) defconfig
 	make -C $(LINUX_SRC) \
-		ARCH=riscv CROSS_COMPILE=riscv64-unknown-linux-gnu- -j 2
+		ARCH=riscv CROSS_COMPILE=$(CROSS_COMPILE) -j 2
 	make -C $(OPENSBI_SRC) \
 		PLATFORM=generic PLATFORM_RISCV_XLEN=64 \
-		CROSS_COMPILE=riscv64-unknown-linux-gnu- \
+		CROSS_COMPILE=$(CROSS_COMPILE) \
 		FW_PAYLOAD_PATH=../../$(LINUX_SRC)/arch/riscv/boot/Image
 
 BUSYBOX_BIN=$(LINUX_OUT)/rootfs/bin/busybox
 $(BUSYBOX_BIN): $(BUSYBOX_SRC)
-	make -C $(BUSYBOX_SRC) defconfig
-	make -C $(BUSYBOX_SRC) -j 2
-	make -C $(BUSYBOX_SRC) CONFIG_PREFIX='../rootfs' install
+	cp configs/busybox-config $(BUSYBOX_SRC)/.config
+	make -C $(BUSYBOX_SRC) CROSS_COMPILE=$(CROSS_COMPILE) -j 2
+	make -C $(BUSYBOX_SRC) CROSS_COMPILE=$(CROSS_COMPILE) CONFIG_PREFIX='../rootfs' install
 
 BUSYBOX_CPIO=$(LINUX_OUT)/rootfs/rootfs.cpio
 $(BUSYBOX_CPIO): $(BUSYBOX_BIN)
 	cd $(LINUX_OUT)/rootfs; \
 	ls; \
 	mv linuxrc init; \
-	mkdir -p etc/init.d; \
+	mkdir -p proc sys dev etc/init.d; \
 	cp -f ../../configs/rc-startup etc/init.d/rcS; \
 	chmod 755 etc/init.d/rcS; \
 	find . | cpio -o --format=newc > $(abspath $@)
