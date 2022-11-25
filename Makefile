@@ -68,6 +68,9 @@ check: $(BIN)
 xv6: $(BIN)
 	$(BIN) --binary xv6/kernel.img --rfsimg xv6/fs.img
 
+linux-old: $(BIN)
+	$(BIN) --binary linux/kernel.img --rfsimg linux/rootfs.img
+
 linux: $(BIN) $(LINUX_IMG) $(LINUX_RFS_IMG)
 	$(BIN) --binary $(LINUX_IMG) --rfsimg $(LINUX_RFS_IMG)
 
