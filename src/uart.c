@@ -140,6 +140,18 @@ bool write_uart(riscv_uart *uart,
         printf("%c", (char) (value & 0xff));
         fflush(stdout);
         break;
+    case UART_IER:
+        if ((value & UART_IER_THR_EMPTY_INT) != 0) {
+            __atomic_store_n(&uart->is_interrupt, true, __ATOMIC_SEQ_CST);
+        }
+        uart_reg(uart, addr) = value & 0xff;
+        break;
+    case UART_FCR:
+        /* Avoid to overwrite the register at address 0x2, which is a
+         * shared address with UART_ISR.
+         *
+         * TODO: Implement the behavior for FIFO control */
+        break;
     default:
         uart_reg(uart, addr) = value & 0xff;
         break;

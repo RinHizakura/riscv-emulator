@@ -1,6 +1,8 @@
 #ifndef RISCV_UART
 #define RISCV_UART
 
+/* Reference: http://byterunner.com/16550.html */
+
 #include <pthread.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -34,6 +36,11 @@
  * the next character.
  */
 #define UART_LSR_TX 0x20
+/* BIT 1:
+ * 0 = disable the transmitter empty interrupt.
+ * 1 = enable the transmitter empty interrupt.
+ */
+#define UART_IER_THR_EMPTY_INT 0x2
 
 typedef struct {
     uint8_t reg[UART_SIZE];
