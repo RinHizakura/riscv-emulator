@@ -19,6 +19,11 @@ static bool opt_riscv_test = false;
 
 int main(int argc, char *argv[])
 {
+    if (!log_begin()) {
+        LOG_ERROR("Fail to initialize the debug logger\n");
+        return -1;
+    }
+
     int option_index = 0;
     struct option opts[] = {
         {"binary", 1, NULL, 'B'},
@@ -62,11 +67,6 @@ int main(int argc, char *argv[])
     // if no specific root file system, then passing the null string
     if (!opt_rfsimg)
         rfsimg_file[0] = '\0';
-
-    if (!log_begin()) {
-        LOG_ERROR("Fail to initialize the debug logger\n");
-        return -1;
-    }
 
     int ret = 0;
     riscv_emu *emu = create_emu(input_file, rfsimg_file);
