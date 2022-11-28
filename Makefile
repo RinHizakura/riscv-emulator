@@ -65,21 +65,21 @@ check: $(BIN)
 		 -o c_test.obj ./c_test.s
 	 $(BIN) --binary ./c_test.obj
 
-xv6: $(BIN)
+run-xv6: $(BIN)
 	$(BIN) --binary xv6/kernel.img --rfsimg xv6/fs.img
 
-linux-old: $(BIN)
+run-linux-old: $(BIN)
 	$(BIN) --binary linux/kernel.img --rfsimg linux/rootfs.img
 
-linux: $(BIN) $(LINUX_IMG) $(LINUX_RFS_IMG)
+run-linux: $(BIN) $(LINUX_IMG) $(LINUX_RFS_IMG)
 	$(BIN) --binary $(LINUX_IMG) --rfsimg $(LINUX_RFS_IMG)
 
 include mk/compliance.mk
-compliance: $(BIN) $(COMPLIANCE_SRC)
+run-compliance: $(BIN) $(COMPLIANCE_SRC)
 	$(MAKE) -C $(COMPLIANCE_DIR) clean
 	$(MAKE) -C $(COMPLIANCE_DIR)
 include mk/riscv-tests.mk
-riscv-tests: $(BIN) $(RISCV_TEST_SRC)
+run-riscv-tests: $(BIN) $(RISCV_TEST_SRC)
 	$(MAKE) -C $(RISCV_TEST_DIR)
 	scripts/riscv-tests-run.sh
 clean:
