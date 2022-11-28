@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "dtb.h"
 #include "emu.h"
 
 #define MAX_FILE_LEN 256
@@ -19,6 +20,11 @@ static bool opt_riscv_test = false;
 
 int main(int argc, char *argv[])
 {
+    if (!make_dtb(DTB_FILENAME)) {
+        LOG_ERROR("Fail to create dtb file!\n");
+        return -1;
+    }
+
     if (!log_begin()) {
         LOG_ERROR("Fail to initialize the debug logger\n");
         return -1;

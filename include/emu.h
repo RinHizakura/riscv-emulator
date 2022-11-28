@@ -1,6 +1,8 @@
 #ifndef RISCV_EMU
 #define RISCV_EMU
 
+#include "common.h"
+
 typedef struct Emu riscv_emu;
 
 riscv_emu *create_emu(const char *filename, const char *rfs_name);
