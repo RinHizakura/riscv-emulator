@@ -1,8 +1,8 @@
 include mk/toolchain.mk
 
 CC = gcc
-CFLAGS = -Wall -Wextra -Iinclude -O3 -g
-CFLAGS += -include log.h -include common.h
+CFLAGS = -Wall -Wextra -Iinclude -O3 -MMD
+CFLAGS += -include common.h
 LDFLAGS = -lpthread -O3
 
 OUT ?= build
@@ -35,10 +35,11 @@ ifeq ("$(ICACHE)", "1")
     CFLAGS +=  -DICACHE_CONFIG
 endif
 
-all: $(BIN) $(GIT_HOOKS)
+ifeq ("$(DEBUG)", "1")
+    CFLAGS +=  -DDEBUG
+endif
 
-debug: CFLAGS += -DDEBUG
-debug: $(BIN)
+all: $(BIN) $(GIT_HOOKS)
 
 $(GIT_HOOKS):
 	@scripts/install-git-hooks
@@ -83,5 +84,7 @@ run-riscv-tests: $(BIN) $(RISCV_TEST_SRC)
 	$(MAKE) -C $(RISCV_TEST_DIR)
 	scripts/riscv-tests-run.sh
 clean:
-	@$(RM) $(BIN) $(COBJ)
+	@$(RM) $(BIN) $(COBJ) $(OUT)/*.d
 	@$(RM) *.obj *.bin *.s *.dtb
+
+-include $(OUT)/*.d
