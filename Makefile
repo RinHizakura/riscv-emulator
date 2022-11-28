@@ -1,7 +1,7 @@
 include mk/toolchain.mk
 
 CC = gcc
-CFLAGS = -Wall -Wextra -Iinclude -O3 -MMD
+CFLAGS = -Wall -Wextra -Iinclude -O3 -MMD -g
 CFLAGS += -include common.h
 LDFLAGS = -lpthread -O3
 

@@ -4,12 +4,14 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#include "elf.h"
+#include "elf_parser.h"
 #include "exception.h"
 
 typedef struct {
-    riscv_elf elf;
+    elf_t elf;
     uint8_t *mem;
+    uint64_t sig_start;
+    uint64_t sig_end;
     uint64_t tohost_addr;
 } riscv_mem;
 

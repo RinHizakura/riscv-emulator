@@ -9,85 +9,32 @@
 
 static uint64_t entry_addr = DRAM_BASE;
 
-static bool parse_elf(riscv_mem *mem, uint8_t *elf_file)
+static void load_elf(riscv_mem *mem, uint8_t *elf_file)
 {
-    Elf64_Ehdr *elf_header = get_elf_header(elf_file);
-
-    unsigned char *ident = elf_header->e_ident;
-    // not a valid ELF file
-    if (ident[0] != 0x7F || ident[1] != 'E' || ident[2] != 'L' ||
-        ident[3] != 'F')
-        return false;
-
-    Elf64_Shdr *sectab_sec_header =
-        get_section_header(elf_file, elf_header, elf_header->e_shstrndx);
-    char *sectab = (char *) (elf_file + sectab_sec_header->sh_offset);
-
-    printf("%16s %14s %14s\n", "Name", "Start", "end");
-
-    for (int i = 0; i < elf_header->e_shnum; i++) {
-        Elf64_Shdr *sec_header = get_section_header(elf_file, elf_header, i);
-        char *sec_name = sectab + sec_header->sh_name;
-        printf("%16s %14lx %14lx\n", sec_name, sec_header->sh_addr,
-               sec_header->sh_size);
-
-        if (strcmp(sec_name, ".tohost") == 0) {
-            mem->tohost_addr = sec_header->sh_addr;
-        }
-
-        if (sec_header->sh_type == SHT_SYMTAB ||
-            sec_header->sh_type == SHT_DYNSYM) {
-            Elf64_Sym *symtab_header =
-                (Elf64_Sym *) (elf_file + sec_header->sh_offset);
-            Elf64_Shdr *symtab_sec_header =
-                get_section_header(elf_file, elf_header, sec_header->sh_link);
-            char *symtab = (char *) elf_file + symtab_sec_header->sh_offset;
-
-            int symbol_cnt = sec_header->sh_size / sizeof(Elf64_Sym);
-            for (int i = 0; i < symbol_cnt; i++) {
-                char *sym_name = symtab + symtab_header[i].st_name;
-                if (!strcmp(sym_name, "begin_signature")) {
-                    mem->elf.sig_start = symtab_header[i].st_value;
-                    continue;
-                }
-                if (!strcmp(sym_name, "end_signature"))
-                    mem->elf.sig_end = symtab_header[i].st_value;
-            }
-        }
+    Elf64_Shdr *tohost_shdr;
+    if (elf_lookup_shdr(&mem->elf, ".tohost", &tohost_shdr) == 0) {
+        mem->tohost_addr = tohost_shdr->sh_addr;
     }
 
-    entry_addr = elf_header->e_entry;
-
-    printf("\nEntry point 0x%lx\n", elf_header->e_entry);
-    printf("There are %d program headers, starting at offset %ld\n\n",
-           elf_header->e_phnum, elf_header->e_phoff);
-
-    for (int i = 0; i < elf_header->e_phnum; i++) {
-        Elf64_Phdr *prog_header = get_program_header(elf_file, elf_header, i);
-
-        printf("Program Headers:\n");
-        printf("%-18s %-18s %-18s %-18s \n", "Type", "Offset", "VirtAddr",
-               "PhysAddr");
-        printf("0x%-16x 0x%-16lx 0x%-16lx 0x%-16lx\n", prog_header->p_type,
-               prog_header->p_offset, prog_header->p_vaddr,
-               prog_header->p_paddr);
-        printf("%-18s %-18s %-8s %-8s \n", "FileSiz", "MemSiz", "Flags",
-               "Align");
-        printf("0x%-16lx 0x%-16lx 0x%-6x 0x%-6lx\n", prog_header->p_filesz,
-               prog_header->p_memsz, prog_header->p_flags,
-               prog_header->p_align);
-
-        printf("\n");
-
-        uint64_t start = prog_header->p_paddr - elf_header->e_entry;
-        uint64_t size = prog_header->p_filesz;
-        uint64_t offset = prog_header->p_offset;
-        if (prog_header->p_type == PT_LOAD) {
-            memcpy(mem->mem + start, elf_file + offset, size);
-        }
+    Elf64_Sym *sym;
+    if (elf_lookup_symbol(&mem->elf, "begin_signature", &sym) == 0) {
+        mem->sig_start = sym->st_value;
+    }
+    if (elf_lookup_symbol(&mem->elf, "end_signature", &sym) == 0) {
+        mem->sig_end = sym->st_value;
     }
 
-    return true;
+    entry_addr = elf_e_entry(&mem->elf);
+
+    Elf64_Phdr *phdr;
+    phdr_iter_t it;
+    elf_phdr_iter_start(&it, PT_LOAD);
+    while (elf_phdr_iter_next(&mem->elf, &it, &phdr) == 0) {
+        uint64_t start = phdr->p_paddr - entry_addr;
+        uint64_t size = phdr->p_filesz;
+        uint64_t offset = phdr->p_offset;
+        memcpy(mem->mem + start, elf_file + offset, size);
+    }
 }
 
 uint64_t get_entry_addr()
@@ -113,6 +60,7 @@ bool init_mem(riscv_mem *mem, const char *filename)
     FILE *fp = fopen(filename, "rb");
     if (!fp) {
         ERROR("Invalid binary path.\n");
+        free(mem->mem);
         return false;
     }
 
@@ -121,16 +69,28 @@ bool init_mem(riscv_mem *mem, const char *filename)
     rewind(fp);
 
     uint8_t *buf = malloc(sz);
+    if (buf == NULL) {
+        ERROR(
+            "Error when allocating space through malloc for ELF file buffer\n");
+        fclose(fp);
+        free(mem->mem);
+        return false;
+    }
+
     size_t read_size = fread(buf, sizeof(uint8_t), sz, fp);
     fclose(fp);
     if (read_size != sz) {
         ERROR("Error when reading binary through fread.\n");
         free(buf);
+        free(mem->mem);
         return false;
     }
 
-    if (!parse_elf(mem, buf)) {
+    if (elf_init(&mem->elf, buf, sz) == -1) {
         memcpy(mem->mem, buf, sz);
+    } else {
+        load_elf(mem, buf);
+        elf_close(&mem->elf);
     }
 
     free(buf);
