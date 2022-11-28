@@ -37,7 +37,7 @@ uint64_t read_clint(riscv_clint *clint,
     }
 
 read_clint_fail:
-    LOG_ERROR("read clint addr %lx for size %d failed\n", addr, size);
+    ERROR("read clint addr %lx for size %d failed\n", addr, size);
     exc->exception = LoadAccessFault;
     return -1;
 }
@@ -86,7 +86,7 @@ bool write_clint(riscv_clint *clint,
     return true;
 
 write_clint_fail:
-    LOG_ERROR("write clint addr %lx for size %d failed\n", addr, size);
+    ERROR("write clint addr %lx for size %d failed\n", addr, size);
     exc->exception = StoreAMOAccessFault;
     return false;
 }

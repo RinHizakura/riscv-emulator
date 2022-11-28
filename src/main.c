@@ -21,12 +21,12 @@ static bool opt_riscv_test = false;
 int main(int argc, char *argv[])
 {
     if (!make_dtb(DTB_FILENAME)) {
-        LOG_ERROR("Fail to create dtb file!\n");
+        ERROR("Fail to create dtb file!\n");
         return -1;
     }
 
     if (!log_begin()) {
-        LOG_ERROR("Fail to initialize the debug logger\n");
+        ERROR("Fail to initialize the debug logger\n");
         return -1;
     }
 
@@ -61,12 +61,12 @@ int main(int argc, char *argv[])
             opt_riscv_test = true;
             break;
         default:
-            LOG_ERROR("Unknown option\n");
+            ERROR("Unknown option\n");
         }
     }
 
     if (!opt_input) {
-        LOG_ERROR("An input image is needed!\n");
+        ERROR("An input image is needed!\n");
         return -1;
     }
 
@@ -77,7 +77,7 @@ int main(int argc, char *argv[])
     int ret = 0;
     riscv_emu *emu = create_emu(input_file, rfsimg_file);
     if (!emu) {
-        LOG_ERROR("Fail to create the emulator\n");
+        ERROR("Fail to create the emulator\n");
         ret = -1;
         goto clean_up;
     }

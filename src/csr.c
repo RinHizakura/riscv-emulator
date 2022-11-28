@@ -45,7 +45,7 @@ bool init_csr(riscv_csr *csr)
 uint64_t read_csr(riscv_csr *csr, uint16_t addr)
 {
     if (addr >= CSR_CAPACITY) {
-        LOG_ERROR("Invalid CSR addr 0x%x\n", addr);
+        ERROR("Invalid CSR addr 0x%x\n", addr);
         return -1;
     }
 
@@ -64,7 +64,7 @@ uint64_t read_csr(riscv_csr *csr, uint16_t addr)
 void write_csr(riscv_csr *csr, uint16_t addr, uint64_t value)
 {
     if (addr >= CSR_CAPACITY) {
-        LOG_ERROR("Invalid CSR addr 0x%x\n", addr);
+        ERROR("Invalid CSR addr 0x%x\n", addr);
         return;
     }
 

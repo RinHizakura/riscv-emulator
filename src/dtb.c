@@ -101,7 +101,7 @@ bool make_dtb(const char *dtb_filename)
     fflush(NULL);  // flush stdout/stderr before forking
 
     if (pipe(dts_pipe) != 0 || (dts_pid = fork()) < 0) {
-        LOG_ERROR("Failed to fork dts child\n");
+        ERROR("Failed to fork dts child\n");
         exit(1);
     }
 
@@ -109,7 +109,7 @@ bool make_dtb(const char *dtb_filename)
     if (dts_pid == 0) {
         close(dts_pipe[0]);
         if (write(dts_pipe[1], dts_str, dts_len) == -1) {
-            LOG_ERROR("Failed to write dts\n");
+            ERROR("Failed to write dts\n");
             exit(1);
         }
         close(dts_pipe[1]);
@@ -120,7 +120,7 @@ bool make_dtb(const char *dtb_filename)
     pid_t dtb_pid;
 
     if ((dtb_pid = fork()) < 0) {
-        LOG_ERROR("Failed to fork dtb child\n");
+        ERROR("Failed to fork dtb child\n");
         exit(1);
     }
 
@@ -130,7 +130,7 @@ bool make_dtb(const char *dtb_filename)
         close(dts_pipe[0]);
         close(dts_pipe[1]);
         execlp("dtc", "dtc", "-O", "dtb", "-o", dtb_filename, (char *) 0);
-        LOG_ERROR("Failed to run dtc\n");
+        ERROR("Failed to run dtc\n");
         exit(1);
     }
 

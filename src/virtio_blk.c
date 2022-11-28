@@ -144,7 +144,7 @@ bool init_virtio_blk(riscv_virtio_blk *virtio_blk, const char *rfs_name)
 
     FILE *fp = fopen(rfs_name, "rb");
     if (!fp) {
-        LOG_ERROR("Invalid root filesystem path.\n");
+        ERROR("Invalid root filesystem path.\n");
         return false;
     }
 
@@ -156,7 +156,7 @@ bool init_virtio_blk(riscv_virtio_blk *virtio_blk, const char *rfs_name)
     size_t read_size = fread(virtio_blk->rfsimg, sizeof(uint8_t), sz, fp);
 
     if (read_size != sz) {
-        LOG_ERROR("Error when reading binary through fread.\n");
+        ERROR("Error when reading binary through fread.\n");
         fclose(fp);
         return false;
     }
@@ -209,7 +209,7 @@ uint64_t read_virtio_blk(riscv_virtio_blk *virtio_blk,
     }
 
 read_virtio_fail:
-    LOG_ERROR("read virtio addr %lx for size %d failed\n", addr, size);
+    ERROR("read virtio addr %lx for size %d failed\n", addr, size);
     exc->exception = LoadAccessFault;
     return -1;
 }
@@ -253,7 +253,7 @@ bool write_virtio_blk(riscv_virtio_blk *virtio_blk,
         break;
     case VIRTIO_MMIO_QUEUE_SEL:
         if (value != 0) {
-            LOG_ERROR("Support only on virtio queue now \n");
+            ERROR("Support only on virtio queue now \n");
             goto write_virtio_fail;
         }
         break;
@@ -299,7 +299,7 @@ bool write_virtio_blk(riscv_virtio_blk *virtio_blk,
     return true;
 
 write_virtio_fail:
-    LOG_ERROR("write virtio addr %lx for size %d failed\n", addr, size);
+    ERROR("write virtio addr %lx for size %d failed\n", addr, size);
     exc->exception = StoreAMOAccessFault;
     return false;
 }

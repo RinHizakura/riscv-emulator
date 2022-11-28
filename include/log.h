@@ -5,8 +5,6 @@
 #include <stdbool.h>
 #include <stdio.h>
 
-#define LOG_ERROR(...) fprintf(stderr, __VA_ARGS__)
-
 #ifdef DEBUG
 #define LOG_DEBUG(format, ...) log_debug(format, ##__VA_ARGS__)
 void log_debug(const char *format, ...);

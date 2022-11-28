@@ -99,20 +99,20 @@ bool init_mem(riscv_mem *mem, const char *filename)
 {
     // load binary file to memory
     if (!filename) {
-        LOG_ERROR("Binary is required for memory!\n");
+        ERROR("Binary is required for memory!\n");
         return false;
     }
 
     // create memory with default size
     mem->mem = calloc(DRAM_SIZE, sizeof(uint8_t));
     if (!mem->mem) {
-        LOG_ERROR("Error when allocating space through malloc for DRAM\n");
+        ERROR("Error when allocating space through malloc for DRAM\n");
         return false;
     }
 
     FILE *fp = fopen(filename, "rb");
     if (!fp) {
-        LOG_ERROR("Invalid binary path.\n");
+        ERROR("Invalid binary path.\n");
         return false;
     }
 
@@ -124,7 +124,7 @@ bool init_mem(riscv_mem *mem, const char *filename)
     size_t read_size = fread(buf, sizeof(uint8_t), sz, fp);
     fclose(fp);
     if (read_size != sz) {
-        LOG_ERROR("Error when reading binary through fread.\n");
+        ERROR("Error when reading binary through fread.\n");
         free(buf);
         return false;
     }
@@ -160,7 +160,7 @@ uint64_t read_mem(riscv_mem *mem,
         break;
     default:
         exc->exception = LoadAccessFault;
-        LOG_ERROR("Invalid memory size!\n");
+        ERROR("Invalid memory size!\n");
         return -1;
     }
     return value;
@@ -189,7 +189,7 @@ bool write_mem(riscv_mem *mem,
         break;
     default:
         exc->exception = StoreAMOAccessFault;
-        LOG_ERROR("Invalid memory size!\n");
+        ERROR("Invalid memory size!\n");
         return false;
     }
 

@@ -1683,14 +1683,14 @@ static bool __decode(riscv_cpu *cpu, riscv_instr_desc *instr_desc)
         index = cpu->instr.width;
         break;
     default:
-        LOG_ERROR("Invalid index type\n");
+        ERROR("Invalid index type\n");
         /* we don't change the variable of exception number here, since
          * this should only happens when our emulator's implementation error*/
         return false;
     }
 
     if (index >= instr_desc->size) {
-        LOG_ERROR(
+        ERROR(
             "Not implemented or invalid instruction:\n"
             "opcode = 0x%x funct3 = 0x%x funct7 = 0x%x at pc %lx\n",
             cpu->instr.opcode, cpu->instr.funct3, cpu->instr.funct7,
@@ -1706,7 +1706,7 @@ static bool __decode(riscv_cpu *cpu, riscv_instr_desc *instr_desc)
 
     if (entry.decode_func == NULL && entry.exec_func == NULL &&
         entry.next == NULL) {
-        LOG_ERROR(
+        ERROR(
             "@ Not implemented or invalid instruction:\n"
             "opcode = 0x%x funct3 = 0x%x funct7 = 0x%x at pc %lx\n",
             cpu->instr.opcode, cpu->instr.funct3, cpu->instr.funct7,
@@ -1921,7 +1921,7 @@ static Trap handle_exception(riscv_cpu *cpu, uint64_t exc_pc)
         write_csr(&cpu->csr, MSTATUS,
                   (mstatus & ~MSTATUS_MPP) | prev_mode.mode << 11);
     } else {
-        LOG_ERROR("Taking trap in user mode is not supported!\n");
+        ERROR("Taking trap in user mode is not supported!\n");
         exit(1);
     }
 
@@ -1948,7 +1948,7 @@ static Trap handle_exception(riscv_cpu *cpu, uint64_t exc_pc)
     case StoreAMOPageFault:
         return Trap_Invisible;
     default:
-        LOG_ERROR("Not defined exception %d\n", cpu->exc.exception);
+        ERROR("Not defined exception %d\n", cpu->exc.exception);
         return Trap_Fatal;
     }
 }
@@ -2001,7 +2001,7 @@ static void interrput_take_trap(riscv_cpu *cpu, riscv_mode new_mode)
         write_csr(&cpu->csr, MSTATUS,
                   (mstatus & ~MSTATUS_MPP) | prev_mode.mode << 11);
     } else {
-        LOG_ERROR("Taking trap in user mode is not supported!\n");
+        ERROR("Taking trap in user mode is not supported!\n");
         exit(1);
     }
 }
@@ -2033,7 +2033,7 @@ static bool irq_enable(riscv_cpu *cpu, uint8_t cause)
                 return false;
             }
         } else {
-            LOG_ERROR("Handling interrupt in USER mode is not supported!\n");
+            ERROR("Handling interrupt in USER mode is not supported!\n");
             exit(1);
         }
     }
@@ -2326,8 +2326,8 @@ get_trap:
         if (trap == Trap_Fatal) {
             dump_reg(cpu);
             dump_csr(cpu);
-            LOG_ERROR("CPU mode: %d, exception %x happen before pc %lx\n",
-                      cpu->mode.mode, cpu->exc.exception, next_pc);
+            ERROR("CPU mode: %d, exception %x happen before pc %lx\n",
+                  cpu->mode.mode, cpu->exc.exception, next_pc);
             return false;
         }
         // reset exception flag if recovery from trap

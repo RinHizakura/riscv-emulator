@@ -50,8 +50,8 @@ int take_signature_emu(riscv_emu *emu, char *signature_out_file)
     // FIXME: Refactor to prettier code
     FILE *f = fopen(signature_out_file, "w");
     if (!f) {
-        LOG_ERROR("Failed to open file %s for compilance test.\n",
-                  signature_out_file);
+        ERROR("Failed to open file %s for compilance test.\n",
+              signature_out_file);
         return -1;
     }
 

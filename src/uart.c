@@ -82,7 +82,7 @@ bool init_uart(riscv_uart *uart)
     // create a thread for waiting input
     pthread_t tid;
     if (pthread_create(&tid, NULL, (void *) thread, (void *) uart)) {
-        LOG_ERROR("Error when create thread!\n");
+        ERROR("Error when create thread!\n");
         return false;
     }
 

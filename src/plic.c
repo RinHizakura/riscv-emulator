@@ -36,7 +36,7 @@ uint64_t read_plic(riscv_plic *plic,
     }
 
 read_plic_fail:
-    LOG_ERROR("read plic addr %lx for size %d failed\n", addr, size);
+    ERROR("read plic addr %lx for size %d failed\n", addr, size);
     exc->exception = LoadAccessFault;
     return -1;
 }
@@ -101,7 +101,7 @@ bool write_plic(riscv_plic *plic,
     return true;
 
 write_plic_fail:
-    LOG_ERROR("wrtie plic addr %lx for size %d failed\n", addr, size);
+    ERROR("wrtie plic addr %lx for size %d failed\n", addr, size);
     exc->exception = StoreAMOAccessFault;
     return false;
 }

@@ -10,7 +10,7 @@ bool init_boot(riscv_boot *boot, uint64_t entry_addr)
 {
     FILE *fp = fopen(DTB_FILENAME, "rb");
     if (!fp) {
-        LOG_ERROR("Invalid boot rom path.\n");
+        ERROR("Invalid boot rom path.\n");
         return false;
     }
     fseek(fp, 0, SEEK_END);
@@ -30,7 +30,7 @@ bool init_boot(riscv_boot *boot, uint64_t entry_addr)
     size_t boot_mem_size = sz + sizeof(reset_vec);
     boot->boot_mem = malloc(boot_mem_size);
     if (!boot->boot_mem) {
-        LOG_ERROR("Error when allocating space through malloc for BOOT_DRAM\n");
+        ERROR("Error when allocating space through malloc for BOOT_DRAM\n");
         return false;
     }
     boot->boot_mem_size = boot_mem_size;
@@ -41,7 +41,7 @@ bool init_boot(riscv_boot *boot, uint64_t entry_addr)
         fread(boot->boot_mem + sizeof(reset_vec), sizeof(uint8_t), sz, fp);
     fclose(fp);
     if (read_size != sz) {
-        LOG_ERROR("Error when reading binary through fread.\n");
+        ERROR("Error when reading binary through fread.\n");
         free(boot->boot_mem);
         return false;
     }
@@ -72,7 +72,7 @@ uint64_t read_boot(riscv_boot *boot,
         break;
     default:
         exc->exception = LoadAccessFault;
-        LOG_ERROR("Invalid memory size!\n");
+        ERROR("Invalid memory size!\n");
         return -1;
     }
     return value;
