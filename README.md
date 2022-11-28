@@ -30,14 +30,14 @@ which is a simple UNIX operating system. You can use the provided binary by the 
 command directly:
 
 ```
-$ make xv6
+$ make run-xv6
 ```
 
 We also try to support running Linux on the emulator. Although it still need some work to boot
 completly. You can take a try with the following command.
 
 ```
-$ make linux
+$ make run-linux
 ```
 
 If you want to run your own binary, the binary file in raw or ELF format are both supported.
@@ -55,7 +55,7 @@ The [riscv-arch-test](https://github.com/riscv/riscv-arch-test) is applied to ch
 implementing the specifications correctly. We can pass RV64I(except jal and jalr), RV64M,
 and RV64C now. You can run the compliance test by the following command.
 ```
-$ make compliance
+$ make run-compliance
 ```
 
 Note that you should change `mk/compliance.mk` to choose from RV64I, RV64M, or RV64C test.
@@ -72,5 +72,5 @@ if implementing the specifications correctly. We can pass RV64UI, RV64UM, RV64UC
 now. You can run the riscv-tests by the following command.
 
 ```
-$ make riscv-tests
+$ make run-riscv-tests
 ```
