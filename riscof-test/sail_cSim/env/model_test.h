@@ -1,8 +1,9 @@
 #ifndef _COMPLIANCE_MODEL_H
 #define _COMPLIANCE_MODEL_H
 
+/* clang-format off */
 #define RVMODEL_DATA_SECTION              \
-    .pushsection.tohost, "aw", @progbits; \
+    .pushsection .tohost, "aw", @progbits; \
     .align 8;                             \
     .global tohost;                       \
     tohost:                               \
@@ -63,5 +64,5 @@
 
 #define RVMODEL_CLEAR_MEXT_INT
 
-
+/* clang-format on */
 #endif  // _COMPLIANCE_MODEL_H
