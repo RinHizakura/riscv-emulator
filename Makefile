@@ -76,9 +76,13 @@ run-linux: $(BIN) $(LINUX_IMG) $(LINUX_RFS_IMG)
 	$(BIN) --binary $(LINUX_IMG) --rfsimg $(LINUX_RFS_IMG)
 
 include mk/compliance.mk
-run-compliance: $(BIN) $(COMPLIANCE_SRC)
-	$(MAKE) -C $(COMPLIANCE_DIR) clean
-	$(MAKE) -C $(COMPLIANCE_DIR)
+run-compliance: $(BIN)
+	#riscof validateyaml --config=$(RISCV_TARGET)/config.ini
+	riscof run --work-dir=$(WORK) \
+		--config=$(RISCV_TARGET)/config.ini \
+		--suite=$(COMPLIANCE_DIR)/riscv-test-suite \
+		--env=$(COMPLIANCE_DIR)/riscv-test-suite/env
+
 include mk/riscv-tests.mk
 run-riscv-tests: $(BIN) $(RISCV_TEST_SRC)
 	$(MAKE) -C $(RISCV_TEST_DIR)
