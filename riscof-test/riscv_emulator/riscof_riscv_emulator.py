@@ -126,6 +126,10 @@ class riscv_emulator(pluginTemplate):
           # for each testname we get all its fields (as described by the testList format)
           testentry = testList[testname]
 
+          # FIXME: could we filter the test using the framework directly?
+          if (testentry['coverage_labels'][0] != "cadd") :
+              continue;
+
           # we capture the path to the assembly file of this test
           test = testentry['test_path']
 
