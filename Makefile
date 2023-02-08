@@ -6,7 +6,7 @@ CFLAGS += -include common.h
 LDFLAGS = -lpthread -O3
 
 OUT ?= build
-BIN = $(OUT)/emu
+BIN = $(OUT)/riscv-emulator
 SHELL_HACK := $(shell mkdir -p $(OUT))
 
 GIT_HOOKS := .git/hooks/applied
@@ -77,6 +77,7 @@ run-linux: $(BIN) $(LINUX_IMG) $(LINUX_RFS_IMG)
 
 include mk/compliance.mk
 run-compliance: $(BIN) $(COMPLIANCE_SRC)
+	./scripts/riscv-compliance-prerun.py
 	#riscof validateyaml --config=$(RISCV_TARGET)/config.ini
 	riscof run --work-dir=$(WORK_DIR) \
 		--config=$(RISCV_TARGET)/config.ini \

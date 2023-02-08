@@ -8,3 +8,4 @@ build
 linux-build
 *.swp
 __pycache__
+config.ini
