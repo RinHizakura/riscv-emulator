@@ -51,8 +51,8 @@ $ ./build/emu --binary <binary> [--rfsimg <root filesystem image>]
 ## Compliance Test
 
 The [riscv-arch-test](https://github.com/riscv/riscv-arch-test) is applied to check if
-implementing the specifications correctly. We can pass RV64I(except ebreak), RV64M,
-and RV64C now.
+implementing the specifications correctly. We can pass RV64I, RV64M,
+and RV64C(except cebreak) now.
 
 You'll need `riscof` to run the test. The following command could be use to simply
 install it. Please take a look at [RISCOF document](https://riscof.readthedocs.io/en/stable/index.html)
