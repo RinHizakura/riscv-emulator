@@ -82,7 +82,7 @@ int main(int argc, char *argv[])
         goto clean_up;
     }
 
-    if (opt_riscv_test) {
+    if (opt_riscv_test || opt_compliance) {
         ret = test_emu(emu);
     } else {
         run_emu(emu);

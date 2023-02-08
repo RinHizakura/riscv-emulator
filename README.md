@@ -1,5 +1,4 @@
 # riscv-emulator
-
 **(Note: This project is still on the process for completion!)**
 
 The project is built to learn RISC-V architecture as the purpose for me. It mainly comes
@@ -52,17 +51,19 @@ $ ./build/emu --binary <binary> [--rfsimg <root filesystem image>]
 ## Compliance Test
 
 The [riscv-arch-test](https://github.com/riscv/riscv-arch-test) is applied to check if
-implementing the specifications correctly. We can pass RV64I(except jal and jalr), RV64M,
-and RV64C now. You can run the compliance test by the following command.
+implementing the specifications correctly. We can pass RV64I(except ebreak), RV64M,
+and RV64C now.
+
+You'll need `riscof` to run the test. The following command could be use to simply
+install it. Please take a look at [RISCOF document](https://riscof.readthedocs.io/en/stable/index.html)
+if you find any problem when installing it.
 ```
-$ make run-compliance
+$ pip3 install git+https://github.com/riscv/riscof.git
 ```
 
-Note that you should change `mk/compliance.mk` to choose from RV64I, RV64M, or RV64C test.
+After installing `riscof`, You can run the compliance test by the following command.
 ```
-export RISCV_DEVICE ?= I // running RV64I test
-export RISCV_DEVICE ?= M // running RV64M test
-export RISCV_DEVICE ?= C // running RV64C test
+$ make run-compliance
 ```
 
 ## Instruction Unit Test
