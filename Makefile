@@ -1,7 +1,7 @@
 include mk/toolchain.mk
 
 CC = gcc
-CFLAGS = -Wall -Wextra -Iinclude -O3 -MMD -g
+CFLAGS = -Wall -Wextra -I. -Iinclude -O3 -MMD -g
 CFLAGS += -include common.h
 LDFLAGS = -lpthread -O3
 
@@ -45,11 +45,10 @@ $(GIT_HOOKS):
 	@scripts/install-git-hooks
 	@echo
 
-include mk/external.mk
-
-$(BIN): $(COBJ)
+include mk/libgdbstub.mk
+$(BIN): $(COBJ) $(GDBSTUB_LIB)
 	@echo "  LD\t$@"
-	@$(CC) $(LDFLAGS) -o $@ $(COBJ) $(LDFLAGS)
+	@$(CC) -o $@ $(COBJ) $(LDFLAGS)
 
 $(OUT)/%.o: src/%.c
 	@echo "  CC\t$@"
@@ -72,8 +71,12 @@ run-xv6: $(BIN)
 run-linux-old: $(BIN)
 	$(BIN) --binary linux/kernel.img --rfsimg linux/rootfs.img
 
+include mk/external.mk
 run-linux: $(BIN) $(LINUX_IMG) $(LINUX_RFS_IMG)
 	$(BIN) --binary $(LINUX_IMG) --rfsimg $(LINUX_RFS_IMG)
+
+run-gdbstub: $(BIN) $(LINUX_IMG) $(LINUX_RFS_IMG)
+	$(BIN) --binary $(LINUX_IMG) --rfsimg $(LINUX_RFS_IMG) --gdbstub
 
 include mk/compliance.mk
 run-compliance: $(BIN) $(COMPLIANCE_SRC)

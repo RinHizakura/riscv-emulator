@@ -8,15 +8,20 @@
 #include "emu.h"
 
 #define MAX_FILE_LEN 256
-
 static char input_file[MAX_FILE_LEN];
 static char rfsimg_file[MAX_FILE_LEN];
 static char signature_out_file[MAX_FILE_LEN];
 
 static char opt_input = false;
 static char opt_rfsimg = false;
-static bool opt_compliance = false;
-static bool opt_riscv_test = false;
+
+enum run_mode {
+    NORMAL = 0,
+    COMPLIANCE = 1,
+    RISCV_TEST = 2,
+    GDBSTUB = 3,
+};
+static int opt_run_mode = NORMAL;
 
 int main(int argc, char *argv[])
 {
@@ -32,14 +37,13 @@ int main(int argc, char *argv[])
 
     int option_index = 0;
     struct option opts[] = {
-        {"binary", 1, NULL, 'B'},
-        {"rfsimg", 1, NULL, 'R'},
-        {"compliance", 1, NULL, 'C'},
-        {"riscv-test", 0, NULL, 'T'},
+        {"binary", 1, NULL, 'B'},     {"rfsimg", 1, NULL, 'R'},
+        {"compliance", 1, NULL, 'C'}, {"riscv-test", 0, NULL, 'T'},
+        {"gdbstub", 0, NULL, 'G'},
     };
 
     int c;
-    while ((c = getopt_long(argc, argv, "B:R:C:T", opts, &option_index)) !=
+    while ((c = getopt_long(argc, argv, "B:R:C:TG", opts, &option_index)) !=
            -1) {
         switch (c) {
         case 'B':
@@ -53,12 +57,15 @@ int main(int argc, char *argv[])
             rfsimg_file[MAX_FILE_LEN - 1] = '\0';
             break;
         case 'C':
-            opt_compliance = true;
+            opt_run_mode = COMPLIANCE;
             strncpy(signature_out_file, optarg, MAX_FILE_LEN - 1);
             signature_out_file[MAX_FILE_LEN - 1] = '\0';
             break;
         case 'T':
-            opt_riscv_test = true;
+            opt_run_mode = RISCV_TEST;
+            break;
+        case 'G':
+            opt_run_mode = GDBSTUB;
             break;
         default:
             ERROR("Unknown option\n");
@@ -82,14 +89,20 @@ int main(int argc, char *argv[])
         goto clean_up;
     }
 
-    if (opt_riscv_test || opt_compliance) {
-        ret = test_emu(emu);
-    } else {
-        run_emu(emu);
-    }
-
-    if (opt_compliance) {
+    switch (opt_run_mode) {
+    case COMPLIANCE:
+        test_emu(emu);
         ret = take_signature_emu(emu, signature_out_file);
+        break;
+    case RISCV_TEST:
+        ret = test_emu(emu);
+        break;
+    case GDBSTUB:
+        run_emu_debug(emu);
+        break;
+    default:
+        run_emu(emu);
+        break;
     }
 
 clean_up:

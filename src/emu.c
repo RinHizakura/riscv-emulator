@@ -1,13 +1,8 @@
 #include <assert.h>
 #include <stdlib.h>
 
-#include "cpu.h"
-#include "elf.h"
 #include "emu.h"
-
-struct Emu {
-    riscv_cpu cpu;
-};
+#include "emu_private.h"
 
 riscv_emu *create_emu(const char *filename, const char *rfs_name)
 {
@@ -25,15 +20,34 @@ riscv_emu *create_emu(const char *filename, const char *rfs_name)
 
 void run_emu(riscv_emu *emu)
 {
-    while (tick_cpu(&emu->cpu))
+    while (step_cpu(&emu->cpu))
         ;
+}
+
+extern struct target_ops gdbstub_ops;
+void run_emu_debug(riscv_emu *emu)
+{
+    if (!gdbstub_init(&emu->gdbstub, &gdbstub_ops,
+                      (arch_info_t){
+                          .reg_num = 33,
+                          .reg_byte = 8,
+                          .target_desc = TARGET_RV64,
+                      },
+                      GDBSTUB_COMM)) {
+        return;
+    }
+
+    if (!gdbstub_run(&emu->gdbstub, (void *) emu))
+        return;
+
+    gdbstub_close(&emu->gdbstub);
 }
 
 int test_emu(riscv_emu *emu)
 {
-    while (tick_cpu(&emu->cpu)) {
+    while (step_cpu(&emu->cpu)) {
         /* If a riscv-tests program is done, it will write non-zero value to
-         * a certain address. We can poll it in every tick to terminate the
+         * a certain address. We can poll it in every step to terminate the
          * emulator. */
         riscv_mem *mem = &emu->cpu.bus.memory;
         uint64_t tohost_addr = mem->tohost_addr;

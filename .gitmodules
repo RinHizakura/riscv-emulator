@@ -4,3 +4,6 @@
 [submodule "riscv-tests"]
 	path = riscv-tests
 	url = https://github.com/riscv-software-src/riscv-tests.git
+[submodule "mini-gdbstub"]
+	path = mini-gdbstub
+	url = https://github.com/RinHizakura/mini-gdbstub.git
