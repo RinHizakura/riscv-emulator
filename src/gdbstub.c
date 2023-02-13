@@ -33,7 +33,7 @@ static void gdbstub_read_mem(void *args, size_t addr, size_t len, void *val)
 
     for (size_t i = 0; i < len; i++)
         *((uint8_t *) val + i) =
-            read_bus(&emu->cpu.bus, DRAM_BASE + addr + i, 8, &emu->cpu.exc);
+            read_bus(&emu->cpu.bus, addr + i, 8, &emu->cpu.exc);
 }
 
 static void gdbstub_write_mem(void *args, size_t addr, size_t len, void *val)
@@ -41,8 +41,8 @@ static void gdbstub_write_mem(void *args, size_t addr, size_t len, void *val)
     riscv_emu *emu = (riscv_emu *) args;
 
     for (size_t i = 0; i < len; i++)
-        write_bus(&emu->cpu.bus, DRAM_BASE + addr + i, 8,
-                  *((uint8_t *) val + i), &emu->cpu.exc);
+        write_bus(&emu->cpu.bus, addr + i, 8, *((uint8_t *) val + i),
+                  &emu->cpu.exc);
 }
 
 static gdb_action_t gdbstub_conti(void *args)
