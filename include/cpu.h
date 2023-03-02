@@ -78,6 +78,8 @@ typedef struct INSTR_ENTRY {
 } riscv_instr_entry;
 
 bool init_cpu(riscv_cpu *cpu, const char *filename, const char *rfs_name);
+uint64_t read_cpu(riscv_cpu *cpu, uint64_t addr, uint8_t size);
+bool write_cpu(riscv_cpu *cpu, uint64_t addr, uint8_t size, uint64_t value);
 bool step_cpu(riscv_cpu *cpu);
 void free_cpu(riscv_cpu *cpu);
 #endif

@@ -6,12 +6,6 @@
 
 #include "cpu.h"
 
-static uint64_t read_cpu(riscv_cpu *cpu, uint64_t addr, uint8_t size);
-static bool write_cpu(riscv_cpu *cpu,
-                      uint64_t addr,
-                      uint8_t size,
-                      uint64_t value);
-
 /* Many type conversion are appied for expected result. To know the detail, you
  * should check out the International Standard of C:
  * http://www.open-std.org/jtc1/sc22/wg14/www/docs/n1548.pdf
@@ -2109,27 +2103,6 @@ static void handle_interrupt(riscv_cpu *cpu)
 #endif
 }
 
-/* these two functions are the indirect layer of read / write bus from cpu,
- * which will do address translation before actually read / write the bus */
-static uint64_t read_cpu(riscv_cpu *cpu, uint64_t addr, uint8_t size)
-{
-    addr = addr_translate(cpu, addr, Access_Load);
-    if (cpu->exc.exception != NoException)
-        return -1;
-    return read_bus(&cpu->bus, addr, size, &cpu->exc);
-}
-
-static bool write_cpu(riscv_cpu *cpu,
-                      uint64_t addr,
-                      uint8_t size,
-                      uint64_t value)
-{
-    addr = addr_translate(cpu, addr, Access_Store);
-    if (cpu->exc.exception != NoException)
-        return false;
-    return write_bus(&cpu->bus, addr, size, value, &cpu->exc);
-}
-
 bool init_cpu(riscv_cpu *cpu, const char *filename, const char *rfs_name)
 {
     if (!init_bus(&cpu->bus, filename, rfs_name))
@@ -2158,6 +2131,24 @@ bool init_cpu(riscv_cpu *cpu, const char *filename, const char *rfs_name)
     cpu->xreg[2] = DRAM_BASE + DRAM_SIZE;
     cpu->instr.exec_func = NULL;
     return true;
+}
+
+/* these two functions are the indirect layer of read / write bus from cpu,
+ * which will do address translation before actually read / write the bus */
+uint64_t read_cpu(riscv_cpu *cpu, uint64_t addr, uint8_t size)
+{
+    addr = addr_translate(cpu, addr, Access_Load);
+    if (cpu->exc.exception != NoException)
+        return -1;
+    return read_bus(&cpu->bus, addr, size, &cpu->exc);
+}
+
+bool write_cpu(riscv_cpu *cpu, uint64_t addr, uint8_t size, uint64_t value)
+{
+    addr = addr_translate(cpu, addr, Access_Store);
+    if (cpu->exc.exception != NoException)
+        return false;
+    return write_bus(&cpu->bus, addr, size, value, &cpu->exc);
 }
 
 #ifdef ICACHE_CONFIG

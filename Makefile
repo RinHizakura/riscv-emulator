@@ -82,7 +82,7 @@ run-gdb: $(LINUX_IMG)
 		-ex "file $(LINUX_IMG)"             \
 		-ex "set debug remote 1"            \
 		-ex "target remote $(GDBSTUB_COMM)" \
-		-ex "add-symbol-file $(LINUX_SRC)/vmlinux -s .text 0x80202000"
+		-ex "add-symbol-file $(LINUX_SRC)/vmlinux -s .text 0xffffffff80002000"
 
 include mk/compliance.mk
 run-compliance: $(BIN) $(COMPLIANCE_SRC)
