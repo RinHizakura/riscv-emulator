@@ -27,18 +27,18 @@ void run_emu(riscv_emu *emu)
 extern struct target_ops gdbstub_ops;
 void run_emu_debug(riscv_emu *emu)
 {
+    emu->bp.is_set = false;
+    emu->is_interrupted = false;
     if (!gdbstub_init(&emu->gdbstub, &gdbstub_ops,
                       (arch_info_t){
                           .reg_num = 33,
                           .reg_byte = 8,
                           .target_desc = TARGET_RV64,
                       },
-                      GDBSTUB_COMM)) {
+                      GDBSTUB_COMM))
         return;
-    }
 
-    if (!gdbstub_run(&emu->gdbstub, (void *) emu))
-        return;
+    gdbstub_run(&emu->gdbstub, (void *) emu);
 
     gdbstub_close(&emu->gdbstub);
 }

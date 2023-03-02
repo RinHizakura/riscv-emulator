@@ -77,7 +77,7 @@ run-linux: $(BIN) $(LINUX_IMG) $(LINUX_RFS_IMG)
 
 run-gdbstub: $(BIN) $(LINUX_IMG) $(LINUX_RFS_IMG)
 	$(BIN) --binary $(LINUX_IMG) --rfsimg $(LINUX_RFS_IMG) --gdbstub
-run-gdb:
+run-gdb: $(LINUX_IMG)
 	riscv64-unknown-elf-gdb                     \
 		-ex "file $(LINUX_IMG)"             \
 		-ex "set debug remote 1"            \
