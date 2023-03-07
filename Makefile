@@ -75,7 +75,7 @@ include mk/external.mk
 run-linux: $(BIN) $(LINUX_IMG) $(LINUX_RFS_IMG)
 	$(BIN) --binary $(LINUX_IMG) --rfsimg $(LINUX_RFS_IMG)
 
-qemu-run-linux:
+qemu-run-linux: $(LINUX_IMG) $(LINUX_RFS_IMG)
 	qemu-system-riscv64 \
 	-nographic \
 	-machine virt \
