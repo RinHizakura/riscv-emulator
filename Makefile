@@ -75,6 +75,16 @@ include mk/external.mk
 run-linux: $(BIN) $(LINUX_IMG) $(LINUX_RFS_IMG)
 	$(BIN) --binary $(LINUX_IMG) --rfsimg $(LINUX_RFS_IMG)
 
+qemu-run-linux:
+	qemu-system-riscv64 \
+	-nographic \
+	-machine virt \
+	-bios none \
+	-device virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0 \
+	-append "root=/dev/vda rw console=ttyS0" \
+	-drive file=$(LINUX_RFS_IMG),if=none,format=raw,id=x0 \
+	-kernel $(LINUX_IMG)
+
 run-gdbstub: $(BIN) $(LINUX_IMG) $(LINUX_RFS_IMG)
 	$(BIN) --binary $(LINUX_IMG) --rfsimg $(LINUX_RFS_IMG) --gdbstub
 run-gdb: $(LINUX_IMG)
