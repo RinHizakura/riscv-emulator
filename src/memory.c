@@ -60,7 +60,6 @@ bool init_mem(riscv_mem *mem, const char *filename)
     FILE *fp = fopen(filename, "rb");
     if (!fp) {
         ERROR("Invalid binary path.\n");
-        free(mem->mem);
         return false;
     }
 
