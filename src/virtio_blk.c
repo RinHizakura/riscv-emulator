@@ -304,7 +304,7 @@ write_virtio_fail:
     return false;
 }
 
-bool virtio_is_interrupt(riscv_virtio_blk *virtio_blk)
+bool virtio_is_interrupted(riscv_virtio_blk *virtio_blk)
 {
     return (virtio_blk->isr & 0x1) == 1;
 }

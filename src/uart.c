@@ -17,7 +17,7 @@ static void uart_update_irq(riscv_uart *uart)
 
     uart->reg.isr = (0xc0 | isr);
 
-    uart->is_interrupt = (isr == UART_ISR_NO_INT) ? false : true;
+    uart->is_interrupted = (isr == UART_ISR_NO_INT) ? false : true;
 }
 
 bool init_uart(riscv_uart *uart)
@@ -29,7 +29,7 @@ bool init_uart(riscv_uart *uart)
     uart->reg.isr |= (0xc0 | UART_ISR_NO_INT);
 
 
-    uart->is_interrupt = false;
+    uart->is_interrupted = false;
     uart->infd = STDIN_FILENO;
     fifo_init(&uart->rx_buf);
 
@@ -172,10 +172,10 @@ bool write_uart(riscv_uart *uart,
     return true;
 }
 
-bool uart_is_interrupt(riscv_uart *uart)
+bool uart_is_interrupted(riscv_uart *uart)
 {
-    bool ret = uart->is_interrupt;
-    uart->is_interrupt = false;
+    bool ret = uart->is_interrupted;
+    uart->is_interrupted = false;
     return ret;
 }
 

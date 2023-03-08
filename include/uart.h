@@ -98,7 +98,7 @@ typedef struct {
         uint8_t scr;  // Scratchpad
     } reg;
 
-    bool is_interrupt;
+    bool is_interrupted;
     int infd;
     struct fifo rx_buf;
 } riscv_uart;
@@ -114,7 +114,7 @@ bool write_uart(riscv_uart *uart,
                 uint8_t size,
                 uint64_t value,
                 riscv_exception *exc);
-bool uart_is_interrupt(riscv_uart *uart);
+bool uart_is_interrupted(riscv_uart *uart);
 void free_uart(riscv_uart *uart);
 
 #endif
