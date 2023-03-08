@@ -1,23 +1,21 @@
 #include "uart.h"
 
-#include <assert.h>
-#include <errno.h>
 #include <poll.h>
-#include <signal.h>
 #include <string.h>
 #include <unistd.h>
 
-#define uart_reg(uart, addr) uart->reg[addr - UART_BASE]
-
 bool init_uart(riscv_uart *uart)
 {
-    memset(&uart->reg[0], 0, UART_SIZE * sizeof(uint8_t));
+    memset(&uart->reg, 0, sizeof(uart->reg));
+    // transmitter hold register is empty at first
+    uart->reg.lsr |= (UART_LSR_TEMT | UART_LSR_THRE);
+    /*  BIT 6-7: are set to "1" in 16550 mode */
+    uart->reg.isr |= 0xc0;
+
+
     uart->is_interrupt = false;
     uart->infd = STDIN_FILENO;
     fifo_init(&uart->rx_buf);
-
-    // transmitter hold register is empty at first
-    uart_reg(uart, UART_LSR) |= UART_LSR_TX;
 
     return true;
 }
@@ -33,7 +31,7 @@ static int uart_readable(riscv_uart *uart, int timeout)
 
 void tick_uart(riscv_uart *uart)
 {
-    if (uart_reg(uart, UART_LSR) & UART_LSR_RX)
+    if (uart->reg.lsr & UART_LSR_DR)
         return;
 
     while (!fifo_is_full(&uart->rx_buf) && uart_readable(uart, 0)) {
@@ -44,7 +42,7 @@ void tick_uart(riscv_uart *uart)
         if (!fifo_put(&uart->rx_buf, c))
             break;
 
-        uart_reg(uart, UART_LSR) |= UART_LSR_RX;
+        uart->reg.lsr |= UART_LSR_DR;
         uart->is_interrupt = true;
     }
 }
@@ -62,18 +60,45 @@ uint64_t read_uart(riscv_uart *uart,
     uint64_t ret_value = -1;
 
     switch (addr) {
-    case UART_RHR:
-        if (!fifo_get(&uart->rx_buf, ret_value)) {
+    case UART_THR:  // UART_DLL
+        if (uart->reg.lcr & UART_LCR_DLAB) {
+            ret_value = uart->reg.dll;
+        } else {
             /* FIXME: What's the correct action if there's no
              * data in RX buffer? */
-            break;
-        }
+            if (!fifo_get(&uart->rx_buf, ret_value))
+                break;
 
-        if (fifo_is_empty(&uart->rx_buf))
-            uart_reg(uart, UART_LSR) &= ~UART_LSR_RX;
+            if (fifo_is_empty(&uart->rx_buf))
+                uart->reg.lsr &= ~UART_LSR_DR;
+        }
+        break;
+    case UART_IER:  // UART_DLM
+        if (uart->reg.lcr & UART_LCR_DLAB)
+            ret_value = uart->reg.dlm;
+        else
+            ret_value = uart->reg.ier;
+        break;
+    case UART_ISR:
+        ret_value = uart->reg.isr;
+        break;
+    case UART_LCR:
+        ret_value = uart->reg.lcr;
+        break;
+    case UART_MCR:
+        ret_value = uart->reg.mcr;
+        break;
+    case UART_LSR:
+        ret_value = uart->reg.lsr;
+        break;
+    case UART_MSR:
+        ret_value = uart->reg.msr;
+        break;
+    case UART_SCR:
+        ret_value = uart->reg.scr;
         break;
     default:
-        ret_value = uart_reg(uart, addr);
+        break;
     }
 
     return ret_value;
@@ -90,28 +115,39 @@ bool write_uart(riscv_uart *uart,
         return false;
     }
 
+    value &= 0xff;
+
     switch (addr) {
-    case UART_THR:
-        /* Note: The case UART_LSR_TX == 0 isn't emulated. It means that our
-         * emulated UART doesn't drop the character.
-         */
-        printf("%c", (char) (value & 0xff));
-        fflush(stdout);
-        break;
-    case UART_IER:
-        if ((value & UART_IER_THR_EMPTY_INT) != 0) {
-            __atomic_store_n(&uart->is_interrupt, true, __ATOMIC_SEQ_CST);
+    case UART_THR:  // UART_DLL
+        if (uart->reg.lcr & UART_LCR_DLAB) {
+            uart->reg.dll = value;
+        } else {
+            putchar((char) value);
+            fflush(stdout);
         }
-        uart_reg(uart, addr) = value & 0xff;
+        break;
+    case UART_IER:  // UART_DLM
+        if (uart->reg.lcr & UART_LCR_DLAB) {
+            uart->reg.dlm = value;
+        } else {
+            uart->reg.ier = value;
+            if (uart->reg.ier & UART_IER_RDI)
+                uart->is_interrupt = true;
+        }
         break;
     case UART_FCR:
-        /* Avoid to overwrite the register at address 0x2, which is a
-         * shared address with UART_ISR.
-         *
-         * TODO: Implement the behavior for FIFO control */
+        uart->reg.fcr = value;
+        break;
+    case UART_LCR:
+        uart->reg.lcr = value;
+        break;
+    case UART_MCR:
+        uart->reg.mcr = value;
+        break;
+    case UART_SCR:
+        uart->reg.scr = value;
         break;
     default:
-        uart_reg(uart, addr) = value & 0xff;
         break;
     }
 
