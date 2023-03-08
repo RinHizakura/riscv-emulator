@@ -4,13 +4,29 @@
 #include <string.h>
 #include <unistd.h>
 
+static void uart_update_irq(riscv_uart *uart)
+{
+    uint8_t isr = UART_ISR_NO_INT;
+
+    /* If enable receiver data interrupt and receiver data ready */
+    if ((uart->reg.ier & UART_IER_RDI) && (uart->reg.lsr & UART_LSR_DR))
+        isr = UART_ISR_RDI;
+    /* If enable transmiter data interrupt and transmiter empty */
+    else if ((uart->reg.ier & UART_IER_THRI) && (uart->reg.lsr & UART_LSR_TEMT))
+        isr = UART_ISR_THRI;
+
+    uart->reg.isr = (0xc0 | isr);
+
+    uart->is_interrupt = (isr == UART_ISR_NO_INT) ? false : true;
+}
+
 bool init_uart(riscv_uart *uart)
 {
     memset(&uart->reg, 0, sizeof(uart->reg));
     // transmitter hold register is empty at first
     uart->reg.lsr |= (UART_LSR_TEMT | UART_LSR_THRE);
     /*  BIT 6-7: are set to "1" in 16550 mode */
-    uart->reg.isr |= 0xc0;
+    uart->reg.isr |= (0xc0 | UART_ISR_NO_INT);
 
 
     uart->is_interrupt = false;
@@ -43,8 +59,8 @@ void tick_uart(riscv_uart *uart)
             break;
 
         uart->reg.lsr |= UART_LSR_DR;
-        uart->is_interrupt = true;
     }
+    uart_update_irq(uart);
 }
 
 uint64_t read_uart(riscv_uart *uart,
@@ -69,8 +85,10 @@ uint64_t read_uart(riscv_uart *uart,
             if (!fifo_get(&uart->rx_buf, ret_value))
                 break;
 
-            if (fifo_is_empty(&uart->rx_buf))
+            if (fifo_is_empty(&uart->rx_buf)) {
                 uart->reg.lsr &= ~UART_LSR_DR;
+                uart_update_irq(uart);
+            }
         }
         break;
     case UART_IER:  // UART_DLM
@@ -124,6 +142,7 @@ bool write_uart(riscv_uart *uart,
         } else {
             putchar((char) value);
             fflush(stdout);
+            uart_update_irq(uart);
         }
         break;
     case UART_IER:  // UART_DLM
@@ -131,8 +150,7 @@ bool write_uart(riscv_uart *uart,
             uart->reg.dlm = value;
         } else {
             uart->reg.ier = value;
-            if (uart->reg.ier & UART_IER_RDI)
-                uart->is_interrupt = true;
+            uart_update_irq(uart);
         }
         break;
     case UART_FCR:
