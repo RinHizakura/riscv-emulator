@@ -8,6 +8,7 @@
 #include <stdint.h>
 
 #include "exception.h"
+#include "fifo.h"
 #include "memmap.h"
 
 // Receive holding register (read mode)
@@ -45,9 +46,9 @@
 typedef struct {
     uint8_t reg[UART_SIZE];
     bool is_interrupt;
-    pthread_t child_tid;
-    pthread_mutex_t lock;
-    pthread_cond_t cond;
+    int infd;
+
+    struct fifo rx_buf;
 } riscv_uart;
 
 bool init_uart(riscv_uart *uart);
@@ -55,6 +56,7 @@ uint64_t read_uart(riscv_uart *uart,
                    uint64_t addr,
                    uint8_t size,
                    riscv_exception *exc);
+void tick_uart(riscv_uart *uart);
 bool write_uart(riscv_uart *uart,
                 uint64_t addr,
                 uint8_t size,

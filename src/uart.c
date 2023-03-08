@@ -2,92 +2,51 @@
 
 #include <assert.h>
 #include <errno.h>
+#include <poll.h>
 #include <signal.h>
 #include <string.h>
-#include <sys/select.h>
 #include <unistd.h>
 
 #define uart_reg(uart, addr) uart->reg[addr - UART_BASE]
-
-/* Some "Built-in Functions for Memory Model Aware Atomic Operations" are
- * used for expected result, you can see here for more information:
- * - https://gcc.gnu.org/onlinedocs/gcc/_005f_005fatomic-Builtins.html
- */
-
-/* TODO: Take care of the best choice of 'memorder' in those atomic operations
- */
-
-/* FIXME: Several pthread_* function is not completely doing
- * the error handling, we should take care of this. */
-
-/* global variable to stop the infinite loop of thread, has data race */
-volatile int thread_stop = 0;
-
-static void thread(riscv_uart *uart)
-{
-    int infd = STDIN_FILENO;
-    fd_set readfds;
-
-    struct timeval timeout;
-    timeout.tv_sec = 1;
-    timeout.tv_usec = 0;
-
-    while (!__atomic_load_n(&thread_stop, __ATOMIC_SEQ_CST)) {
-        FD_ZERO(&readfds);
-        FD_SET(infd, &readfds);
-
-        int result = select(infd + 1, &readfds, NULL, NULL, &timeout);
-
-        // if error or timeout expired
-        if (result <= 0)
-            continue;
-
-        assert(FD_ISSET(infd, &readfds));
-
-        char c;
-        int ret = read(infd, &c, 1);
-        if (ret == -1)
-            continue;
-
-        pthread_mutex_lock(&uart->lock);
-
-        while ((uart_reg(uart, UART_LSR) & UART_LSR_RX) == 1) {
-            pthread_cond_wait(&uart->cond, &uart->lock);
-        }
-        uart_reg(uart, UART_RHR) = c;
-
-        __atomic_store_n(&uart->is_interrupt, true, __ATOMIC_SEQ_CST);
-
-        uart_reg(uart, UART_LSR) |= UART_LSR_RX;
-
-        pthread_mutex_unlock(&uart->lock);
-    }
-}
 
 bool init_uart(riscv_uart *uart)
 {
     memset(&uart->reg[0], 0, UART_SIZE * sizeof(uint8_t));
     uart->is_interrupt = false;
+    uart->infd = STDIN_FILENO;
+    fifo_init(&uart->rx_buf);
+
     // transmitter hold register is empty at first
     uart_reg(uart, UART_LSR) |= UART_LSR_TX;
 
-    thread_stop = 0;
-
-    if (pthread_mutex_init(&uart->lock, NULL))
-        return false;
-
-    if (pthread_cond_init(&uart->cond, NULL))
-        return false;
-
-    // create a thread for waiting input
-    pthread_t tid;
-    if (pthread_create(&tid, NULL, (void *) thread, (void *) uart)) {
-        ERROR("Error when create thread!\n");
-        return false;
-    }
-
-    uart->child_tid = tid;
     return true;
+}
+
+static int uart_readable(riscv_uart *uart, int timeout)
+{
+    struct pollfd pollfd = (struct pollfd){
+        .fd = uart->infd,
+        .events = POLLIN,
+    };
+    return (poll(&pollfd, 1, timeout) > 0) && (pollfd.revents & POLLIN);
+}
+
+void tick_uart(riscv_uart *uart)
+{
+    if (uart_reg(uart, UART_LSR) & UART_LSR_RX)
+        return;
+
+    while (!fifo_is_full(&uart->rx_buf) && uart_readable(uart, 0)) {
+        char c;
+        if (read(uart->infd, &c, 1) == -1)
+            break;
+
+        if (!fifo_put(&uart->rx_buf, c))
+            break;
+
+        uart_reg(uart, UART_LSR) |= UART_LSR_RX;
+        uart->is_interrupt = true;
+    }
 }
 
 uint64_t read_uart(riscv_uart *uart,
@@ -100,22 +59,23 @@ uint64_t read_uart(riscv_uart *uart,
         return -1;
     }
 
-    pthread_mutex_lock(&uart->lock);
-
     uint64_t ret_value = -1;
+
     switch (addr) {
     case UART_RHR:
-        ret_value = uart_reg(uart, addr);
-        // no data in receive holding register after reading
-        uart_reg(uart, UART_LSR) &= ~UART_LSR_RX;
-        // thus the next input can come in
-        pthread_cond_broadcast(&uart->cond);
+        if (!fifo_get(&uart->rx_buf, ret_value)) {
+            /* FIXME: What's the correct action if there's no
+             * data in RX buffer? */
+            break;
+        }
+
+        if (fifo_is_empty(&uart->rx_buf))
+            uart_reg(uart, UART_LSR) &= ~UART_LSR_RX;
         break;
     default:
         ret_value = uart_reg(uart, addr);
     }
 
-    pthread_mutex_unlock(&uart->lock);
     return ret_value;
 }
 
@@ -129,8 +89,6 @@ bool write_uart(riscv_uart *uart,
         exc->exception = StoreAMOAccessFault;
         return false;
     }
-
-    pthread_mutex_lock(&uart->lock);
 
     switch (addr) {
     case UART_THR:
@@ -156,20 +114,18 @@ bool write_uart(riscv_uart *uart,
         uart_reg(uart, addr) = value & 0xff;
         break;
     }
-    pthread_mutex_unlock(&uart->lock);
 
     return true;
 }
 
 bool uart_is_interrupt(riscv_uart *uart)
 {
-    return __atomic_exchange_n(&uart->is_interrupt, false, __ATOMIC_SEQ_CST);
+    bool ret = uart->is_interrupt;
+    uart->is_interrupt = false;
+    return ret;
 }
 
-void free_uart(riscv_uart *uart)
+void free_uart(__attribute__((unused)) riscv_uart *uart)
 {
-    __atomic_store_n(&thread_stop, 1, __ATOMIC_SEQ_CST);
-    pthread_join(uart->child_tid, NULL);
-    pthread_mutex_destroy(&uart->lock);
-    pthread_cond_destroy(&uart->cond);
+    /* Do nothing currently */
 }
