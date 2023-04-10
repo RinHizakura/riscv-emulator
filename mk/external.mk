@@ -1,5 +1,7 @@
 CROSS_COMPILE=riscv64-unknown-linux-gnu-
 
+CONF=configs
+
 LINUX_OUT=linux-build
 LINUX_VER=5.16.5
 LINUX_SRC_URL=https://cdn.kernel.org/pub/linux/kernel/v5.x/linux-${LINUX_VER}.tar.xz
@@ -31,8 +33,9 @@ $(foreach T,$(EXTERNAL_SRC),$(eval $(download-n-extract)))
 
 LINUX_IMG=$(OPENSBI_SRC)/build/platform/generic/firmware/fw_payload.elf
 $(LINUX_IMG): $(OPENSBI_SRC) $(LINUX_SRC)
+	cp ${CONF}/linux-config $(LINUX_SRC)/.config
 	make -C $(LINUX_SRC) \
-		ARCH=riscv CROSS_COMPILE=$(CROSS_COMPILE) defconfig
+		ARCH=riscv CROSS_COMPILE=$(CROSS_COMPILE) oldconfig
 	make -C $(LINUX_SRC) \
 		ARCH=riscv CROSS_COMPILE=$(CROSS_COMPILE) -j 2
 	make -C $(OPENSBI_SRC) \
