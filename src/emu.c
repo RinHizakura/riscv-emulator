@@ -188,6 +188,8 @@ void run_emu(riscv_emu *emu)
 extern struct target_ops gdbstub_ops;
 void run_emu_debug(riscv_emu *emu)
 {
+    cpu_set_debug_mode(&emu->cpu, true);
+
     emu->bp.is_set = false;
     emu->is_interrupted = false;
     if (!gdbstub_init(&emu->gdbstub, &gdbstub_ops,

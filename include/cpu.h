@@ -45,6 +45,8 @@ typedef struct CPU {
     uint64_t pc;
     // FIXME: we should maintain a reservation set but not a single u64
     uint64_t reservation;
+
+    bool debug_mode;
 } riscv_cpu;
 
 /* the *_S type means a special form of index to map the instruction. You can
@@ -78,6 +80,7 @@ typedef struct INSTR_ENTRY {
 } riscv_instr_entry;
 
 bool init_cpu(riscv_cpu *cpu, const char *filename, const char *rfs_name);
+void cpu_set_debug_mode(riscv_cpu *cpu, bool debug_mode);
 uint64_t read_cpu(riscv_cpu *cpu, uint64_t addr, uint8_t size);
 bool write_cpu(riscv_cpu *cpu, uint64_t addr, uint8_t size, uint64_t value);
 bool step_cpu(riscv_cpu *cpu);

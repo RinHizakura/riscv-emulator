@@ -48,7 +48,6 @@ uint64_t read_bus(riscv_bus *bus,
         (addr < (BOOT_ROM_BASE + bus->boot.boot_mem_size)))
         return read_boot(&bus->boot, addr, size, exc);
 
-    ERROR("Invalid read memory address 0x%lx\n", addr);
     exc->exception = LoadAccessFault;
     exc->value = addr;
     return -1;
@@ -76,7 +75,6 @@ bool write_bus(riscv_bus *bus,
     if (addr >= DRAM_BASE && addr < DRAM_END)
         return write_mem(&bus->memory, addr, size, value, exc);
 
-    ERROR("Invalid write memory address 0x%ld\n", addr);
     exc->exception = StoreAMOAccessFault;
     exc->value = addr;
     return false;

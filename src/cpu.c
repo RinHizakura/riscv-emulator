@@ -2130,7 +2130,15 @@ bool init_cpu(riscv_cpu *cpu, const char *filename, const char *rfs_name)
     cpu->pc = BOOT_ROM_BASE;
     cpu->xreg[2] = DRAM_BASE + DRAM_SIZE;
     cpu->instr.exec_func = NULL;
+
+    cpu_set_debug_mode(cpu, false);
+
     return true;
+}
+
+void cpu_set_debug_mode(riscv_cpu *cpu, bool debug_mode)
+{
+    cpu->debug_mode = debug_mode;
 }
 
 /* these two functions are the indirect layer of read / write bus from cpu,
@@ -2138,16 +2146,29 @@ bool init_cpu(riscv_cpu *cpu, const char *filename, const char *rfs_name)
 uint64_t read_cpu(riscv_cpu *cpu, uint64_t addr, uint8_t size)
 {
     addr = addr_translate(cpu, addr, Access_Load);
-    if (cpu->exc.exception != NoException)
+    if (cpu->exc.exception != NoException) {
+        /* Restore the exception state for debug mode */
+        if (cpu->debug_mode)
+            cpu->exc.exception = NoException;
+        else
+            ERROR("Invalid read memory address 0x%ld\n", addr);
+
         return -1;
+    }
     return read_bus(&cpu->bus, addr, size, &cpu->exc);
 }
 
 bool write_cpu(riscv_cpu *cpu, uint64_t addr, uint8_t size, uint64_t value)
 {
     addr = addr_translate(cpu, addr, Access_Store);
-    if (cpu->exc.exception != NoException)
+    if (cpu->exc.exception != NoException) {
+        /* Restore the exception state for debug mode */
+        if (cpu->debug_mode)
+            cpu->exc.exception = NoException;
+        else
+            ERROR("Invalid write memory address 0x%ld\n", addr);
         return false;
+    }
     return write_bus(&cpu->bus, addr, size, value, &cpu->exc);
 }
 
