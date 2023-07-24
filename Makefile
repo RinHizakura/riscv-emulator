@@ -46,7 +46,7 @@ $(GIT_HOOKS):
 	@echo
 
 include mk/libgdbstub.mk
-$(BIN): $(COBJ) $(GDBSTUB_LIB)
+$(BIN): $(GDBSTUB_LIB) $(COBJ)
 	@echo "  LD\t$@"
 	@$(CC) -o $@ $(COBJ) $(LDFLAGS)
 
