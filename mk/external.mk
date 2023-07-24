@@ -3,8 +3,8 @@ CROSS_COMPILE=riscv64-unknown-linux-gnu-
 CONF=configs
 
 LINUX_OUT=linux-build
-LINUX_VER=5.16.5
-LINUX_SRC_URL=https://cdn.kernel.org/pub/linux/kernel/v5.x/linux-${LINUX_VER}.tar.xz
+LINUX_VER=6.4
+LINUX_SRC_URL=https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-${LINUX_VER}.tar.xz
 LINUX_SRC=$(LINUX_OUT)/linux-${LINUX_VER}
 
 OPENSBI_OUT=$(LINUX_OUT)
