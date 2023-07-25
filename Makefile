@@ -88,7 +88,7 @@ qemu-run-linux: $(LINUX_IMG) $(LINUX_RFS_IMG)
 run-gdbstub: $(BIN) $(LINUX_IMG) $(LINUX_RFS_IMG)
 	$(BIN) --binary $(LINUX_IMG) --rfsimg $(LINUX_RFS_IMG) --gdbstub
 run-gdb: $(LINUX_IMG)
-	riscv64-unknown-elf-gdb                     \
+	riscv64-unknown-linux-gnu-gdb               \
 		-ex "file $(LINUX_IMG)"             \
 		-ex "set debug remote 1"            \
 		-ex "target remote $(GDBSTUB_COMM)" \

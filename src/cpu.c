@@ -1721,48 +1721,59 @@ static bool __decode(riscv_cpu *cpu, riscv_instr_desc *instr_desc)
     return true;
 }
 
-static uint64_t addr_translate(riscv_cpu *cpu, uint64_t addr, Access access)
+static sv_t sv39 = (sv_t){
+    .levels = 3,
+    .ptesize = 8,
+    .create_vpn = sv39_create_vpn,
+    .create_ppn = sv39_create_ppn,
+};
+
+static sv_t sv48 = (sv_t){
+    .levels = 4,
+    .ptesize = 8,
+    .create_vpn = sv48_create_vpn,
+    .create_ppn = sv48_create_ppn,
+};
+
+static sv_t sv57 = (sv_t){
+    .levels = 5,
+    .ptesize = 8,
+    .create_vpn = sv57_create_vpn,
+    .create_ppn = sv57_create_ppn,
+};
+
+static bool __addr_translate(riscv_cpu *cpu,
+                             uint64_t addr,
+                             Access access,
+                             sv_t *sv,
+                             uint64_t *result_addr)
 {
-    uint64_t satp = read_csr(&cpu->csr, SATP);
-    // if not enable page table translation
-    if (satp >> 60 != 8)
-        return addr;
-
-    /*  When MPRV=0, translation and protection behave as normal.
-     *  Whem MPRV=1, load and store memory addresses are translated
-     *  and protected as though the current privilege mode were set to MPP */
-    if (cpu->mode.mode == MACHINE)
-        if ((access == Access_Instr) ||
-            (!check_csr_bit(&cpu->csr, MSTATUS, MSTATUS_MPRV)) ||
-            ((read_csr(&cpu->csr, MSTATUS) >> 11) == MACHINE))
-            return addr;
-
     /* Reference to:
-     * - 4.3.2 Virtual Address Translation Process
-     * - 4.4 Sv39: Page-Based 39-bit Virtual-Memory System */
+     * - 4.3.2 Virtual Address Translation Process */
+    uint64_t satp = read_csr(&cpu->csr, SATP);
 
     // the format of SV39 virtual address
-    uint64_t vpn[3] = {(addr >> 12) & 0x1ff, (addr >> 21) & 0x1ff,
-                       (addr >> 30) & 0x1ff};
+    uint64_t *vpn = sv->create_vpn(addr);
 
     /* 1. Let a be satp.ppn × PAGESIZE, and let i = LEVELS − 1. */
     uint64_t a = (satp & SATP_PPN) << PAGE_SHIFT;
-    int i = LEVELS - 1;
+    int i = sv->levels - 1;
 
 
-    sv39_pte_t pte;
+    pte_t pte;
     while (1) {
         /* 2. Let pte be the value of the PTE at address a+va.vpn[i]×PTESIZE. */
-        uint64_t tmp = read_bus(&cpu->bus, a + vpn[i] * 8, 64, &cpu->exc);
-        pte = sv39_pte_new(tmp);
+        uint64_t tmp =
+            read_bus(&cpu->bus, a + vpn[i] * sv->ptesize, 64, &cpu->exc);
+        pte = pte_new(tmp);
 
         if (cpu->exc.exception != NoException)
-            return -1;
+            return false;
 
         /* 3. If pte.v = 0, or if pte.r = 0 and pte.w = 1, stop and raise a
          * page-fault exception corresponding to the original access type */
         if (pte.v == 0 || (pte.r == 0 && pte.w == 1))
-            goto translate_fail;
+            return false;
 
         /* 4.
          *
@@ -1780,11 +1791,10 @@ static uint64_t addr_translate(riscv_cpu *cpu, uint64_t addr, Access access)
 
         i--;
         if (i < 0)
-            goto translate_fail;
+            return false;
 
         a = pte.ppn << PAGE_SHIFT;
     }
-
 
     /* 5. (skip) A leaf PTE has been found. Determine if the requested memory
      * access is allowed by the pte.r, pte.w, pte.x, and pte.u bits, given the
@@ -1794,28 +1804,27 @@ static uint64_t addr_translate(riscv_cpu *cpu, uint64_t addr, Access access)
     switch (access) {
     case Access_Instr:
         if (pte.x == 0)
-            goto translate_fail;
+            return false;
         break;
     case Access_Load:
         if (pte.r == 0)
-            goto translate_fail;
+            return false;
         break;
     case Access_Store:
         if (pte.w == 0)
-            goto translate_fail;
+            return false;
         break;
     }
 
     /* 6. If i > 0 and pte.ppn[i − 1 : 0] != 0, this is a misaligned superpage;
      * stop and raise a page-fault exception corresponding to the original
      * access type. */
-    uint64_t ppn[3] = {pte.ppn & 0x1ff, (pte.ppn >> 9) & 0x1ff,
-                       (pte.ppn >> 18) & 0x3ffffff};
+    uint64_t *ppn = sv->create_ppn(pte.ppn);
 
     if (i > 0) {
         for (int idx = i - 1; idx > 0; idx--) {
             if (ppn[idx] != 0)
-                goto translate_fail;
+                return false;
         }
     }
 
@@ -1828,17 +1837,62 @@ static uint64_t addr_translate(riscv_cpu *cpu, uint64_t addr, Access access)
      * - If i > 0, then this is a superpage translation and
      *   pa.ppn[i − 1 : 0] = va.vpn[i − 1 : 0].
      * - pa.ppn[LEVELS − 1 : i] = pte.ppn[LEVELS − 1 : i]. */
+    int idx = 0;
+    *result_addr = (addr & 0xfff);
+    for (; idx < i; idx++)
+        *result_addr |= vpn[idx] << (12 + 9 * idx);
+    for (; idx < sv->levels; idx++)
+        *result_addr |= ppn[idx] << (12 + 9 * idx);
 
-    int fix = 0;
-    while (i > 0) {
-        ppn[fix] = vpn[fix];
-        fix++;
-        i--;
+    return true;
+}
+
+enum satp_mode {
+    MODE_BARE = 0,
+    MODE_SV39 = 8,
+    MODE_SV48 = 9,
+    MODE_SV57 = 10,
+};
+
+static uint64_t addr_translate(riscv_cpu *cpu, uint64_t addr, Access access)
+{
+    uint64_t satp = read_csr(&cpu->csr, SATP);
+    int mode = satp >> 60;
+    // if not enable page table translation
+    if (mode == MODE_BARE)
+        return addr;
+
+    /*  When MPRV=0, translation and protection behave as normal.
+     *  Whem MPRV=1, load and store memory addresses are translated
+     *  and protected as though the current privilege mode were set to MPP */
+    if (cpu->mode.mode == MACHINE)
+        if ((access == Access_Instr) ||
+            (!check_csr_bit(&cpu->csr, MSTATUS, MSTATUS_MPRV)) ||
+            ((read_csr(&cpu->csr, MSTATUS) >> 11) == MACHINE))
+            return addr;
+
+    bool result = false;
+    uint64_t result_addr;
+    switch (mode) {
+    case MODE_SV39:
+        result = __addr_translate(cpu, addr, access, &sv39, &result_addr);
+        break;
+    case MODE_SV48:
+        result = __addr_translate(cpu, addr, access, &sv48, &result_addr);
+        break;
+    case MODE_SV57:
+        result = __addr_translate(cpu, addr, access, &sv57, &result_addr);
+        break;
+    default:
+        result = false;
+        assert(0);
+        break;
     }
 
-    return ppn[2] << 30 | ppn[1] << 21 | ppn[0] << 12 | (addr & 0xfff);
+    if (result) {
+        return result_addr;
+    }
 
-translate_fail:
     switch (access) {
     case Access_Instr:
         cpu->exc.exception = InstructionPageFault;
@@ -2150,8 +2204,6 @@ uint64_t read_cpu(riscv_cpu *cpu, uint64_t addr, uint8_t size)
         /* Restore the exception state for debug mode */
         if (cpu->debug_mode)
             cpu->exc.exception = NoException;
-        else
-            ERROR("Invalid read memory address 0x%ld\n", addr);
 
         return -1;
     }
@@ -2165,8 +2217,6 @@ bool write_cpu(riscv_cpu *cpu, uint64_t addr, uint8_t size, uint64_t value)
         /* Restore the exception state for debug mode */
         if (cpu->debug_mode)
             cpu->exc.exception = NoException;
-        else
-            ERROR("Invalid write memory address 0x%ld\n", addr);
         return false;
     }
     return write_bus(&cpu->bus, addr, size, value, &cpu->exc);
@@ -2227,7 +2277,8 @@ static bool fetch(riscv_cpu *cpu)
         cpu->instr.opcode = instr & 0x7f;
     }
 
-    LOG_DEBUG("[DEBUG] pc: %lx instr: 0x%x\n", pc, cpu->instr.instr);
+    LOG_DEBUG("[DEBUG] mode %d, pc: %lx instr: 0x%x\n", cpu->mode, pc,
+              cpu->instr.instr);
 
     cpu->pc += pc_shift;
     return true;
