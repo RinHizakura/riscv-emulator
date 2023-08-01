@@ -58,7 +58,16 @@
 
 #define VIRTIO_BLK_S_OK 0
 
-typedef struct VRingAvail {
+typedef struct {
+    uint32_t type;
+    uint32_t reserved;
+    uint64_t sector;
+    uint8_t *data;
+    uint16_t data_size;
+    uint8_t *status;
+} riscv_virtio_blk_req;
+
+typedef struct {
     uint16_t flags;
     uint16_t idx;
     uint16_t ring[];
@@ -72,12 +81,23 @@ typedef struct {
 } riscv_virtq_desc;
 
 typedef struct {
+    uint32_t id;
+    uint32_t len;
+} riscv_virtq_used_elem;
+
+typedef struct {
+    uint16_t flags;
+    uint16_t idx;
+    riscv_virtq_used_elem ring[];
+} riscv_virtq_used;
+
+typedef struct {
     uint32_t num;
     uint32_t align;
 
-    uint64_t desc;
-    uint64_t avail;
-    uint64_t used;
+    riscv_virtq_avail *avail;
+    riscv_virtq_desc *desc;
+    riscv_virtq_used *used;
 } riscv_virtq;
 
 typedef struct {
