@@ -59,8 +59,8 @@ void tick_uart(riscv_uart *uart)
             break;
 
         uart->reg.lsr |= UART_LSR_DR;
+        uart_update_irq(uart);
     }
-    uart_update_irq(uart);
 }
 
 uint64_t read_uart(riscv_uart *uart,
