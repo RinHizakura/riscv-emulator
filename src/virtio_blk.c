@@ -12,13 +12,14 @@
 static void reset_virtio_blk(riscv_virtio_blk *virtio_blk)
 {
     /* FIXME: Can't find the content of reset sequence in document...... */
-    virtio_blk->id = 0;
     virtio_blk->queue_sel = 0;
     virtio_blk->guest_features[0] = 0;
     virtio_blk->guest_features[1] = 0;
     virtio_blk->status = 0;
     virtio_blk->isr = 0;
 
+    virtio_blk->vq[0].used_idx = 0;
+    virtio_blk->vq[0].last_avail_idx = 0;
     virtio_blk->vq[0].desc = 0;
     virtio_blk->vq[0].avail = 0;
     virtio_blk->vq[0].used = 0;
@@ -63,59 +64,69 @@ static void access_disk(riscv_virtio_blk *virtio_blk)
     /* (for avail) idx field indicates where the driver would put the next
      * descriptor entry in the ring (modulo the queue size). This starts at 0,
      * and increases. */
-    int idx = avail->idx;
-    int desc_offset = avail->ring[idx % queue_size];
+    uint16_t avail_idx = avail->idx;
+    uint16_t idx = virtio_blk->vq[0].last_avail_idx;
+    uint16_t used_idx = virtio_blk->vq[0].used_idx;
 
-    /* MUST use a single 8-type descriptor containing type, reserved and sector,
-     * followed by descriptors for data, then finally a separate 1-byte
-     * descriptor for status. */
-    riscv_virtq_desc *desc0 = &desc[desc_offset];
-    riscv_virtq_desc *desc1 = &desc[desc0->next];
-    riscv_virtq_desc *desc2 = &desc[desc1->next];
+    while (idx != avail_idx) {
+        int desc_offset = avail->ring[idx % queue_size];
 
-    assert(desc0->flags & VIRTQ_DESC_F_NEXT);
-    assert(desc1->flags & VIRTQ_DESC_F_NEXT);
-    assert(!(desc2->flags & VIRTQ_DESC_F_NEXT));
+        /* MUST use a single 8-type descriptor containing type, reserved and
+         * sector, followed by descriptors for data, then finally a separate
+         * 1-byte descriptor for status. */
+        riscv_virtq_desc *desc0 = &desc[desc_offset];
+        riscv_virtq_desc *desc1 = &desc[desc0->next];
+        riscv_virtq_desc *desc2 = &desc[desc1->next];
 
-    // the desc address should map to memory and we can then use memcpy directly
-    assert(desc1->addr >= DRAM_BASE && desc1->addr < DRAM_END);
-    assert((desc1->addr + desc1->len) >= DRAM_BASE &&
-           (desc1->addr + desc1->len) < DRAM_END);
+        assert(desc0->flags & VIRTQ_DESC_F_NEXT);
+        assert(desc1->flags & VIRTQ_DESC_F_NEXT);
+        assert(!(desc2->flags & VIRTQ_DESC_F_NEXT));
 
-    // take value of type and sector in field of struct virtio_blk_req
-    riscv_virtio_blk_req *req =
-        (riscv_virtio_blk_req *) MEM_GUEST_TO_HOST(mem, desc0->addr);
-    int blk_req_type = req->type;
-    int blk_req_sector = req->sector;
+        // the desc address should map to memory and we can then use memcpy
+        // directly
+        assert(desc1->addr >= DRAM_BASE && desc1->addr < DRAM_END);
+        assert((desc1->addr + desc1->len) >= DRAM_BASE &&
+               (desc1->addr + desc1->len) < DRAM_END);
 
-    // write device
-    if (blk_req_type == VIRTIO_BLK_T_OUT) {
-        assert(!(desc1->flags & VIRTQ_DESC_F_WRITE));
+        // take value of type and sector in field of struct virtio_blk_req
+        riscv_virtio_blk_req *req =
+            (riscv_virtio_blk_req *) MEM_GUEST_TO_HOST(mem, desc0->addr);
+        int blk_req_type = req->type;
+        int blk_req_sector = req->sector;
 
-        memcpy(virtio_blk->rfsimg + (blk_req_sector * SECTOR_SIZE),
-               mem + (desc1->addr - DRAM_BASE), desc1->len);
+        // write device
+        if (blk_req_type == VIRTIO_BLK_T_OUT) {
+            assert(!(desc1->flags & VIRTQ_DESC_F_WRITE));
+
+            memcpy(virtio_blk->rfsimg + (blk_req_sector * SECTOR_SIZE),
+                   mem + (desc1->addr - DRAM_BASE), desc1->len);
+        }
+        // read device
+        else {
+            assert(desc1->flags & VIRTQ_DESC_F_WRITE);
+
+            memcpy(mem + (desc1->addr - DRAM_BASE),
+                   virtio_blk->rfsimg + (blk_req_sector * SECTOR_SIZE),
+                   desc1->len);
+        }
+
+        assert(desc2->flags & VIRTQ_DESC_F_WRITE);
+
+        /* The final status byte is written by the device: VIRTIO_BLK_S_OK for
+         * success */
+        *MEM_GUEST_TO_HOST(mem, desc2->addr) = VIRTIO_BLK_S_OK;
+
+        /* (for used) idx field indicates where the device would put the next
+         * descriptor entry in the ring (modulo the queue size). This starts at
+         * 0, and increases */
+        used->ring[used_idx % queue_size].id = desc_offset;
+        used->idx = ++used_idx;
+
+        idx++;
     }
-    // read device
-    else {
-        assert(desc1->flags & VIRTQ_DESC_F_WRITE);
 
-        memcpy(mem + (desc1->addr - DRAM_BASE),
-               virtio_blk->rfsimg + (blk_req_sector * SECTOR_SIZE), desc1->len);
-    }
-
-    assert(desc2->flags & VIRTQ_DESC_F_WRITE);
-
-    /* The final status byte is written by the device: VIRTIO_BLK_S_OK for
-     * success */
-    req->status = mem + (desc2->addr - DRAM_BASE);
-    *req->status = VIRTIO_BLK_S_OK;
-
-    /* (for used) idx field indicates where the device would put the next
-     * descriptor entry in the ring (modulo the queue size). This starts at 0,
-     * and increases */
-    used->ring[virtio_blk->id % queue_size].id = desc_offset;
-    virtio_blk->id++;
-    used->idx = virtio_blk->id;
+    virtio_blk->vq[0].last_avail_idx = avail_idx;
+    virtio_blk->vq[0].used_idx = used_idx;
 }
 
 bool init_virtio_blk(riscv_virtio_blk *virtio_blk, const char *rfs_name)

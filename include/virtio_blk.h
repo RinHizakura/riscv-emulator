@@ -95,13 +95,15 @@ typedef struct {
     uint32_t num;
     uint32_t align;
 
+    uint16_t used_idx;
+    uint16_t last_avail_idx;
+
     riscv_virtq_avail *avail;
     riscv_virtq_desc *desc;
     riscv_virtq_used *used;
 } riscv_virtq;
 
 typedef struct {
-    uint64_t id;
     uint64_t clock;
     uint64_t notify_clock;
 
