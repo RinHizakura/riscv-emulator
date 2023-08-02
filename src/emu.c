@@ -26,7 +26,7 @@ static bool make_dtb(const char *dtb_filename)
         "    compatible = \"riscv-virtio\";\n"
         "\n"
         "    chosen {\n"
-        "        bootargs = \"root=/dev/vda rw console=ttyS0\";"
+        "        bootargs = \"root=/dev/vda rw console=ttyS0 rodata=off\";"
         "        stdout-path = \"/uart@10000000\";\n"
         "    };\n"
         "\n"
