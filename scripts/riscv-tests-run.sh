@@ -1,7 +1,7 @@
 BIN=build/riscv-emulator
 RISCV_TESTS_DIR=riscv-tests
 
-FILES=$(ls ${RISCV_TESTS_DIR}/isa/rv64* | grep -E 'ua-p-|uc-p|ui-p|um-p' | grep -v .dump)
+FILES=$(ls ${RISCV_TESTS_DIR}/isa/rv64* | grep -E 'ua-v-|uc-v|ui-v|um-v' | grep -v .dump)
 
 r=$'\r'
 RED='\033[0;31m'

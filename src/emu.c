@@ -215,7 +215,7 @@ int test_emu(riscv_emu *emu)
         riscv_mem *mem = &emu->cpu.bus.memory;
         uint64_t tohost_addr = mem->tohost_addr;
         assert(tohost_addr > DRAM_BASE);
-        if (read_mem(mem, tohost_addr, 8, &emu->cpu.exc) != 0)
+        if (read_cpu(&emu->cpu, tohost_addr, 8) != 0)
             break;
     }
 
